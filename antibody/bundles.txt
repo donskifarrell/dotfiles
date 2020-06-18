@@ -7,6 +7,5 @@ zsh-users/zsh-completions
 zsh-users/zsh-autosuggestions
 
 # these should be at last!
-sindresorhus/pure
 zdharma/fast-syntax-highlighting
 zdharma/history-search-multi-word

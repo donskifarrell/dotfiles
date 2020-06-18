@@ -14,9 +14,9 @@ fi
 CTX=$(kubectl config current-context)
 
 if [[ $CTX == *"production"* ]]; then
-  echo "PROD"
+  echo "☸️ Prod"
 elif [[ $CTX == *"staging"* ]]; then
-  echo "#[fg=colour10,bg=colour156,bold] STAGING"
-elif [[ $CTX == *"minikube"* ]]; then
-  echo "LOCAL"
+  echo "#[fg=colour10,bg=colour156,bold]☸️ Staging"
+else
+  echo "☸️ $CTX"
 fi

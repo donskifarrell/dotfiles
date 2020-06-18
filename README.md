@@ -7,10 +7,13 @@ TODO:
 - ALacritty config
 - Add brew files
 - Push commits up
-- clean out old configs
 - remove branks golang setting
 - set better project home
-- shorthand kubectl
+- themes
+- primary theme is set in zsh
+  - then tmux
+  - then starship?
+  - then alacritty
 
 [![Powered by Antibody][ab]][ap]
 

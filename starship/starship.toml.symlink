@@ -1,0 +1,34 @@
+# Don't print a new line at the start of the prompt
+add_newline = true
+
+# Overwrite a default_prompt_order and use custom prompt_order
+prompt_order = [
+    "time",
+    "username",
+    "hostname",
+    "directory",
+    "git_branch",
+    "git_commit",
+    "git_state",
+    "git_status",
+    "env_var",
+    "cmd_duration",
+    "custom",
+    "line_break",
+    "jobs",
+    "character",
+]
+
+[directory]
+truncate_to_repo = false
+fish_style_pwd_dir_length = 1
+
+[hostname]
+ssh_only = true
+prefix = "⟪"
+suffix = "⟫"
+
+[time]
+disabled = false
+format = "[%D %R]"
+style = "white dimmed"

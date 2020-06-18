@@ -2,7 +2,7 @@
 # uncomment this and the last line for zprof info
 # zmodload zsh/zprof
 
-# useful command to test shell startup
+# useful command to test shell startup:
 # for i in $(seq 1 10); do /usr/bin/time zsh -i -c exit; done
 
 # shortcut to this dotfiles path is $DOTFILES
@@ -51,13 +51,7 @@ unset config_files updated_at
 # shellcheck disable=SC1090
 [ -f ~/.localrc ] && . ~/.localrc
 
+eval "$(starship init zsh)"
+
 # zprof
 
-
-## Old Config
-# Unusure if these are needed - delete later
-
-# export PATH="/usr/local/opt/mysql@5.7/bin:$HOME/.composer/vendor/bin:$PATH"
-# export APPLY_CODE_STYLE=true
-# # added by Miniconda2 installer
-# export PATH="/Users/donski/miniconda2/bin:$PATH"
