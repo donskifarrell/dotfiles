@@ -1,0 +1,22 @@
+#!/bin/sh
+
+# Return the context used with Kubectl, along with TMUX color highlights
+# 
+
+if ! type kubectl >/dev/null 2>&1; then
+    echo "kubectl doesn't exist"
+fi
+
+if ! context="$(kubectl config current-context 2>/dev/null)"; then
+    echo "NONE"
+fi
+
+CTX=$(kubectl config current-context)
+
+if [[ $CTX == *"production"* ]]; then
+  echo "PROD"
+elif [[ $CTX == *"staging"* ]]; then
+  echo "#[fg=colour10,bg=colour156,bold] STAGING"
+elif [[ $CTX == *"minikube"* ]]; then
+  echo "LOCAL"
+fi

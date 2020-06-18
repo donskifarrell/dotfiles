@@ -1,0 +1,62 @@
+{
+  "workbench.colorTheme": "Dracula",
+  "cSpell.userWords": [
+    "Dropdown",
+    "Emoji",
+    "Onboarding",
+    "Uuid",
+    "brankas",
+    "initialise",
+    "initialised",
+    "jira",
+    "kube",
+    "kubeconfig",
+    "kubernetes",
+    "linkerd",
+    "maison",
+    "minikube",
+    "openbank",
+    "organisation",
+    "presets",
+    "purgecss",
+    "signup",
+    "tailwindcss",
+    "ticket",
+    "tmpl"
+  ],
+  "git.confirmSync": false,
+  "javascript.updateImportsOnFileMove.enabled": "always",
+  "git.autofetch": true,
+  "editor.formatOnPaste": true,
+  "prettier.jsxBracketSameLine": true,
+  "git.enableSmartCommit": true,
+  "editor.formatOnSave": true,
+  "cSpell.language": "en-GB",
+  "go.autocompleteUnimportedPackages": true,
+  "go.useLanguageServer": true,
+  "go.formatTool": "goimports",
+  "go.alternateTools": {
+    "goimports": "gofumports"
+  },
+  "go.languageServerExperimentalFeatures": {
+    "format": false
+  },
+  "go.toolsGopath": "/Users/donski/.go",
+  "diffEditor.ignoreTrimWhitespace": false,
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "eslint.format.enable": true,
+  "vetur.format.options.tabSize": 4,
+  "vetur.format.options.useTabs": true,
+  "window.zoomLevel": 0,
+  "prettier.disableLanguages": ["html", ".html", ".yml"],
+  "html.format.enable": false,
+  "editor.wordWrap": "on"
+}

@@ -2,11 +2,14 @@
 # uncomment this and the last line for zprof info
 # zmodload zsh/zprof
 
+# useful command to test shell startup
+# for i in $(seq 1 10); do /usr/bin/time zsh -i -c exit; done
+
 # shortcut to this dotfiles path is $DOTFILES
 export DOTFILES="$HOME/.dotfiles"
 
 # your project folder that we can `c [tab]` to
-export PROJECTS="$HOME/Code"
+export PROJECTS="$HOME/.go/src/brank.as/"
 
 # your default editor
 export EDITOR='vim'
@@ -31,10 +34,10 @@ done
 
 autoload -Uz compinit
 for dump in ~/.zcompdump(N.mh+24); do
+  echo "Loading .zcompdump"
   compinit
 done
 compinit -C
-
 
 # load every completion after autocomplete loads
 for file in ${(M)config_files:#*/completion.zsh}; do
@@ -49,3 +52,12 @@ unset config_files updated_at
 [ -f ~/.localrc ] && . ~/.localrc
 
 # zprof
+
+
+## Old Config
+# Unusure if these are needed - delete later
+
+# export PATH="/usr/local/opt/mysql@5.7/bin:$HOME/.composer/vendor/bin:$PATH"
+# export APPLY_CODE_STYLE=true
+# # added by Miniconda2 installer
+# export PATH="/Users/donski/miniconda2/bin:$PATH"

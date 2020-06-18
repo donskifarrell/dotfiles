@@ -1,16 +1,21 @@
 #!/bin/sh
-if [ "$(uname -s)" = "Darwin" ]; then
-	alias ls="ls -FG"
-else
-	alias ls="ls -F --color"
-fi
-alias l="ls -lAh"
-alias la="ls -A"
-alias ll="ls -l"
+
+# Check out /exa
+# if [ "$(uname -s)" = "Darwin" ]; then
+# 	alias ls="ls -FG"
+# else
+# 	alias ls="ls -F --color"
+# fi
+# alias l="ls -lAh"
+# alias la="ls -A"
+# alias ll="ls -l"
 
 alias grep="grep --color=auto"
 alias duf="du -sh * | sort -hr"
 alias less="less -r"
+alias cat="bat"
+alias top="sudo htop"
+alias help='tldr'
 
 alias cdr='cd "$(git rev-parse --show-toplevel)"'
 

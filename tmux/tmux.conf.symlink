@@ -1,0 +1,178 @@
+# TMUX config
+# Run <CTRL-a> - I to install plugins
+
+# ----------------------
+# Settings
+# -----------------------
+
+set-option -g default-shell /bin/zsh
+
+# scrollback size
+set -g history-limit 100000
+
+# set first window to index 1 (not 0) to map more to the keyboard layout
+set -g base-index 1
+set -g pane-base-index 1
+
+# pass through xterm keys
+set -g xterm-keys on
+
+# Using the mouse to switch panes
+set -g mouse on
+
+# Enable focus events.
+set -g focus-events on
+
+# Use 256 colours.
+set -g default-terminal "screen-256color"
+
+# Automatically rename window titles.
+setw -g automatic-rename on
+set -g set-titles on
+
+# Automatically renumber windows when a window is closed.
+set -g renumber-windows on
+
+# Visual Activity Monitoring between windows
+setw -g monitor-activity on
+set -g visual-activity on
+
+# ----------------------
+# Key Bindings
+# -----------------------
+
+# Changing ctrl b to ctrl a as the command button
+unbind C-b
+set -g prefix C-a
+
+# # Keep your finger on ctrl, or don't, same result
+bind-key C-d detach-client
+bind-key C-p paste-buffer
+
+# reload tmux config with ctrl + a + r
+unbind r
+bind r \
+    source-file ~/.tmux.conf \;\
+        display 'Reloaded tmux config.'
+
+# Ctrl - t or t new window
+unbind t
+unbind C-t
+bind-key t new-window -c "#{pane_current_path}"
+bind-key C-t new-window -c "#{pane_current_path}"
+
+# CTRL + 'i' splits horizontally.
+bind i split-window -h -c "#{pane_current_path}"
+# CTRL + '-' splits vertically.
+bind - split-window -v -c "#{pane_current_path}"
+
+# TODO: change to + for zoom/unzoom; find can remain as -f
+# Ctrl - f to zoom/unzoom pane
+# Ctrl - z to find window
+unbind-key C-z
+unbind-key C-f
+bind-key -n C-f resize-pane -Z
+bind-key -n C-z command-prompt "find-window '%%'"
+
+# Ctrl - w or w to kill panes
+unbind w
+unbind C-w
+bind-key w kill-pane
+bind-key C-w kill-pane
+
+# C + control q to kill session
+unbind q
+unbind C-q
+bind-key q kill-session
+bind-key C-q kill-session
+
+# Option - L/R arrow to switch windows
+bind -n M-Left previous-window
+bind -n M-Right next-window
+
+# ----------------------
+# Status Bar
+# -----------------------
+
+set-option -g status on
+set -g status-position top
+set -g status-interval 5    # set update frequencey (default 15 seconds)
+
+set -g status-fg white 
+set -g status-bg colour234
+
+# Style left side
+set -g status-left '#[fg=colour235,bold]#{?client_prefix,#[bg=colour210] #S,#[bg=colour252] #S} '
+
+# Style list of windows
+set -g window-status-format "#[fg=white,bg=colour234] #I #W #{?window_zoomed_flag,🔍, }"
+set -g window-status-current-format "#[fg=colour25,bg=colour39,noreverse,bold] #I ⮁ #W #{?window_zoomed_flag,🔍, } #[fg=colour39,bg=colour234,nobold]⮀"
+# set -g window-status-current-format "#[fg=colour234,bg=colour39]⮀#[fg=colour25,bg=colour39,noreverse,bold] #I ⮁ #W #{?window_zoomed_flag,🔍, } #[fg=colour39,bg=colour234,nobold]⮀"
+
+
+# Style right side
+set -g status-right-length 150
+# set -g status-right '#{network_bandwidth} #[fg=colour235,bg=colour252,bold] GCP: #(~/.dotfiles/functions/kubectl-ctx) '
+set -g status-right '#{network_bandwidth} #(tmux-mem-cpu-load --graph-lines 0 --mem-mode 2 --averages-count 0 --colors --interval 2)#[fg=colour235,bg=colour252,bold] GCP: #(~/.dotfiles/functions/kubectl-ctx) '
+# set -g status-right '#[fg=green]#($TMUX_PLUGIN_MANAGER_PATH/tmux-mem-cpu-load/tmux-mem-cpu-load --colors --interval 5)#[default] #{network_bandwidth} #[fg=colour235,bg=colour252,bold] GCP: #(~/.dotfiles/functions/kubectl-ctx) '
+
+# # set -g status-right-length 150
+# # set -g status-right "CHANGE"
+
+# # 
+# # 
+# # set -g window-status-activity-attr bold
+# # set -g pane-border-fg colour245
+# # set -g pane-active-border-fg colour39
+# # set -g message-fg colour16
+# # set -g message-bg colour221
+# # set -g message-attr bold
+
+# # set -g window-status-format "#[fg=white,bg=colour234] #I #W "
+# # set -g window-status-current-format "#[fg=colour234,bg=colour39]⮀#[fg=colour25,bg=colour39,noreverse,bold] #I ⮁ #W #[fg=colour39,bg=colour234,nobold]⮀"
+
+
+
+# # set -g status-justify centre           # center window list for clarity
+
+# # # set color for status bar
+# # set-option -g status-bg colour235 #base02
+# # set-option -g status-fg yellow #yellow
+
+# # # show host name and IP address on left side of status bar
+# # set -g status-left-length 85
+# # set -g status-left "#[fg=colour198]#h"
+
+# # # show session name, window & pane number, date and time on right side of
+# # # status bar
+# # set -g status-right-length 160
+# # set -g status-right "#[fg=blue]#S #I:#P #[fg=yellow]: %d %b %Y #[fg=green]: %l:%M %p : #(date -u | awk '{print $4}') :"
+# # set -g status-right "#[fg=blue]#(tmux-cpu --no-color)"
+
+
+
+
+# ----------------------
+# Plugins
+# -----------------------
+
+set -g @plugin 'tmux-plugins/tpm'
+set -g @plugin 'tmux-plugins/tmux-sensible' # Sensible defaults
+
+set -g @plugin 'tmux-plugins/tmux-resurrect' # Save and restore sessions. Default storage at ~/.tmux/resurrect
+set -g @resurrect-capture-pane-contents 'on'
+
+set -g @plugin 'tmux-plugins/tmux-continuum' # Enhances tmux-resurrect and saves continuously
+set -g @continuum-restore 'on'
+set -g @continuum-boot 'on'
+set -g @continuum-save-interval '5'
+
+set -g @plugin 'tmux-plugins/tmux-yank' # Allows copying to the system clipboard
+set -g @plugin 'tmux-plugins/tmux-copycat' # Allows regex searching in a pane
+set -g @plugin 'NHDaly/tmux-better-mouse-mode' # Improves using the mouse with tmux
+set -g @plugin 'tmux-plugins/tmux-open' # Quick opening of a highlighted file or url
+set -g @plugin 'xamut/tmux-network-bandwidth' # Network bandwidth 
+# set -g @plugin 'thewtex/tmux-mem-cpu-load' # CPU and Mem details
+
+# Initialize TMUX plugin manager (keep this line at the very bottom of tmux.conf)
+run -b '~/.tmux/plugins/tpm/tpm'

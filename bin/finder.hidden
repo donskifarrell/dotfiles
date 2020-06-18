@@ -1,0 +1,25 @@
+#!/usr/bin/env sh
+
+ARG=${1:-show}
+
+case $ARG in
+show)
+  CMD="YES"
+  echo "[finder]: showing hidden files..."
+  ;;
+hide)
+  CMD="NO"
+  echo "[finder]: re-hidding files..."
+  ;;
+*)
+  echo "[finder]: unknown option $ARG" >&2
+  exit 1
+  ;;
+esac
+
+defaults write com.apple.finder AppleShowAllFiles $CMD
+
+echo "[finder]: relaunching..."
+
+osascript -e 'tell application "Finder" to quit'
+osascript -e 'tell application "Finder" to activate'

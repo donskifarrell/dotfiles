@@ -2,16 +2,20 @@
 	cmd = diffmerge $LOCAL $REMOTE
 [alias]
 	co = checkout
+	st = status
+	br = branch
+	po = push origin
+	pp = push personal
 	count = shortlog -sn
 	g = grep --break --heading --line-number
 	gi = grep --break --heading --line-number -i
 	changed = show --pretty=\"format:\" --name-only
-	fm = fetch-merge
-	pr = open-pr
 	please = push --force-with-lease
-	commend = commit --amend --no-edit
-	fpr = fetch-pr
+	commend = commit --amend --no-editor
+	pom = push origin master
 	lt = log --tags --decorate --simplify-by-decoration --oneline
+	lg = "log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --date=relative"
+	info = for-each-ref --sort=committerdate refs/heads/ --format='%(HEAD) %(color:yellow)%(refname:short)%(color:reset) - %(color:red)%(objectname:short)%(color:reset) - %(contents:subject) - %(authorname) (%(color:green)%(committerdate:relative)%(color:reset))'
 [color]
 	diff = auto
 	status = auto
@@ -19,13 +23,10 @@
 	ui = true
 [core]
 	excludesfile = ~/.gitignore
-	editor = vim
+	editor = nano
 	compression = -1
 	autocrlf = input
-	whitespace = trailing-space,space-before-tab
 	precomposeunicode = true
-[apply]
-	whitespace = nowarn
 [help]
 	autocorrect = 1
 [merge]
@@ -41,8 +42,6 @@
 [grep]
 	extendRegexp = true
 	lineNumber = true
-[push]
-	default = simple
 [submodule]
 	fetchJobs = 4
 [commit]
