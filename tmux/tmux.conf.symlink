@@ -38,6 +38,51 @@ setw -g monitor-activity on
 set -g visual-activity on
 
 # ----------------------
+# Styling & Status Bar
+# -----------------------
+
+set-option -g status on
+set -g status-position top
+set -g status-interval 5    # set update frequencey (default 15 seconds)
+
+# Dracula Color Pallette
+dr_white='#f8f8f2'
+dr_gray='#44475a'
+dr_dark_gray='#282a36'
+dr_light_purple='#bd93f9'
+dr_dark_purple='#6272a4'
+dr_cyan='#8be9fd'
+dr_green='#50fa7b'
+dr_orange='#ffb86c'
+dr_red='#ff5555'
+dr_pink='#ff79c6'
+dr_yellow='#f1fa8c'
+
+# pane border styling
+set-option -g pane-active-border-style "fg=$dr_dark_purple"
+set-option -g pane-border-style "fg=$dr_gray"
+
+# message styling
+set-option -g message-style "bg=$dr_gray,fg=$dr_white"
+
+# status bar
+set-option -g status-style "bg=$dr_gray,fg=$dr_white"
+
+set-option -g status-left-length 100
+set-option -g status-left "#[bg=$dr_green,fg=$dr_dark_gray]#{?client_prefix,#[bg=$dr_yellow],} ☺ " 
+
+set-option -g status-right-length 100
+set-option -g status-right ""
+
+set-option -ga status-right "#[fg=$dr_dark_gray,bg=$dr_orange] #(~/.dotfiles/tmux/scripts/kubectl-ctx.sh) "
+set-option -ga status-right "#[fg=$dr_white,bg=$dr_dark_purple]  #{network_bandwidth} "
+set-option -ga status-right "#[fg=$dr_dark_gray,bg=$dr_cyan] #(~/.dotfiles/tmux/scripts/network.sh)  "
+
+# window tabs 
+set-window-option -g window-status-current-format "#[fg=$dr_white,bg=$dr_dark_purple] #I #W #{?window_zoomed_flag,🔍 , }"
+set-window-option -g window-status-format "#[fg=$dr_white]#[bg=$dr_gray] #I #W #{?window_zoomed_flag,🔍 , }"
+
+# ----------------------
 # Key Bindings
 # -----------------------
 
@@ -89,69 +134,6 @@ bind-key C-q kill-session
 # Option - L/R arrow to switch windows
 bind -n M-Left previous-window
 bind -n M-Right next-window
-
-# ----------------------
-# Status Bar
-# -----------------------
-
-set-option -g status on
-set -g status-position top
-set -g status-interval 5    # set update frequencey (default 15 seconds)
-
-set -g status-fg white 
-set -g status-bg colour234
-
-# Style left side
-set -g status-left '#[fg=colour235,bold]#{?client_prefix,#[bg=colour210] #S,#[bg=colour252] #S} '
-
-# Style list of windows
-set -g window-status-format "#[fg=white,bg=colour234] #I #W #{?window_zoomed_flag,🔍, }"
-set -g window-status-current-format "#[fg=colour25,bg=colour39,noreverse,bold] #I ⮁ #W #{?window_zoomed_flag,🔍, } #[fg=colour39,bg=colour234,nobold]⮀"
-# set -g window-status-current-format "#[fg=colour234,bg=colour39]⮀#[fg=colour25,bg=colour39,noreverse,bold] #I ⮁ #W #{?window_zoomed_flag,🔍, } #[fg=colour39,bg=colour234,nobold]⮀"
-
-
-# Style right side
-set -g status-right-length 150
-# set -g status-right '#{network_bandwidth} #[fg=colour235,bg=colour252,bold] GCP: #(~/.dotfiles/functions/kubectl-ctx) '
-set -g status-right '#{network_bandwidth} #(tmux-mem-cpu-load --graph-lines 0 --mem-mode 2 --averages-count 0 --colors --interval 2)#[fg=colour235,bg=colour252,bold] #(~/.dotfiles/functions/kubectl-ctx testarg) '
-# set -g status-right '#{network_bandwidth} #(tmux-mem-cpu-load --graph-lines 0 --mem-mode 2 --averages-count 0 --colors --interval 2)#[fg=colour235,bg=colour252,bold] GCP: #(~/.dotfiles/functions/kubectl-ctx) '
-# set -g status-right '#[fg=green]#($TMUX_PLUGIN_MANAGER_PATH/tmux-mem-cpu-load/tmux-mem-cpu-load --colors --interval 5)#[default] #{network_bandwidth} #[fg=colour235,bg=colour252,bold] GCP: #(~/.dotfiles/functions/kubectl-ctx) '
-
-# # set -g status-right-length 150
-# # set -g status-right "CHANGE"
-
-# # 
-# # 
-# # set -g window-status-activity-attr bold
-# # set -g pane-border-fg colour245
-# # set -g pane-active-border-fg colour39
-# # set -g message-fg colour16
-# # set -g message-bg colour221
-# # set -g message-attr bold
-
-# # set -g window-status-format "#[fg=white,bg=colour234] #I #W "
-# # set -g window-status-current-format "#[fg=colour234,bg=colour39]⮀#[fg=colour25,bg=colour39,noreverse,bold] #I ⮁ #W #[fg=colour39,bg=colour234,nobold]⮀"
-
-
-
-# # set -g status-justify centre           # center window list for clarity
-
-# # # set color for status bar
-# # set-option -g status-bg colour235 #base02
-# # set-option -g status-fg yellow #yellow
-
-# # # show host name and IP address on left side of status bar
-# # set -g status-left-length 85
-# # set -g status-left "#[fg=colour198]#h"
-
-# # # show session name, window & pane number, date and time on right side of
-# # # status bar
-# # set -g status-right-length 160
-# # set -g status-right "#[fg=blue]#S #I:#P #[fg=yellow]: %d %b %Y #[fg=green]: %l:%M %p : #(date -u | awk '{print $4}') :"
-# # set -g status-right "#[fg=blue]#(tmux-cpu --no-color)"
-
-
-
 
 # ----------------------
 # Plugins

@@ -4,6 +4,10 @@
 
 # useful command to test shell startup:
 # for i in $(seq 1 10); do /usr/bin/time zsh -i -c exit; done
+timezsh() {
+  shell=${1-$SHELL}
+  for i in $(seq 1 10); do /usr/bin/time $shell -i -c exit; done
+}
 
 # shortcut to this dotfiles path is $DOTFILES
 export DOTFILES="$HOME/.dotfiles"
