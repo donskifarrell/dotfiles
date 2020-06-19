@@ -1,9 +1,17 @@
 #!/bin/zsh
-# uncomment this and the last line for zprof info
-# zmodload zsh/zprof
+
+# Profiling
+if [[ "$ZPROF" = true ]]; then
+  zmodload zsh/zprof
+fi
+
+# useful command to detail shell startup:
+profzsh() {
+  shell=${1-$SHELL}
+  ZPROF=true $shell -i -c exit
+}
 
 # useful command to test shell startup:
-# for i in $(seq 1 10); do /usr/bin/time zsh -i -c exit; done
 timezsh() {
   shell=${1-$SHELL}
   for i in $(seq 1 10); do /usr/bin/time $shell -i -c exit; done
@@ -36,12 +44,19 @@ for file in ${${config_files:#*/path.zsh}:#*/completion.zsh}; do
   source "$file"
 done
 
+# Initialize the completion system
 autoload -Uz compinit
-for dump in ~/.zcompdump(N.mh+24); do
-  echo "Loading .zcompdump"
-  compinit
-done
-compinit -C
+
+# Cache completion if nothing changed - faster startup time
+typeset -i updated_at=$(date +'%j' -r ~/.zcompdump 2>/dev/null || stat -f '%Sm' -t '%j' ~/.zcompdump 2>/dev/null)
+if [ $(date +'%j') != $updated_at ]; then
+  compinit -i
+else
+  compinit -C -i
+fi
+
+# Enhanced form of menu completion called `menu selection'
+zmodload -i zsh/complist
 
 # load every completion after autocomplete loads
 for file in ${(M)config_files:#*/completion.zsh}; do
@@ -57,5 +72,7 @@ unset config_files updated_at
 
 eval "$(starship init zsh)"
 
-# zprof
-
+# Profiling 
+if [[ "$ZPROF" = true ]]; then
+  zprof
+fi
