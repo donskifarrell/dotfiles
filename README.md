@@ -4,16 +4,19 @@ Forked from https://github.com/caarlos0/dotfiles
 
 TODO:
 
-- ALacritty config
 - Add brew files
 - Push commits up
 - remove branks golang setting
+- tmux statusbar
+
+Issues:
+
 - set better project home
-- themes
-- primary theme is set in zsh
-  - then tmux
-  - then starship?
-  - then alacritty
+- mouse copy/paste
+- opt-arrow jump words
+- auto-suggest annoying?
+
+zcompdump keeps loading..
 
 [![Powered by Antibody][ab]][ap]
 

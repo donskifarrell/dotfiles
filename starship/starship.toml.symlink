@@ -31,4 +31,4 @@ suffix = "⟫"
 [time]
 disabled = false
 format = "[%D %R]"
-style = "white dimmed"
+style = "#AE42B5"
