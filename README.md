@@ -1,13 +1,26 @@
-# My dotfiles
+# dotfiles
 
 Forked from https://github.com/caarlos0/dotfiles
 
+### Stack:
+
+- ZSH: https://sourceforge.net/p/zsh/code/ci/master/tree/
+- Antibody: https://github.com/getantibody/antibody
+- Starship: https://starship.rs/
+- Alacritty: https://github.com/alacritty/alacritty
+  - Dracula theme: https://draculatheme.com/alacritty
+- TMUX
+  - Modified Dracula theme: https://draculatheme.com/tmux
+- Hack font: https://sourcefoundry.org/hack/
+
 TODO:
 
+- rectangle instead of spectacle!
 - Add brew files
 - Push commits up
 - remove branks golang setting
 - tmux statusbar
+  CPU & MEM
 
 Issues:
 
@@ -15,14 +28,8 @@ Issues:
 - mouse copy/paste
 - opt-arrow jump words
 - auto-suggest annoying?
-
-zcompdump keeps loading..
-
-[![Powered by Antibody][ab]][ap]
-
-> Config files for ZSH, Java, Ruby, Go, Editors, Terminals and more.
-
-[ap]: https://github.com/getantibody/antibody
+- completions not letting me scroll through (maybe zmodload -i zsh/complist)
+- click urls??
 
 ## Installation
 
@@ -33,7 +40,7 @@ First, make sure you have all those things installed:
 - `git`: to clone the repo
 - `curl`: to download some stuff
 - `tar`: to extract downloaded stuff
-- `zsh`: to actually run the dotfiles
+- `zsh`: to actually run the dotfiles - zsh 5.8
 - `sudo`: some configs may need that
 
 ### Install
@@ -49,21 +56,6 @@ $ zsh # or just close and open your terminal again.
 
 > All changed files will be backed up with a `.backup` suffix.
 
-### Recommended Software
-
-For macOS, I recommend:
-
-- iTerm: a better terminal emulator;
-
-For both Linux and macOS:
-
-- [`diff-so-fancy`](https://github.com/so-fancy/diff-so-fancy):
-  better git diffs (you'll need to run `dot_update` to apply it);
-- [`fzf`](https://github.com/junegunn/fzf):
-  fuzzy finder, used in `,t` on vim, for example;
-- [`kubectx`](https://github.com/ahmetb/kubectx) for better kubernetes context
-  and namespace switch;
-
 ### macOS defaults
 
 You use it by running:
@@ -74,19 +66,54 @@ $DOTFILES/macos/set-defaults.sh
 
 And logging out and in again/restart.
 
-### Themes and fonts being used
+# Naming conventions
 
-Theme is **[Dracula](https://draculatheme.com)**, font is **JetBrains Mono** on
-editors and **Hack** on terminals.
+There are a few special files in the hierarchy:
 
-## Further help:
+- **bin/**: Anything in `bin/` will get added to your `$PATH` and be made
+  available everywhere.
+- **topic/\*.zsh**: Any files ending in `.zsh` get loaded into your
+  environment.
+- **topic/path.zsh**: Any file named `path.zsh` is loaded first and is
+  expected to setup `$PATH` or similar.
+- **topic/completion.zsh**: Any file named `completion.zsh` is loaded
+  last and is expected to setup autocomplete.
+- **topic/\*.symlink**: Any files ending in `*.symlink` get symlinked into
+  your `$HOME`. This is so you can keep all of those versioned in your dotfiles
+  but still keep those autoloaded files in your home directory. These get
+  symlinked in when you run `script/bootstrap`.
+- **topic/install.sh**: Any file with this name and with exec permission, will
+  ran at `bootstrap` and `dot_update` phase, and are expected to install plugins,
+  and stuff like that.
 
-- [Personalize your configs](/docs/PERSONALIZATION.md)
-- [Understand how it works](/docs/PHILOSOPHY.md)
-- [License](/LICENSE.md)
+# Personalization
 
-## Contributing
+> How to add custom configuration without messing the local repository
 
-Feel free to contribute. Pull requests will be automatically
-checked/linted with [Shellcheck](https://github.com/koalaman/shellcheck)
-and [shfmt](https://github.com/mvdan/sh).
+## For the shell itself
+
+You can add anything you want (secret stuff, for example), to the `~/.localrc`
+file.
+
+## For git
+
+You can just change the default `~/.gitconfig` file, since it includes the
+dotfiles managed one.
+
+## For psql
+
+You can edit the `~/.psqlrc.local` file.
+
+## For ssh
+
+You can edit the `~/.ssh/config.local` file.
+
+## Default `EDITOR`, `VEDITOR` and `PROJECTS`
+
+`VEDITOR` stands for "visual editor", and is set to `code` be default. `EDITOR`
+is set to `vim`.
+
+`PROJECTS` is default to `~/Code`. The shortcut to that folder in the shell
+is `c`.
+
+You can change that by adding your custom overrides in `~/.localrc`.
