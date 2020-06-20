@@ -111,13 +111,15 @@ bind i split-window -h -c "#{pane_current_path}"
 # CTRL + '-' splits vertically.
 bind - split-window -v -c "#{pane_current_path}"
 
-# TODO: change to + for zoom/unzoom; find can remain as -f
-# Ctrl - f to zoom/unzoom pane
-# Ctrl - z to find window
+# Ctrl - z to zoom pane
 unbind-key C-z
-unbind-key C-f
-bind-key -n C-f resize-pane -Z
-bind-key -n C-z command-prompt "find-window '%%'"
+bind-key -n C-z resize-pane -Z
+
+# Prefix + Ctrl - z to find window
+bind-key C-z command-prompt "find-window '%%'"
+
+# unbind Ctrl - f so we can use it for fzf
+unbind-key -n C-f
 
 # Ctrl - w or w to kill panes
 unbind w
@@ -131,9 +133,11 @@ unbind C-q
 bind-key q kill-session
 bind-key C-q kill-session
 
-# Option - L/R arrow to switch windows
-bind -n M-Left previous-window
-bind -n M-Right next-window
+# Shift - L/R arrow to switch windows
+unbind M-Left
+unbind M-Right
+bind -n S-Left previous-window
+bind -n S-Right next-window
 
 # ----------------------
 # Plugins

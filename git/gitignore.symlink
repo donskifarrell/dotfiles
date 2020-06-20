@@ -11,6 +11,11 @@
 .project
 .settings
 .ruby-version
-.vscode/
 dump.rdb
 main.tfvars
+
+.vscode/
+node_modules/
+.yarn_cache/
+Library/
+.Trash/
