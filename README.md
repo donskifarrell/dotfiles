@@ -20,7 +20,8 @@ TODO:
 - Push commits up
 - remove branks golang setting
 - tmux statusbar
-  CPU & MEM
+  - CPU & MEM
+- move ssh_sync + setup.md
 
 Issues:
 
@@ -42,6 +43,7 @@ First, make sure you have all those things installed:
 - `tar`: to extract downloaded stuff
 - `zsh`: to actually run the dotfiles - zsh 5.8
 - `sudo`: some configs may need that
+- `brew`: https://brew.sh/
 
 ### Install
 

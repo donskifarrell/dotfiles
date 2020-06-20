@@ -29,12 +29,6 @@
 	precomposeunicode = true
 [help]
 	autocorrect = 1
-[merge]
-	tool = diffmerge
-[mergetool "diffmerge"]
-	cmd = diffmerge --merge --result=$MERGED $LOCAL $BASE $REMOTE
-	trustExitCode = true
-	keepBackup = false
 [diff]
 	tool = diffmerge
 [difftool]
