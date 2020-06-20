@@ -85,3 +85,18 @@ fi
 if [[ "${terminfo[kcbt]}" != "" ]]; then
   bindkey "${terminfo[kcbt]}" reverse-menu-complete   # [Shift-Tab] - move through the completion menu backwards
 fi
+
+# search history with fzf if installed, default otherwise
+if test -d /usr/local/opt/fzf/shell; then
+	# shellcheck disable=SC1091
+	. /usr/local/opt/fzf/shell/key-bindings.zsh
+
+	# ALT/OPT-C - cd into the selected directory
+	bindkey "ç" fzf-cd-widget
+
+	# CTRL-F - Paste the selected file path(s) into the command line
+	bindkey "^F" fzf-file-widget
+fi
+
+# Use coloured history search
+bindkey '^R' history-search-multi-word
