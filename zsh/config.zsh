@@ -5,9 +5,6 @@ export CLICOLOR=true
 fpath=($DOTFILES/functions $fpath)
 
 autoload -U "$DOTFILES"/functions/*(:t)
-autoload -U up-line-or-beginning-search
-autoload -U down-line-or-beginning-search
-autoload -U edit-command-line
 
 HISTFILE=~/.zsh_history
 HISTSIZE=10000000
@@ -43,43 +40,48 @@ setopt HIST_EXPIRE_DUPS_FIRST
 # dont ask for confirmation in rm globs*
 setopt RM_STAR_SILENT
 
-zle -N up-line-or-beginning-search
-zle -N down-line-or-beginning-search
-zle -N edit-command-line
+# Make sure that the terminal is in application mode when zle is active, since
+# only then values from $terminfo are valid
+if (( ${+terminfo[smkx]} )) && (( ${+terminfo[rmkx]} )); then
+  function zle-line-init() {
+    echoti smkx
+  }
+  function zle-line-finish() {
+    echoti rmkx
+  }
+  zle -N zle-line-init
+  zle -N zle-line-finish
+fi
 
-# fuzzy find: start to type
-bindkey "$terminfo[kcuu1]" up-line-or-beginning-search
-bindkey "$terminfo[kcud1]" down-line-or-beginning-search
-bindkey "$terminfo[cuu1]" up-line-or-beginning-search
-bindkey "$terminfo[cud1]" down-line-or-beginning-search
+bindkey -e                                            # Use emacs key bindings
 
-# backward and forward word with option+left/right
-bindkey '^[^[[D' backward-word
-bindkey '^[b' backward-word
-bindkey '^[^[[C' forward-word
-bindkey '^[f' forward-word
+bindkey '\ew' kill-region                             # [Esc-w] - Kill from the cursor to the mark
 
-# to to the beggining/end of line with fn+left/right or home/end
-bindkey "${terminfo[khome]}" beginning-of-line
-bindkey '^[[H' beginning-of-line
-bindkey "${terminfo[kend]}" end-of-line
-bindkey '^[[F' end-of-line
+if [[ "${terminfo[khome]}" != "" ]]; then
+  bindkey "${terminfo[khome]}" beginning-of-line      # [Home] - Go to beginning of line
+fi
+if [[ "${terminfo[kend]}" != "" ]]; then
+  bindkey "${terminfo[kend]}"  end-of-line            # [End] - Go to end of line
+fi
 
-# delete char with backspaces and delete
-bindkey '^[[3~' delete-char
-bindkey '^?' backward-delete-char
+bindkey ' ' magic-space                               # [Space] - do history expansion (e.g write !1, press space - it's the ^r history number!)
 
-# delete word with ctrl+backspace
-bindkey '^[[3;5~' backward-delete-word
-# bindkey '^[[3~' backward-delete-word
+# Tip on how to find out the binding:
+# - use terminal you are needing binding for
+# - open a raw bash instance
+# - type `cat` then type whatever character combo you want. The output is what you need here
+bindkey '^[[1;3C' forward-word						  # [Opt-LeftArrow] - move forward one word
+bindkey '^[[1;3D' backward-word						  # [Opt-RightArrow] - move backward one word
 
-# edit command line in $EDITOR
-bindkey '^e' edit-command-line
-
-# search history with fzf if installed, default otherwise
-if test -d /usr/local/opt/fzf/shell; then
-	# shellcheck disable=SC1091
-	. /usr/local/opt/fzf/shell/key-bindings.zsh
+bindkey '^?' backward-delete-char                     # [Backspace] - delete backward
+if [[ "${terminfo[kdch1]}" != "" ]]; then
+  bindkey "${terminfo[kdch1]}" delete-char            # [Delete] - delete forward
 else
-	bindkey '^R' history-incremental-search-backward
+  bindkey "^[[3~" delete-char
+  bindkey "^[3;5~" delete-char
+  bindkey "\e[3~" delete-char
+fi
+
+if [[ "${terminfo[kcbt]}" != "" ]]; then
+  bindkey "${terminfo[kcbt]}" reverse-menu-complete   # [Shift-Tab] - move through the completion menu backwards
 fi

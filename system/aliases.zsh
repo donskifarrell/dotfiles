@@ -38,3 +38,10 @@ if [ "$(uname -s)" != "Darwin" ]; then
 		alias open="xdg-open"
 	fi
 fi
+
+# like normal z when used with arguments but displays an fzf prompt when used without.
+unalias z 2> /dev/null
+z() {
+    [ $# -gt 0 ] && _z "$*" && return
+    cd "$(_z -l 2>&1 | fzf --height 40% --nth 2.. --reverse --inline-info --preview="echo {} | sed 's/^[0-9,.]* *//' | xargs exa --all --tree --color=always --level=1" +s --tac --query "${*##-* }" | sed 's/^[0-9,.]* *//')"
+}
