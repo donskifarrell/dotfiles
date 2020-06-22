@@ -57,7 +57,7 @@ else
 fi
 
 # Enhanced form of menu completion called `menu selection'
-zmodload -i zsh/complist
+# zmodload -i zsh/complist
 
 # load every completion after autocomplete loads
 for file in ${(M)config_files:#*/completion.zsh}; do

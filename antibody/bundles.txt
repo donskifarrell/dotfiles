@@ -1,10 +1,12 @@
 # this block is in alphabetic order
 caarlos0/ports kind:path
 mafredri/zsh-async
-djui/alias-tips
 rupa/z
 zsh-users/zsh-completions
 zsh-users/zsh-autosuggestions
+robbyrussell/oh-my-zsh path:plugins/colored-man-pages
+wfxr/forgit
+djui/alias-tips
 
 # these should be at last!
 zdharma/fast-syntax-highlighting

@@ -154,12 +154,10 @@ set -g @continuum-restore 'on'
 set -g @continuum-boot 'on'
 set -g @continuum-save-interval '5'
 
-set -g @plugin 'tmux-plugins/tmux-yank' # Allows copying to the system clipboard
-set -g @plugin 'tmux-plugins/tmux-copycat' # Allows regex searching in a pane
 set -g @plugin 'NHDaly/tmux-better-mouse-mode' # Improves using the mouse with tmux
 set -g @plugin 'tmux-plugins/tmux-open' # Quick opening of a highlighted file or url
 set -g @plugin 'xamut/tmux-network-bandwidth' # Network bandwidth 
-# set -g @plugin 'thewtex/tmux-mem-cpu-load' # CPU and Mem details
 
 # Initialize TMUX plugin manager (keep this line at the very bottom of tmux.conf)
 run -b '~/.tmux/plugins/tpm/tpm'
+

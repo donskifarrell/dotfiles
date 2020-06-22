@@ -15,22 +15,32 @@ Forked from https://github.com/caarlos0/dotfiles
 
 TODO:
 
-- rectangle instead of spectacle!
 - Add brew files
 - Push commits up
+- set better project home
 - remove branks golang setting
 - tmux statusbar
   - CPU & MEM
-- move ssh_sync + setup.md
+- double click to highlight text - hold [shift]
+- click links - [shift][ctrl] - click
+- write out all the keybindings
+  - Alacritty
+  - ZSH
+    - fzf
+    - gitfzf
+    - ?
+  - TMux
+    - tabs
+    - zoom
+    - select/copy text
+  - Rectangle
 
 Issues:
 
-- set better project home
-- mouse copy/paste
-- opt-arrow jump words
 - auto-suggest annoying?
 - completions not letting me scroll through (maybe zmodload -i zsh/complist)
-- click urls??
+  - brew
+  - docker
 
 ## Installation
 

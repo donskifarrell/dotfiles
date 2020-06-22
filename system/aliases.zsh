@@ -19,6 +19,7 @@ alias top="sudo htop"
 alias help='tldr'
 
 alias cdr='cd "$(git rev-parse --show-toplevel)"'
+alias ..='cd ..'
 
 # quick hack to make watch work with aliases
 alias watch='watch -c -d -t '
