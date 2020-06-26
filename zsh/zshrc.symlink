@@ -1,10 +1,30 @@
 #!/bin/zsh
-export LC_ALL=en_US.UTF-8
+
+# Tracing
+if [[ "$ZTRACE" = true ]]; then
+  zmodload zsh/datetime
+  setopt PROMPT_SUBST
+  PS4='+$EPOCHREALTIME %N:%i> '
+
+  logfile=$(mktemp zsh_profile.XXXXXXXX)
+  echo "Logging to $logfile"
+  exec 3>&2 2>$logfile
+
+  setopt XTRACE
+fi
 
 # Profiling
 if [[ "$ZPROF" = true ]]; then
   zmodload zsh/zprof
 fi
+
+export LC_ALL=en_US.UTF-8
+
+# useful command to detail shell startup:
+tracezsh() {
+  shell=${1-$SHELL}
+  ZTRACE=true $shell -i -c exit
+}
 
 # useful command to detail shell startup:
 profzsh() {
@@ -16,6 +36,9 @@ profzsh() {
 timezsh() {
   shell=${1-$SHELL}
   for i in $(seq 1 10); do /usr/bin/time $shell -i -c exit; done
+
+  echo Single Run:
+  time $shell -i -c echo
 }
 
 # shortcut to this dotfiles path is $DOTFILES
@@ -56,9 +79,6 @@ else
   compinit -C -i
 fi
 
-# Enhanced form of menu completion called `menu selection'
-# zmodload -i zsh/complist
-
 # load every completion after autocomplete loads
 for file in ${(M)config_files:#*/completion.zsh}; do
   source "$file"
@@ -76,4 +96,10 @@ eval "$(starship init zsh)"
 # Profiling 
 if [[ "$ZPROF" = true ]]; then
   zprof
+fi
+
+# Tracing 
+if [[ "$ZTRACE" = true ]]; then
+  unsetopt XTRACE
+  exec 2>&3 3>&-
 fi

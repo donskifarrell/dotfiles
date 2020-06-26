@@ -35,13 +35,6 @@ TODO:
     - select/copy text
   - Rectangle
 
-Issues:
-
-- auto-suggest annoying?
-- completions not letting me scroll through (maybe zmodload -i zsh/complist)
-  - brew
-  - docker
-
 ## Installation
 
 ### Dependencies
