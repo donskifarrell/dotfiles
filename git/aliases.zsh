@@ -2,7 +2,8 @@
 
 alias gl="git log --graph --decorate --oneline --abbrev-commit"
 alias glga="gl --all"
-alias gp='git push'
+alias gp='git pull'
+alias gpush='git push'
 # alias gd='git diff' # replaced by forgit
 alias gc='git commit'
 alias gco='git checkout'
