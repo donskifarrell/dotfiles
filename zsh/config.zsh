@@ -53,7 +53,9 @@ if (( ${+terminfo[smkx]} )) && (( ${+terminfo[rmkx]} )); then
   zle -N zle-line-finish
 fi
 
-bindkey -e                                            # Use emacs key bindings
+bindkey -v                                            # Use emacs key bindings
+
+KEYTIMEOUT=1                                          # Switch VI modes faster
 
 bindkey '\ew' kill-region                             # [Esc-w] - Kill from the cursor to the mark
 

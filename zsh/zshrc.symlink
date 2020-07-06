@@ -48,7 +48,7 @@ export DOTFILES="$HOME/.dotfiles"
 export PROJECTS="$HOME/.go/src/brank.as/"
 
 # your default editor
-export EDITOR='nano'
+export EDITOR='vim'
 export VEDITOR='code'
 
 # all of our zsh files

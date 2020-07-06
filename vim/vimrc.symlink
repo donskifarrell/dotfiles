@@ -1,0 +1,9 @@
+
+" load plugins
+call plug#begin('~/.vim/plugged')
+
+Plug 'tpope/vim-sensible'
+
+
+" Initialize plugin system
+call plug#end()

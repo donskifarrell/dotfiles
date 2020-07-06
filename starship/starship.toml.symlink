@@ -32,3 +32,7 @@ suffix = "⟫"
 disabled = false
 format = "[%D %R]"
 style = "#AE42B5"
+
+[character]
+symbol = "❯"
+vicmd_symbol = "➜"

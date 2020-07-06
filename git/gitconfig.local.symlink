@@ -27,6 +27,8 @@
 	compression = -1
 	autocrlf = input
 	precomposeunicode = true
+[pull]
+	rebase = true
 [help]
 	autocorrect = 1
 [diff]

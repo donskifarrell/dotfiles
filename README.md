@@ -16,13 +16,8 @@ Forked from https://github.com/caarlos0/dotfiles
 TODO:
 
 - Add brew files
-- Push commits up
 - set better project home
 - remove branks golang setting
-- tmux statusbar
-  - CPU & MEM
-- double click to highlight text - hold [shift]
-- click links - [shift][ctrl] - click
 - write out all the keybindings
   - Alacritty
   - ZSH
@@ -30,10 +25,11 @@ TODO:
     - gitfzf
     - ?
   - TMux
-    - tabs
-    - zoom
     - select/copy text
-  - Rectangle
+- VIM bindings everywhereereerer
+- Mouse passthrough for SSH - just a bug?
+- Completions: https://github.com/ohmyzsh/ohmyzsh/blob/master/lib/completion.zsh
+- Set Tabs everywhere
 
 ## Installation
 
