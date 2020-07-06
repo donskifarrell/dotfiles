@@ -1,10 +1,16 @@
 #!/bin/sh
-curl -fLo ~/.vim/autoload/plug.vim --create-dirs \
-	https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
-vim +'PlugInstall --sync' +qa
-vim +'PlugUpdate' +qa
+
+echo "›› ignoring basic VIM"
+# curl -fLo ~/.vim/autoload/plug.vim --create-dirs \
+# 	https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+
+# Assume `brew install vim`
+# echo "›› with VIM"
+# /usr/local/bin/vim +'PlugInstall --sync' +qa
+# /usr/local/bin/vim +'PlugUpdate' +qa
 
 if command -v nvim >/dev/null 2>&1; then
+	echo "›› with NVIM"
 	curl -fLo ~/.local/share/nvim/site/autoload/plug.vim --create-dirs \
 		https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
 
