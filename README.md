@@ -17,7 +17,7 @@ TODO:
 
 - Add brew files
 - set better project home
-- remove branks golang setting
+- remove brankas golang setting
 - write out all the keybindings
   - Alacritty
   - ZSH
@@ -27,9 +27,8 @@ TODO:
   - TMux
     - select/copy text
 - VIM bindings everywhereereerer
-- Mouse passthrough for SSH - just a bug?
 - Completions: https://github.com/ohmyzsh/ohmyzsh/blob/master/lib/completion.zsh
-- Set Tabs everywhere
+- Set Tabs not spaces everywhere
 
 ## Installation
 

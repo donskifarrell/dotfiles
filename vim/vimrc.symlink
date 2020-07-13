@@ -8,6 +8,8 @@ Plug 'dracula/vim', { 'as': 'dracula' }
 
 Plug 'lifepillar/vim-cheat40'
 
+Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
+Plug 'junegunn/fzf.vim'
 
 " Initialize plugin system
 call plug#end()
