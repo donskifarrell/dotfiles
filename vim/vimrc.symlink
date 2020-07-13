@@ -3,7 +3,16 @@
 call plug#begin('~/.vim/plugged')
 
 Plug 'tpope/vim-sensible'
+Plug 'vim-airline/vim-airline'
+Plug 'dracula/vim', { 'as': 'dracula' }
+
+Plug 'lifepillar/vim-cheat40'
 
 
 " Initialize plugin system
 call plug#end()
+
+
+" Airline
+let g:airline_theme='dracula'
+let g:airline#extensions#tabline#formatter = 'unique_tail_improved'

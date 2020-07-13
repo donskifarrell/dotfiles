@@ -18,7 +18,7 @@ main()
   if [[ $CTX == *"production"* ]]; then
     echo "❄ Prod"
   elif [[ $CTX == *"staging"* ]]; then
-    echo "#[fg=colour10,bg=colour156,bold]❄ Staging"
+    echo "❄ Staging"
   else
     echo "❄ $CTX"
   fi
