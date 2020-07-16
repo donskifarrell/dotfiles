@@ -24,10 +24,11 @@ unload_agent() {
 	launchctl unload -w "$1" >/dev/null 2>&1
 }
 
-test -z "$TRAVIS_JOB_ID" && sudo -v
-
 echo ""
 echo "› System:"
+echo "  › Set default ZSH shell to Brew version"
+sudo dscl . -create /Users/$USER UserShell /usr/local/bin/zsh
+
 echo "  › Disable press-and-hold for keys in favor of key repeat"
 defaults write -g ApplePressAndHoldEnabled -bool false
 

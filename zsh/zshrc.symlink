@@ -1,5 +1,8 @@
 #!/bin/zsh
 
+# Set to Homebrew version
+export SHELL='/usr/local/bin/zsh'
+
 # Tracing
 if [[ "$ZTRACE" = true ]]; then
   zmodload zsh/datetime

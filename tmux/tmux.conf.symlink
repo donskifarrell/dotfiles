@@ -5,7 +5,7 @@
 # Settings
 # -----------------------
 
-set-option -g default-shell /bin/zsh
+set-option -g default-shell $SHELL
 
 # scrollback size
 set -g history-limit 100000
@@ -35,7 +35,7 @@ set -g renumber-windows on
 
 # Visual Activity Monitoring between windows
 setw -g monitor-activity on
-set -g visual-activity on
+set -g visual-activity off
 
 # ----------------------
 # Styling & Status Bar
