@@ -3,6 +3,12 @@
 call plug#begin('~/.vim/plugged')
 
 Plug 'tpope/vim-sensible'
+Plug 'tmux-plugins/vim-tmux-focus-events'
+Plug 'tpope/vim-surround'
+Plug 'tpope/vim-repeat'
+Plug 'airblade/vim-gitgutter'
+Plug 'tomtom/tcomment_vim'
+
 Plug 'vim-airline/vim-airline'
 Plug 'dracula/vim', { 'as': 'dracula' }
 
@@ -11,10 +17,30 @@ Plug 'lifepillar/vim-cheat40'
 Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'junegunn/fzf.vim'
 
+Plug 'fatih/vim-go', { 'do': ':GoUpdateBinaries' }
+
 " Initialize plugin system
 call plug#end()
 
+colorscheme dracula 
+
+set updatetime=100
+set autoread
+set number 
+set relativenumber
+set spell
+
+" Clipboard 
+set clipboard=unnamed
 
 " Airline
 let g:airline_theme='dracula'
-let g:airline#extensions#tabline#formatter = 'unique_tail_improved'
+
+" vim-gitgutter
+function! GitStatus()
+  let [a,m,r] = GitGutterGetHunkSummary()
+  return printf('+%d ~%d -%d', a, m, r)
+endfunction
+
+set statusline+=%{GitStatus()}
+
