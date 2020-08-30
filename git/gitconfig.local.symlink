@@ -23,7 +23,7 @@
 	ui = true
 [core]
 	excludesfile = ~/.gitignore
-	editor = nano
+	editor = vim
 	compression = -1
 	autocrlf = input
 	precomposeunicode = true

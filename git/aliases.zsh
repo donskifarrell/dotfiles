@@ -11,12 +11,15 @@ alias gb='git branch -v'
 # alias ga='git add' # replaced by forgit
 alias gs='git status -b'
 
+alias gpph='git push personal HEAD'
+alias gpst='git push origin HEAD:staging-test'
+
 # See forgit - https://github.com/wfxr/forgit
 # ga - git add
 # glo - git log
 # gi - git ignore
 # gd - git diff
 # grh - git reset head
-# gcf - git checkout 
-# gss - git stash 
+# gcf - git checkout
+# gss - git stash
 # gclean - git clean

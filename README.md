@@ -29,6 +29,7 @@ TODO:
 - VIM bindings everywhereereerer
 - Completions: https://github.com/ohmyzsh/ohmyzsh/blob/master/lib/completion.zsh
 - Set Tabs not spaces everywhere
+- Spell check, intellisense
 
 ## Installation
 
