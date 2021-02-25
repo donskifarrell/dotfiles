@@ -16,6 +16,7 @@ if command -v nvim >/dev/null 2>&1; then
 
 	mkdir -p ~/.config/nvim/
 	ln -sf "$DOTFILES/vim/vimrc.symlink" ~/.config/nvim/init.vim
+	ln -sf "$DOTFILES/vim/en.utf-8.add" ~/.config/nvim/en.utf-8.add
 	nvim +'PlugInstall --sync' +qa
 	nvim +'PlugUpdate' +qa
 fi

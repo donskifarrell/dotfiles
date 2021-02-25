@@ -1,6 +1,11 @@
 Host *
   ServerAliveInterval 60
   StrictHostKeyChecking no
-  UseKeychain yes
+  #UseKeychain yes
+
+Host *.vm.brankas.dev
+  User ubuntu
+  StrictHostKeyChecking no
+  UserKnownHostsFile /dev/null
 
 Include ~/.ssh/config.local

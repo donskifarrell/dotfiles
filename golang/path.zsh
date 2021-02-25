@@ -5,7 +5,8 @@ export GOPATH="$HOME/.go"
 # export GOROOT="$(brew --prefix golang)/libexec"
 export GOROOT="/usr/local/opt/go/libexec"
 
-export PATH="$PATH:${GOPATH}/bin:${GOROOT}/bin"
+export PATH="$PATH:$GOPATH/bin"
+export PATH="$PATH:$GOROOT/bin"
 
 # TODO: Move to localrc
 export GOPRIVATE=brank.as/*
