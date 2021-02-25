@@ -5,7 +5,7 @@ alias kn='kubens'
 
 alias k='kubectl'
 alias sk='kubectl -n kube-system'
-alias ke='EDITOR=nano kubectl edit'
+alias ke='EDITOR=vim kubectl edit'
 
 alias kdebug='kubectl run -i -t debug --rm --image=REPLACE/debug --restart=Never'
 alias knrunning='kubectl get pods --field-selector=status.phase!=Running'

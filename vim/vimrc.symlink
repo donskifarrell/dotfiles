@@ -18,6 +18,7 @@ Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'junegunn/fzf.vim'
 
 Plug 'fatih/vim-go', { 'do': ':GoUpdateBinaries' }
+Plug 'neovim/nvim-lspconfig'
 
 " Initialize plugin system
 call plug#end()
@@ -28,6 +29,9 @@ set updatetime=100
 set autoread
 set number 
 set relativenumber
+
+set spelllang=en
+set spellfile=~/.config/nvim/en.utf-8.add
 set spell
 
 " Clipboard 
@@ -44,3 +48,22 @@ endfunction
 
 set statusline+=%{GitStatus()}
 
+lua <<EOF
+require'nvim_lsp'.bashls.setup{}
+
+  Commands:
+  
+  Default Values:
+    cmd = { "bash-language-server", "start" }
+    filetypes = { "sh" }
+    root_dir = vim's starting directory
+
+require'nvim_lsp'.gopls.setup{}
+
+  Commands:
+  
+  Default Values:
+    cmd = { "gopls" }
+    filetypes = { "go", "gomod" }
+    root_dir = root_pattern("go.mod", ".git")
+EOF

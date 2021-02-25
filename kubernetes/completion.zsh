@@ -11,3 +11,12 @@ function kubectl() {
 
     command kubectl "$@"
 }
+
+# complete -F __start_kubectl k
+# kcc() {
+#     if [[ $# -eq 0 ]]; then
+#         k config get-contexts
+#     else
+#         k config use-context $@
+#     fi
+# }
