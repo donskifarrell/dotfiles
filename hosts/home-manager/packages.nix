@@ -1,0 +1,173 @@
+{pkgs, ...}: {
+  essentials-utils = with pkgs; [
+    age
+    bash
+    bat
+    cht-sh
+    coreutils
+    curl
+    difftastic
+    fd
+    ffmpeg
+    fx
+    fzf
+    gawk
+    iftop
+    jq
+    killall
+    lsof
+    neofetch
+    netperf
+    openssh
+    p7zip
+    ripgrep
+    rlwrap
+    tmux
+    tree
+    unixtools.ifconfig
+    unixtools.netstat
+    unrar
+    wget
+  ];
+
+  essentials-dev = with pkgs; [
+    (google-cloud-sdk.withExtraComponents [google-cloud-sdk.components.gke-gcloud-auth-plugin])
+    # docker
+    # docker-compose
+    alejandra
+    android-tools
+    direnv
+    flyctl
+    git-filter-repo
+    gopls
+    kubectl
+    kubectx
+    mkcert
+    nil
+    nodejs
+    nodePackages_latest.pnpm
+    shfmt
+    statix
+  ];
+
+  essentials-gui = with pkgs; [
+    _1password
+    _1password-gui
+    gimp
+    spotify
+    zathura
+  ];
+
+  essentials-x86-gui = with pkgs; [
+    brave
+    chromium
+    firefox
+    hw-probe
+    libreoffice-still
+    maestral-gui
+    mattermost-desktop
+    obsidian
+    opensnitch-ui
+    sublime4
+    vivaldi
+    vlc
+  ];
+
+  osx-brews = with pkgs; [
+    "flyctl" # always ahead of nixpkgs
+    "scrcpy" # always ahead of nixpkgs
+  ];
+
+  osx-casks = with pkgs; [
+    "android-studio"
+    "appcleaner"
+    "balenaetcher"
+    "brave-browser"
+    "db-browser-for-sqlite"
+    "firefox"
+    "google-chrome"
+    "itsycal"
+    "keepingyouawake"
+    "libreoffice"
+    "little-snitch"
+    "maestral"
+    "mattermost"
+    "obsidian"
+    "omnidisksweeper"
+    "openmtp"
+    "pgadmin4"
+    "postman"
+    "raycast"
+    "rectangle"
+    "skype"
+    "sublime-text"
+    "the-unarchiver"
+    "utm"
+    "vivaldi"
+    "vlc"
+  ];
+
+  osx = with pkgs; [
+    (nerdfonts.override {fonts = ["JetBrainsMono"];})
+    dejavu_fonts
+    font-awesome
+    hack-font
+    jetbrains-mono
+    meslo-lgs-nf
+    noto-fonts
+    noto-fonts-emoji
+  ];
+
+  nixos = with pkgs; [
+    appimage-run
+    catppuccin-gtk
+    dconf2nix
+    font-manager
+    fontconfig
+    quickemu
+    samsung-unified-linux-driver
+    xdg-utils
+    aspell
+    aspellDicts.en
+    hunspell
+    capitaine-cursors
+    rofi-wayland
+    qt6.qtwayland
+    qt6.qt5compat
+  ];
+
+  nixos-gnome = with pkgs; [
+    gnome-extension-manager
+
+    gnomeExtensions.dash-to-dock
+    # gnomeExtensions.gsconnect
+    # gnomeExtensions.mpris-indicator-button
+    gnomeExtensions.caffeine
+    gnomeExtensions.vitals
+    gnomeExtensions.just-perfection
+    gnomeExtensions.sound-output-device-chooser
+    gnomeExtensions.blur-my-shell
+    gnomeExtensions.appindicator
+    # gnomeExtensions.gtile
+    gnomeExtensions.allow-locked-remote-desktop
+  ];
+
+  nixos-hyprland = with pkgs; [
+    flameshot
+    gtklock
+    lm_sensors
+    nwg-dock-hyprland
+    playerctl
+    simplescreenrecorder
+    swaylock-effects
+    swaynotificationcenter
+    swww
+    wev
+    wl-clipboard
+    wlogout
+    wmctrl
+  ];
+
+  qemu = with pkgs; [
+  ];
+}
