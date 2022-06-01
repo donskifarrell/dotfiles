@@ -1,93 +1,171 @@
 {
-  description = "NixOS v1";
+  description = "Onworld Nix Setup";
 
   inputs = {
-    # Nixpkgs
+    # Core
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
 
-    # Home manager
-    home-manager.url = "github:nix-community/home-manager";
-    home-manager.inputs.nixpkgs.follows = "nixpkgs";
+    nixos-hardware = {
+      url = "github:NixOS/nixos-hardware";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
-    # Utilities for building our flake
-    flake-utils.url = "github:numtide/flake-utils";
+    # Nix tooling
+    home-manager = {
+      url = "github:nix-community/home-manager";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
-    # Extra flakes for modules, packages, etc
-    hardware.url = "github:nixos/nixos-hardware"; # Convenience modules for hardware-specific quirks
-    # nur.url = "github:nix-community/NUR";              # User contributed pkgs and modules
-    # nix-colors.url = "github:misterio77/nix-colors";   # Color schemes for usage with home-manager
-    # impermanence.url = "github:riscadoa/impermanence"; # Utilities for opt-in persistance
-    # TODO: Add any other flakes you need
+    # Community flakes
+    # impermanence.url = "github:RiscadoA/impermanence";
+    # nix-colors.url = "github:misterio77/nix-colors";
   };
 
-  outputs = { nixpkgs, home-manager, flake-utils, ... }@inputs:
+  outputs = inputs:
     let
       # Bring some functions into scope (from builtins and other flakes)
-      inherit (builtins) attrValues;
-      inherit (flake-utils.lib) eachSystemMap defaultSystems;
-      inherit (nixpkgs.lib) nixosSystem;
-      inherit (home-manager.lib) homeManagerConfiguration;
-      eachDefaultSystemMap = eachSystemMap defaultSystems;
+      inherit (builtins) mapAttrs attrValues;
+      inherit (inputs.nixpkgs.lib) genAttrs systems;
+      forAllSystems = genAttrs systems.flakeExposed;
     in
     rec {
+
+      # importAttrset = path: mapAttrs (_: import) (import path);
+
       # TODO: If you want to use packages exported from other flakes, add their overlays here.
       # They will be added to your 'pkgs'
       overlays = {
-        default = import ./overlay; # Our own overlay
-        # nur = nur.overlay
-      };
-
-      # System configurations
-      # Accessible via 'nixos-rebuild'
-      nixosConfigurations = {
-        makati = nixosSystem {
-          system = "aarch64-linux";
-
-          modules = [
-            # >> Main NixOS configuration file <<
-            ./nixos/configuration.nix
-            # Adds your custom NixOS modules
-            ./modules/nixos
-            # Adds overlays
-            { nixpkgs.overlays = attrValues overlays; }
-          ];
-          # Make our inputs available to the config (for importing modules)
-          specialArgs = { inherit inputs; };
-        };
-      };
-
-      # Home configurations
-      # Accessible via 'home-manager'
-      homeConfigurations = {
-        "df@makati" = homeManagerConfiguration rec {
-          username = "df";
-          homeDirectory = "/home/${username}";
-          system = "aarch64-linux";
-
-          # >> Main home-manager configuration file <<
-          configuration = ./home-manager/home.nix;
-          extraModules = [
-            # Adds your custom home-manager modules
-            ./modules/home-manager
-            # Adds overlays
-            { nixpkgs.overlays = attrValues overlays; }
-          ];
-          # Make our inputs available to the config (for importing modules)
-          extraSpecialArgs = { inherit inputs; };
-        };
+        default = import ./overlay { inherit inputs; }; # Our own overlay
       };
 
       # Packages
       # Accessible via 'nix build'
-      packages = eachDefaultSystemMap (system:
+      packages = forAllSystems (system:
         # Propagate nixpkgs' packages, with our overlays applied
-        import nixpkgs { inherit system; overlays = attrValues overlays; }
+        import inputs.nixpkgs { inherit system; overlays = attrValues overlays; }
       );
 
       # Devshell for bootstrapping
       # Accessible via 'nix develop'
-      devShells = eachDefaultSystemMap (system: {
+      devShells = forAllSystems (system: {
         default = import ./shell.nix { pkgs = packages.${system}; };
       });
+
+      # nixosModules = importAttrset ./modules/nixos;
+      # homeManagerModules = importAttrset ./modules/home-manager;
+
+      mkSystem =
+        { hostname
+        , system ? "x86_64-linux"
+        , overlays ? { }
+        , users ? [ ]
+        , persistence ? false
+        }:
+        inputs.nixpkgs.lib.nixosSystem {
+          inherit system;
+          specialArgs = {
+            inherit inputs system hostname persistence;
+          };
+          modules = attrValues (import ./modules/nixos) ++ [
+            ./hosts/${hostname}/system.nix
+            {
+              networking.hostName = hostname;
+              # Apply overlay and allow unfree packages
+              nixpkgs = {
+                overlays = attrValues overlays;
+                config.allowUnfree = true;
+              };
+              # Add each input as a registry
+              nix.registry = inputs.nixpkgs.lib.mapAttrs'
+                (n: v:
+                  inputs.nixpkgs.lib.nameValuePair n { flake = v; })
+                inputs;
+            }
+            # System wide config for each user
+          ] ++ inputs.nixpkgs.lib.forEach users
+            (u:
+              { pkgs, persistence, ... }: {
+                users.users = {
+                  "${u}" = {
+                    isNormalUser = true;
+                    initialPassword = "passwd-change-me-on-login";
+                    shell = pkgs.fish;
+                    openssh.authorizedKeys.keys = [
+                      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINiUTw0dJPgY4aSNv69av01Ona3TR91l9TCDrhDIBD7u df@makati"
+                    ];
+                    # TODO: Be sure to add any other groups you need (such as networkmanager, audio, docker, etc)
+                    extraGroups = [ "wheel" ];
+                  };
+                };
+              }
+            );
+        };
+
+      # System configurations
+      # Accessible via 'nixos-rebuild'
+      nixosConfigurations = {
+        makati = mkSystem {
+          inherit overlays;
+          hostname = "makati";
+          system = "aarch64-linux";
+          users = [ "df" ];
+        };
+        belfast = mkSystem {
+          inherit overlays;
+          hostname = "belfast";
+          system = "aarch64-linux";
+          users = [ "df" ];
+        };
+      };
+
+      mkHome =
+        { username
+        , hostname
+        , system ? "x86_64-linux"
+        , overlays ? { }
+        , persistence ? false
+        , desktop ? null
+        , trusted ? false
+        , colorscheme ? "dracula"
+        }:
+        inputs.home-manager.lib.homeManagerConfiguration {
+          inherit username system;
+          extraSpecialArgs = {
+            inherit system hostname persistence desktop trusted colorscheme inputs;
+          };
+          homeDirectory = /home/${username};
+          configuration = ./hosts/${hostname}/home.nix;
+          extraModules = attrValues (import ./modules/home-manager) ++ [
+            # Base configuration
+            {
+              nixpkgs = {
+                overlays = attrValues overlays;
+                config.allowUnfree = true;
+              };
+              programs = {
+                home-manager.enable = true;
+                git.enable = true;
+              };
+            }
+          ];
+        };
+
+      # Home configurations
+      # Accessible via 'home-manager'
+      homeConfigurations = {
+        "df@makati" = mkHome {
+          inherit overlays;
+          username = "df";
+          hostname = "makati";
+          system = "aarch64-linux";
+        };
+        "df@belfast" = mkHome {
+          inherit overlays;
+          username = "df";
+          hostname = "belfast";
+          system = "aarch64-linux";
+        };
+      };
+
     };
 }

@@ -12,9 +12,6 @@
     # https://github.com/nixos/nixos-hardware
     # and import modules relevant to your hardware.
 
-    # Import your generated (nixos-generate-config) hardware configuration
-    ./hardware-configuration.nix
-
     # You can also split up your configuration and import pieces of it here.
   ];
 
@@ -40,51 +37,31 @@
   nixpkgs.config.allowUnfree = true;
   nixpkgs.config.allowUnsupportedSystem = true;
 
-  # FIXME: Add the rest of your current configuration
-  time.timeZone = "Asia/Singapore";
-
-  programs.fish.enable = true;
   environment.systemPackages = with pkgs; [
-      neovim
-      wget
-      curl
-      git
-      htop
-      bat
-      exa
-      fzf
-      fd
-      ripgrep
-      jq
-      fx
-      tmux
-    ];
+    neovim
+    wget
+    curl
+    git
+    htop
+    bat
+    exa
+    fzf
+    fd
+    ripgrep
+    jq
+    fx
+    tmux
+    git
+  ];
 
-  # TODO: Set your hostname
-  networking.hostName = "makati";
+  # The global useDHCP flag is deprecated, therefore explicitly set to false here.
+  # Per-interface useDHCP will be mandatory in the future, so this generated config
+  # replicates the default behaviour.
+  networking.useDHCP = false;
+  networking.interfaces.enp0s6.useDHCP = true;
 
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
-
-  # TODO: Configure your system-wide user settings (groups, etc), add more users as needed.
-  users.users = {
-    # FIXME: Replace with your username
-    df = {
-      # TODO: You can set an initial password for your user.
-      # If you do, you can skip setting a root password by passing '--no-root-passwd' to nixos-install.
-      # Be sure to change it (using passwd) after rebooting!
-      # initialPassword = "correcthorsebatterystaple";
-      isNormalUser = true;
-      openssh.authorizedKeys.keys = [
-        # TODO: Add your SSH public key(s) here, if you plan on using SSH to connect
-        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINiUTw0dJPgY4aSNv69av01Ona3TR91l9TCDrhDIBD7u df@makati"
-      ];
-      # TODO: Be sure to add any other groups you need (such as networkmanager, audio, docker, etc)
-      extraGroups = [ "wheel" ];
-
-      shell = pkgs.fish;
-    };
-  };
 
   # This setups a SSH server. Very important if you're setting up a headless system.
   # Feel free to remove if you don't need it.
@@ -95,4 +72,12 @@
     # Use keys only. Remove if you want to SSH using password (not recommended)
     passwordAuthentication = false;
   };
+
+  # This value determines the NixOS release from which the default
+  # settings for stateful data, like file locations and database versions
+  # on your system were taken. It‘s perfectly fine and recommended to leave
+  # this value at the release version of the first install of this system.
+  # Before changing this value read the documentation for this option
+  # (e.g. man configuration.nix or on https://nixos.org/manual/nixos/stable/options.html#opt-system.stateVersion).
+  system.stateVersion = "22.11"; # Did you read the comment?
 }

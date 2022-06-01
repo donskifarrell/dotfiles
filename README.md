@@ -1,128 +1,144 @@
-# Nix Starter Config (Full version)
+# NixOS & home-manager
 
-This is a simple nix flake for getting started with NixOS + home-manager.
-
-**[Looking for the minimal version?](https://github.com/Misterio77/nix-starter-config/tree/minimal)**
-
-# What this provides
-
-- NixOS configuration on `nixos/configuration.nix`, accessible via
-  `nixos-rebuild --flake .`
-- Home-manager configuration on `home-manager/home.nix`, accessible via
-  `home-manager --flake .`
-- Basic boilerplate for adding custom packages (under `pkgs`) and overlays
-  (under `overlays`). Accessible on your system, home config, as well as `nix
-  build .#package-name`
-- Boilerplate for custom NixOS (`modules/nixos`) and home-manager
-  (`modules/home-manager`) modules
-
-# Getting started
-
-Assuming you have a basic NixOS booted up (either live or installed, anything
-works). [Here's a link to the latest NixOS downloads, just for
-you](https://nixos.org/download#download-nixos).
-
-## I like your funny words, magic man
-
-Not sure what this all means?
-
-Take a look at [the learn hub on the NixOS
-website](https://nixos.org/learn.html) (scroll down to guides, the manuals, and
-the other awesome learning resources).
-
-Learning the basics of what Nix (the package manager) is, how the Nix language
-works, and a bit of NixOS basics should get you up and running. Don't worry if
-it seems a little confusing at first. Get confortable with the basic concepts
-and come back here to get your feet wet, it's the best way to learn!
-
-## The repo
-
-- [Install git](https://nixos.wiki/wiki/git)
-- [Hit "Use this
-  template"](https://github.com/Misterio77/nix-starter-config/generate) on this
-  repo (or clone this down and push to any another git remote)
-
-- Add stuff you currently have on `/etc/nixos/` to `nixos` (usually
-  `configuration.nix` and `hardware-configuration.nix`, when you're starting
-  out).
-    - The included file has some options you might want, specially if you don't
-      have a configuration ready. Make sure you have generated your own
-      `hardware-configuration.nix`; if not, just mount your partitions to
-      `/mnt` and run: `nixos-generate-config --root /mnt`.
-- If you're already using home-manager, add your stuff from `~/.config/nixpkgs`
-  to `home-manager` (probably `home.nix`).
-  - I also include one with some simple options if you need. Feel free to
-    ignore this step if you don't want to use home-manager just yet.
-- Take a look at `flake.nix`, making sure to fill out anything marked with
-  FIXME (required) or TODO (usually tips or optional stuff you might want)
-- Push your changes! Or at least copy them somewhere if you're on a live
-  medium.
-
-## Bootstrapping
-
-To get everything up and running, you need flake-enabled nix and home-manager.
-
-First off, check your nix version using `nix --version`.
-
-### Version < 2.4
-
-Bummer, your nix version does not support flakes. But fear not!
-
-You _don't_ need to mess around with channels to get up and running.
-
-Just run:
-```bash
-nix-shell
-```
-
-Wow, that was easy. Our `shell.nix` file will detect you can't evaluate (nor
-lock) the flake, and will grab `nix` and `home-manager` from the latest
-`nixos-unstable` versions, just for you.
-
-Once you're bootstrapped, remember to run `nix flake lock` and commit the
-newly-created `flake.lock` into your repository, this will make future
-bootstraps reproductible.
-
-### Version >= 2.4
-
-Congrats, your nix version supports flakes! It's just hidden behind a feature flag.
-
-You can bootstrap with: 
-```bash
-nix --experimental-features develop "nix-command flakes" .#default
-```
-
-The shell will also enable those experimental features, so no need to pass that
-argument while you're inside (or after installation, if you set the option that
-enables them globally).
-
-This should generate a `flake.lock`. Remember to commit it, as this will make
-future bootstraps reproductible.
+Configuration for VMs and OSX
 
 ## Usage
 
 - Run `sudo nixos-rebuild switch --flake .#hostname` to apply your system
   configuration.
-    - If you're still on a live installation medium, run `nixos-install --flake
-      .#hostname` instead, and reboot.
 - Run `home-manager switch --flake .#username@hostname` to apply your home
   configuration.
 
-And that's it, really! You're ready to have fun with your configurations using
-the latest and greatest nix3 flake-enabled command UX.
+## Machines
 
-# What next?
+| Hostname | Users | System     | What For?                  |
+| -------- | ----- | ---------- | -------------------------- |
+| makati   | df    | arm/osx m1 | daily driver               |
+| belfast  | df    | aarch64/vm | media and doc backups, vpn |
+| london   | df    | ?/vm       | fun stuff. unstable        |
+| dublin   | df    | ?/vm       | linux workstation          |
+
+Aside from `makati` everything is NixOS based.
+
+```
+# Dump of what to install, maybe
+
+df@Belfast - stable VM in the cloud for backups
+
+- syncthing
+- paperlessng?
+- wireguard
+  Takes care of:
+  -- Email backup
+  -- Docs storage
+  -- Photo/Video storage
+  -- Misc Files storage
+
+df@London - fun shit?
+
+- k8s cluster in the cloud for all the random sites I want to run?
+
+df@Dublin - Linux workstation
+
+- small base VM image for local or cloud
+- stable
+  fail2ban
+- KDE? Sway? etc
+
+pihole?
+```
+
+# NixOS Setup
+
+For now, let's assume we're using a VM.
+Boot the VM with the NixOS ISO image to get to a live env.
+Once at login, set the `nixos` and `root` password. These are throwaway just to enable SSH.
+
+#### REMOTE
+
+```
+# Fix root and nixos for SSH
+passwd nixos
+
+sudo -i
+passwd root
+
+# Get machine ip address
+ifconfig
+```
+
+Next, copy the script files over.
+
+#### LOCAL
+
+```
+# On local
+scp -r ./.dotfiles nixos@<machine-ip>:/home/nixos
+```
+
+SSH in, and run scripts
+
+#### LOCAL
+
+```
+# On local
+ssh nixos@<machine-ip>
+```
+
+#### REMOTE
+
+```
+# On remote machine SSH session
+# /boot doesn't always work, so might need manual commands
+cd /home/nixos/.dotfiles
+sudo sh ./scripts/vm-disk-setup.sh
+
+nix-shell
+sudo sh ./scripts/vm-nixos-setup.sh <HOST> <USER>
+
+# If you want, push the changes to a repo. Password token is needed.
+git add flake.lock "./hosts/${1}/hardware-configuration.nix"
+git commit -am "Committing new hardware-config and flake lock"
+git push
+
+# Or copy them back to remote. From LOCAL:
+scp -r nixos@<machine-ip>:/home/nixos/.dotfiles/hosts/<HOST>/hardware-configuration.nix <LOCAL_PATH>/.dotfiles/hosts/<HOST>/
+scp -r nixos@<machine-ip>:/home/nixos/.dotfiles/hosts/<HOST>/hardware-configuration.nix <LOCAL_PATH>/.dotfiles/hosts/<HOST>/
+
+# Reboot and remove .iso disk
+sudo reboot
+
+# After reboot and <USER> login
+passwd <USER>
+```
+
+#### LOCAL
+
+```
+# When SSH'ing into box you will need to clear the fingerprint after install
+ssh-keygen -R <machine-ip>
+ssh-add ~/.ssh/path/to/key
+scp -r ./.dotfiles <USER>@<machine-ip>:/home/<USER>
+
+# Optionally on remote machine, pull files from repo
+git clone https://github.com/donskifarrell/dotfiles.git .dotfiles
+```
+
+#### REMOTE (on newly installed OS)
+
+```
+cd /home/<USER>/.dotfiles
+nix-shell
+sh ./scripts/vm-first-boot.sh <HOST> <USER>
+```
+
+# OSX Setup
+
+Only tested on M1 Macbook Pro
+
+# What's next?
 
 ## User password and secrets
-
-You have basically two ways of setting up default passwords:
-- By default, you'll be prompted for a root password when installing with
-  `nixos-install`. After you reboot, be sure to add a password to your own
-  account and lock root using `sudo passwd -l root`.
-- Alternatively, you can specify `initialPassword` for your user. This will
-  give your account a default password, be sure to change it after rebooting!
-  If you do, you should pass `--no-root-passwd` to `nixos-install`, to skip
-  setting a password on the root account.
 
 If you don't want to set your password imperatively, you can also use
 `passwordFile` for safely and declaratively setting a password from a file
@@ -132,20 +148,6 @@ There's also [more advanced options for secret
 management](https://nixos.wiki/wiki/Comparison_of_secret_managing_schemes),
 including some that can include them (encrypted) into your config repo and/or
 nix store, be sure to check them out if you're interested.
-
-## Dotfile management with home-manager
-
-Besides just adding packages to your environment, home-manager can also manage
-your dotfiles. I strongly recommend you do, it's awesome!
-
-For full nix goodness, check out the home-manager options with `man
-home-configuration.nix`. Using them, you'll be able to fully configure any
-program with nix syntax and its powerful abstractions.
-
-Alternatively, if you're still not ready to rewrite all your configs to nix
-syntax, there's home-manager options (such as `xdg.configFile`) for including
-files from your config repository into your usual dot directories. Add your
-existing dotfiles to this repo and try it out!
 
 ## Try opt-in persistance
 
@@ -169,6 +171,7 @@ for mounting stuff you to keep to a separate partition/volume (such as
 can keep track of what you specifically asked to be kept.
 
 Here's some awesome blog posts about it:
+
 - [Erase your darlings](https://grahamc.com/blog/erase-your-darlings)
 - [Encrypted BTRFS with Opt-In State on
   NixOS](https://mt-caret.github.io/blog/posts/2020-06-29-optin-state.html)
@@ -217,12 +220,6 @@ sure to also add them to the listing at `modules/nixos/default.nix` or
 See [the wiki article](https://nixos.wiki/wiki/Module) to learn more about
 them.
 
-## Adding more hosts or users
+## Nix Starter Config (Full version)
 
-You can organize them by hostname and username on `nixos` and `home-manager`
-directories, be sure to also add them to `flake.nix`.
-
-NixOS makes it easy to share common configuration between hosts (you might want
-to create a common directory for these), while keeping everything in sync.
-home-manager can help you sync your environment (from editor to WM and
-everything in between) anywhere you use it. Have fun!
+This repo was based heavily off this starter: https://github.com/Misterio77/nix-starter-config
