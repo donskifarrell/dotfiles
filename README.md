@@ -11,12 +11,12 @@ Configuration for VMs and OSX
 
 ## Machines
 
-| Hostname | Users | System     | What For?                  |
-| -------- | ----- | ---------- | -------------------------- |
-| makati   | df    | arm/osx m1 | daily driver               |
-| belfast  | df    | aarch64/vm | media and doc backups, vpn |
-| london   | df    | ?/vm       | fun stuff. unstable        |
-| dublin   | df    | ?/vm       | linux workstation          |
+| Hostname | Users  | System                 | What For?                  |
+| -------- | ------ | ---------------------- | -------------------------- |
+| makati   | donski | aarch64-darwin         | daily driver               |
+| belfast  | df     | aarch64-linux (OSX VM) | media and doc backups, vpn |
+| london   | df     | ?/vm                   | fun stuff. unstable        |
+| dublin   | df     | ?/vm                   | linux workstation          |
 
 Aside from `makati` everything is NixOS based.
 
@@ -134,7 +134,28 @@ sh ./scripts/vm-first-boot.sh <HOST> <USER>
 
 # OSX Setup
 
-Only tested on M1 Macbook Pro
+Only tested on M1 Macbook Pro.
+
+```
+# Make sure we are on the correct system config (rosetta processes will fake the arch as i386/x86_64)
+uname -p
+uname -m
+
+# Run official installer and follow steps
+sh <(curl -L https://nixos.org/nix/install)
+
+# Run setup script
+cd ~/.dotfiles
+sh scripts/os-hm-setup.sh
+source ~/.zprofile # assuming zsh is the shell
+
+# Install home-manager
+nix-shell '<home-manager>' -A install
+
+# Install home-manager config
+home-manager switch --flake .#username@hostname
+
+```
 
 # What's next?
 

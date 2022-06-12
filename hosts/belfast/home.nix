@@ -7,7 +7,7 @@
     # inputs.nix-colors.homeManagerModule
 
     # Feel free to split up your configuration and import pieces of it here.
-    ../common/home-base.nix
+    ../common/home-base-linux.nix
   ];
 
   home.packages = [

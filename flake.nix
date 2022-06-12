@@ -108,7 +108,7 @@
           inherit overlays;
           hostname = "makati";
           system = "aarch64-linux";
-          users = [ "df" ];
+          users = [ "donski" ];
         };
         belfast = mkSystem {
           inherit overlays;
@@ -133,6 +133,11 @@
           extraSpecialArgs = {
             inherit system hostname persistence desktop trusted colorscheme inputs;
           };
+
+          # TODO: Needed for a bug on hm in OSX. Maybe doesn't matter on Linux?
+          # https://github.com/nix-community/home-manager/issues/2622
+          stateVersion = "22.05";
+          
           homeDirectory = /home/${username};
           configuration = ./hosts/${hostname}/home.nix;
           extraModules = attrValues (import ./modules/home-manager) ++ [
@@ -153,11 +158,11 @@
       # Home configurations
       # Accessible via 'home-manager'
       homeConfigurations = {
-        "df@makati" = mkHome {
+        "donski@makati" = mkHome {
           inherit overlays;
-          username = "df";
+          username = "donski";
           hostname = "makati";
-          system = "aarch64-linux";
+          system = "aarch64-darwin";
         };
         "df@belfast" = mkHome {
           inherit overlays;
