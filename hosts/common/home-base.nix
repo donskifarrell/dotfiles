@@ -1,7 +1,13 @@
 # This is your home-manager configuration file
 # Use this to configure your home environment (it replaces ~/.config/nixpkgs/home.nix)
-
-{ inputs, lib, config, pkgs, ... }: {
+{
+  inputs,
+  lib,
+  config,
+  pkgs,
+  hostname,
+  ...
+}: {
   imports = [
     # If you want to use home-manager modules from other flakes (such as nix-colors), use something like:
     # inputs.nix-colors.homeManagerModule
@@ -19,6 +25,21 @@
     PAGER = "less -FirSwX";
     MANPAGER = "sh -c 'col -bx | ${pkgs.bat}/bin/bat -l man -p'";
   };
+
+  home.packages = with pkgs; [
+    bash # Need latest version for scripts
+    age
+    wget
+    curl
+    htop
+    fd
+    ripgrep
+    jq
+    fx
+    alejandra
+    cht-sh
+    rlwrap
+  ];
 
   programs.home-manager.enable = true;
 
@@ -47,7 +68,7 @@
       count = "shortlog -sn";
       g = "grep --break --heading --line-number";
       gi = "grep --break --heading --line-number -i";
-      changed = "show --pretty=\"format:\" --name-only";
+      changed = ''show --pretty="format:" --name-only'';
       please = "push --force-with-lease";
       commend = "commit --amend --no-editor";
       pom = "push origin master";
@@ -79,41 +100,31 @@
       ".Trash/"
     ];
 
+    includes = [{path = "~/.dotfiles/hosts/${hostname}/.gitconfig.local";}];
+
     extraConfig = {
-      core = {
-        editor = "nvim";
-      };
-      pull = {
-        rebase = true;
-      };
-      help = {
-        autocorrect = 1;
-      };
-      grep = {
-        lineNumber = true;
-      };
-      merge = {
-        conflictstyle = "diff3";
-      };
-      diff = {
-        colorMoved = "default";
-      };
-      url = {
-        "git@github.com:" = {
-          insteadOf = "https://github.com/";
-        };
-      };
+      core = {editor = "nvim";};
+      pull = {rebase = true;};
+      help = {autocorrect = 1;};
+      grep = {lineNumber = true;};
+      merge = {conflictstyle = "diff3";};
+      diff = {colorMoved = "default";};
+      url = {"git@github.com:" = {insteadOf = "https://github.com/";};};
     };
   };
-
 
   programs.fish = {
     enable = true;
 
     shellAbbrs = {
       tree = "exa --all --tree --long --color=automatic --level=2";
+      h = "cd ~";
+      "-" = "cd -";
       ".." = "cd ..";
       "..." = "cd ../..";
+
+      hm-switch = "home-manager switch --flake ~/.dotfiles/#${config.home.username}@${hostname}";
+      nix-shell = "nix-shell -run fish";
     };
 
     shellAliases = {
@@ -157,7 +168,56 @@
       k = "kubectl";
     };
 
-    interactiveShellInit = "fzf_configure_bindings\n";
+    functions = {
+      backup_ssh = {
+        description = "Backs up the ~/.ssh folder";
+        body = "sh ~/.dotfiles/scripts/ssh-backup.sh -h $hostname";
+      };
+
+      restore_ssh = {
+        description = "Restores a tar file to the ~/.ssh folder";
+        body = "sh ~/.dotfiles/scripts/ssh-restore.sh -f $argv[1]";
+      };
+
+      certp = {
+        description = "Prints cert certificate for a given domain using openssl";
+        body = "echo | openssl s_client -showcerts -servername $argv[1] -connect $argv[1]:443 2>/dev/null | openssl x509 -inform pem -noout -text";
+      };
+
+      gitnuke = {
+        description = "Nukes a branch or tag locally and on the origin remote.";
+        body = ''
+          git branch --list
+          git show-ref --verify refs/tags/"$argv[1]" && git tag -d "$argv[1]"
+          git show-ref --verify refs/heads/"$argv[1]" && git branch -D "$argv[1]"
+          git push origin :"$argv[1]"
+          git branch --list
+        '';
+      };
+
+      encode = {
+        description = "Encodes a string to base64";
+        body = ''
+          echo -n "$argv[1]" | base64
+        '';
+      };
+
+      decode = {
+        description = "Decodes a string from base64";
+        body = ''
+          echo "$argv[1]" | base64 -D
+        '';
+      };
+
+      fish_greeting = {
+        description = "Override default greeting";
+        body = "";
+      };
+    };
+
+    interactiveShellInit = ''
+      fzf_configure_bindings
+    '';
 
     plugins = [
       {
@@ -205,7 +265,68 @@
           sha256 = "sha256-sWWv9UJR1K8Q5ZTcU7xjJtk8hTRXywVjSL2gQ5Kqj0M=";
         };
       }
+      {
+        name = "fish-abbreviation-tips";
+        src = pkgs.fetchFromGitHub {
+          owner = "Gazorby";
+          repo = "fish-abbreviation-tips";
+          rev = "d29a52375a0826ed86b0710f58b2495a73d3aff3";
+          sha256 = "sha256-841GmOAi/KS7HF7G29NUD8swaTTCPGdpIUV7B2ln32g=";
+        };
+      }
     ];
+  };
+
+  programs.neovim = {
+    enable = true;
+
+    extraConfig = builtins.concatStringsSep "\n" [
+      (lib.strings.fileContents ./neovim/config.vim)
+
+      ''
+        lua << EOF
+        ${lib.strings.fileContents ./neovim/config.lua}
+        EOF
+      ''
+    ];
+
+    extraPackages = with pkgs; [
+      # used to compile tree-sitter grammar
+      tree-sitter
+
+      # installs different langauge servers for neovim-lsp
+      # have a look on the link below to figure out the ones for your languages
+      # https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md
+      nodePackages.typescript
+      nodePackages.typescript-language-server
+      gopls
+      rnix-lsp
+    ];
+
+    plugins = with pkgs.vimPlugins; [
+      vim-tmux-navigator
+      nvim-lspconfig
+      nvim-treesitter
+      nvim-ts-rainbow
+      nvim-ts-autotag
+      The_NERD_Commenter
+      fzf-vim
+      vim-repeat
+      # vim-surround # Conflicts with nerd commenter keys?
+      vim-gitgutter # Need to customise colours
+      vim-fugitive
+      nvim-web-devicons
+      lualine-nvim
+      barbar-nvim
+      nvim-tree-lua
+      nvim-colorizer-lua
+    ];
+  };
+
+  programs.ssh = {
+    enable = true;
+
+    includes = ["~/.ssh/sshconfig.local"];
   };
 
   programs.starship = {
@@ -214,9 +335,7 @@
     settings = {
       add_newline = true;
       format = "$time$username$hostname$directory$git_branch$git_commit$git_state$git_status$env_var$cmd_duration$custom$line_break$jobs$character";
-      username = {
-        format = "[$user]($style) in ";
-      };
+      username = {format = "[$user]($style) in ";};
       directory = {
         format = "in [$path]($style)[$read_only]($read_only_style) ";
         truncate_to_repo = false;
@@ -245,6 +364,7 @@
     enable = true;
     shortcut = "a";
     terminal = "screen-256color";
+    shell = "/Users/${config.home.username}/.nix-profile/bin/fish";
     clock24 = true;
     keyMode = "vi";
 
@@ -252,6 +372,7 @@
       # ----------------------
       # Settings
       # -----------------------
+      set -g default-command /Users/${config.home.username}/.nix-profile/bin/fish
 
       # scrollback size
       set -g history-limit 100000
@@ -309,14 +430,14 @@
       set-option -g status-style "bg=$dr_gray,fg=$dr_white"
 
       set-option -g status-left-length 100
-      set-option -g status-left "#[bg=$dr_green,fg=$dr_dark_gray]#{?client_prefix,#[bg=$dr_yellow],} ☺ " 
+      set-option -g status-left "#[bg=$dr_green,fg=$dr_dark_gray]#{?client_prefix,#[bg=$dr_yellow],} ☺ "
 
       set-option -g status-right-length 100
       set-option -g status-right ""
 
       set-option -ga status-right "#[fg=$dr_white,bg=$dr_dark_purple]  #{network_bandwidth} "
 
-      # window tabs 
+      # window tabs
       set-window-option -g window-status-current-format "#[fg=$dr_white,bg=$dr_dark_purple] #I #W #{?window_zoomed_flag,🔍 , }"
       set-window-option -g window-status-format "#[fg=$dr_white]#[bg=$dr_gray] #I #W #{?window_zoomed_flag,🔍 , }"
 
@@ -331,7 +452,7 @@
       # reload tmux config with ctrl + a + r
       unbind r
       bind r \
-          source-file ~/.tmux.conf \;\
+          source-file ~/.config/tmux/tmux.conf \;\
               display 'Reloaded tmux config.'
 
       # Ctrl - t or t new window

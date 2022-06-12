@@ -46,6 +46,44 @@ df@Dublin - Linux workstation
 - KDE? Sway? etc
 
 pihole?
+
+
+TODO:
+
+== FIXES
+fzf - preview file on ctrl-T view
+forgit/fzf - glo alias, grayed out dates. Also reverse list
+nvim - aliases etc
+
+== INSTALLS
+Brew
+direnv
+kubectx https://github.com/ahmetb/kubectx
+kubectrl /gcloud https://github.com/kubernetes/kubectl
+Vim bufferline https://github.com/akinsho/bufferline.nvim
+Vim tree https://github.com/kyazdani42/nvim-tree.lua
+
+
+### For Review
+
+Secrets, etc https://github.com/jordanisaacs/homeage
+
+https://github.com/myme/dotfiles/tree/1d8e0602e9503c561ca483f6b7708bb1def19486
+
+https://github.com/Gerschtli/nix-config/tree/master
+
+M1 overlay Add access to x86 packages system is running Apple Silicon: https://gist.github.com/ptrfrncsmrph/2d1646fbb035bd76cf8c691c0d5cf47f#file-flake-nix-L72
+
+OSX config: https://discourse.nixos.org/t/simple-workable-config-for-m1-macbook-pro-monterey-12-0-1-with-nix-flakes-nix-darwin-and-home-manager/16834
+
+https://discourse.nixos.org/t/fixing-your-install-after-osx-upgrade/19339
+
+Review settings:
+
+https://github.com/mitchellh/nixos-config/tree/main
+(fish funcs)
+
+
 ```
 
 # NixOS Setup
@@ -156,6 +194,18 @@ nix-shell '<home-manager>' -A install
 home-manager switch --flake .#username@hostname
 
 ```
+
+Applications on OSX that still need manual install:
+
+- Alacritty
+- Fonts (Jetbrains Mono)
+- Hammerspoon
+
+Some VSCode extensions need to be manually added:
+
+- wayou.vscode-todo-highlight
+- vscode-icons-team.vscode-icons
+- waderyan.gitblame
 
 # What's next?
 

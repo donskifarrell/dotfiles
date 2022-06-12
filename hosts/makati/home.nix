@@ -1,7 +1,13 @@
 # This is your home-manager configuration file
 # Use this to configure your home environment (it replaces ~/.config/nixpkgs/home.nix)
-
-{ inputs, lib, config, pkgs, username, hostname, ... }: {
+{
+  inputs,
+  lib,
+  config,
+  pkgs,
+  hostname,
+  ...
+}: {
   imports = [
     # If you want to use home-manager modules from other flakes (such as nix-colors), use something like:
     # inputs.nix-colors.homeManagerModule
@@ -10,21 +16,71 @@
     ../common/home-base.nix
   ];
 
+  # Workaround fix: https://github.com/nix-community/home-manager/issues/2942
+  nixpkgs.config.allowUnfreePredicate = pkg: true;
+  fonts.fontconfig.enable = true;
+
   home = {
     # Different location on OSX
     homeDirectory = pkgs.lib.mkForce "/Users/${config.home.username}";
 
-    packages = [
-      pkgs.go
-      pkgs.gopls
-
-      pkgs.ffmpeg
+    packages = with pkgs; [
+      ffmpeg
+      go
+      gopls
+      google-cloud-sdk
+      kubectl
+      kubectx
+      (nerdfonts.override {fonts = ["JetBrainsMono"];})
     ];
+
+    # file."secrets".source = ../../secrets;
+    # file."secrets".recursive = true;
+  };
+
+  programs.go = {
+    enable = true;
+    goPath = "go";
+  };
+
+  programs.vscode = {
+    enable = true;
+    mutableExtensionsDir = true;
+
+    extensions = with pkgs; [
+      vscode-extensions.golang.go
+      vscode-extensions.kamadorueda.alejandra
+      vscode-extensions.bbenoist.nix
+      vscode-extensions.formulahendry.auto-close-tag
+      vscode-extensions.formulahendry.auto-rename-tag
+      vscode-extensions.tamasfe.even-better-toml
+      vscode-extensions.dracula-theme.theme-dracula
+      vscode-extensions.dbaeumer.vscode-eslint
+      vscode-extensions.hashicorp.terraform
+      vscode-extensions.esbenp.prettier-vscode
+      vscode-extensions.ms-vscode-remote.remote-ssh
+      vscode-extensions.foxundermoon.shell-format
+      vscode-extensions.bradlc.vscode-tailwindcss
+      vscode-extensions.redhat.vscode-yaml
+      vscode-extensions.streetsidesoftware.code-spell-checker
+      vscode-extensions.donjayamanne.githistory
+      vscode-extensions.jock.svg
+
+      # Not on nixpkgs yet:
+      # vscode-extensions.wayou.vscode-todo-highlight
+      # vscode-extensions.vscode-icons-team.vscode-icons
+      # vscode-extensions.waderyan.gitblame
+    ];
+
+    # TODO: VSCode common user settings
   };
 
   programs.git = {
+    extraConfig = {
+      credential = {helper = "osxkeychain";};
+    };
+
     includes = [
-      { path = "~/.dotfiles/hosts/${hostname}/.gitconfig.local"; }
       {
         path = ".gitconfig.brankas";
         condition = "gitdir/i:brankas/";
@@ -35,7 +91,7 @@
       }
     ];
   };
-  
+
   programs.fish = {
     loginShellInit = ''
       if test -e /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
@@ -46,182 +102,248 @@
         fenv source /nix/var/nix/profiles/default/etc/profile.d/nix.sh
       end
     '';
+
+    functions = {
+      show_hidden_files = {
+        description = "Toggle (YES/NO) show hidden files in OSX Finder";
+        body = ''
+          switch $argv[1]
+            case YES
+              echo "[showHiddenFiles]: showing hidden files..."
+            case NO
+              echo "[showHiddenFiles]: re-hidding files..."
+            case '*'
+              echo "[showHiddenFiles]: unknown option $argv[1] - [YES|NO] options only"
+              exit 1
+          end
+
+          defaults write com.apple.finder AppleShowAllFiles $argv[1]
+
+          echo "[showHiddenFiles]: relaunching Finder..."
+          osascript -e 'tell application "Finder" to quit'
+          osascript -e 'tell application "Finder" to activate'
+        '';
+      };
+
+      reset_internet = {
+        description = "Resets several internet services. Assumes en0 is main interface";
+        body = ''
+          echo "[resetInternet]: tear down en0..."
+          sudo ifconfig en0 down
+          echo "[resetInternet]: flushing routes..."
+          sudo route flush
+          echo "[resetInternet]: bring up en0..."
+          sudo ifconfig en0 up
+          echo "[resetInternet]: restart mDNSResponder..."
+          sudo killall -HUP mDNSResponder
+        '';
+      };
+
+      flush_DNS = {
+        description = "Flush DNS service";
+        body = ''
+          echo "[flushDNS]: restart mDNSResponder..."
+          sudo killall -HUP mDNSResponder
+        '';
+      };
+
+      restart_bluetooth = {
+        description = "Restart the OSX Bluetooth service";
+        body = ''
+          switch $argv[1]
+            case restart
+              echo "[restartBluetooth]: restarting bluetooth only..."
+            case on
+              echo "[restartBluetooth]: turning Bluetooth ON"
+              sudo defaults write /Library/Preferences/com.apple.Bluetooth.plist ControllerPowerState 1
+            case off
+              echo "[restartBluetooth]: turning Bluetooth OFF"
+              sudo defaults write /Library/Preferences/com.apple.Bluetooth.plist ControllerPowerState 0
+            case '*'
+              echo "[restartBluetooth]: unknown option $argv[1] - [restart|on|off] options only"
+              exit 1
+          end
+
+          sudo kextunload -b com.apple.iokit.BroadcomBluetoothHostControllerUSBTransport
+          sudo kextload -b com.apple.iokit.BroadcomBluetoothHostControllerUSBTransport
+
+          echo "[restartBluetooth]: done"
+        '';
+      };
+    };
   };
 
+  # TODO: DO NOT RUN THROUGH A FORMATTER! (hints -> enabled -> regex gets borked at the "\\s )
   programs.alacritty = {
     enable = true;
 
     settings = {
-    env = {
-        TERM = "alacritty";
-    };
-    window = {
+      env = {TERM = "alacritty";};
+      window = {
         decorations = "full";
         startup_mode = "Windowed";
-    };
-    scrolling = {
-        history = 10000;
-    };
-    font = {
+      };
+      scrolling = {history = 10000;};
+      font = {
         normal = {
-            family = "JetBrains Mono";
-            style = "Regular";
+          family = "JetBrainsMono Nerd Font";
+          style = "Regular";
         };
         bold = {
-            family = "JetBrains Mono";
-            style = "Bold";
+          family = "JetBrainsMono Nerd Font";
+          style = "Bold";
         };
         italic = {
-            family = "JetBrains Mono";
-            style = "Italic";
+          family = "JetBrainsMono Nerd Font";
+          style = "Italic";
         };
         bold_italic = {
-            family = "JetBrains Mono";
-            style = "Bold Italic";
+          family = "JetBrainsMono Nerd Font";
+          style = "Bold Italic";
         };
         size = 12;
         use_thin_strokes = true;
         builtin_box_drawing = true;
-    };
-    draw_bold_text_with_bright_colors = false;
-    colors = {
+      };
+      draw_bold_text_with_bright_colors = false;
+      colors = {
         primary = {
-            background = "#282a36";
-            foreground = "#f8f8f2";
-            bright_foreground = "#ffffff";
+          background = "#282a36";
+          foreground = "#f8f8f2";
+          bright_foreground = "#ffffff";
         };
         cursor = {
-            text = "CellBackground";
-            cursor = "CellForeground";
+          text = "CellBackground";
+          cursor = "CellForeground";
         };
         vi_mode_cursor = {
-            text = "CellBackground";
-            cursor = "CellForeground";
+          text = "CellBackground";
+          cursor = "CellForeground";
         };
         search = {
-            matches = {
-                foreground = "#44475a";
-                background = "#50fa7b";
-            };
-            focused_match = {
-                foreground = "#44475a";
-                background = "#ffb86c";
-            };
-            bar = {
-                background = "#282a36";
-                foreground = "#f8f8f2";
-            };
+          matches = {
+            foreground = "#44475a";
+            background = "#50fa7b";
+          };
+          focused_match = {
+            foreground = "#44475a";
+            background = "#ffb86c";
+          };
+          bar = {
+            background = "#282a36";
+            foreground = "#f8f8f2";
+          };
         };
         hints = {
-            start = {
-                foreground = "#282a36";
-                background = "#f1fa8c";
-            };
-            end = {
-                foreground = "#f1fa8c";
-                background = "#282a36";
-            };
+          start = {
+            foreground = "#282a36";
+            background = "#f1fa8c";
+          };
+          end = {
+            foreground = "#f1fa8c";
+            background = "#282a36";
+          };
         };
         line_indicator = {
-            foreground = "None";
-            background = "None";
+          foreground = "None";
+          background = "None";
         };
         selection = {
-            text = "CellForeground";
-            background = "#44475a";
+          text = "CellForeground";
+          background = "#44475a";
         };
         normal = {
-            black = "#21222c";
-            red = "#ff5555";
-            green = "#50fa7b";
-            yellow = "#f1fa8c";
-            blue = "#bd93f9";
-            magenta = "#ff79c6";
-            cyan = "#8be9fd";
-            white = "#f8f8f2";
+          black = "#21222c";
+          red = "#ff5555";
+          green = "#50fa7b";
+          yellow = "#f1fa8c";
+          blue = "#bd93f9";
+          magenta = "#ff79c6";
+          cyan = "#8be9fd";
+          white = "#f8f8f2";
         };
         bright = {
-            black = "#6272a4";
-            red = "#ff6e6e";
-            green = "#69ff94";
-            yellow = "#ffffa5";
-            blue = "#d6acff";
-            magenta = "#ff92df";
-            cyan = "#a4ffff";
-            white = "#ffffff";
+          black = "#6272a4";
+          red = "#ff6e6e";
+          green = "#69ff94";
+          yellow = "#ffffa5";
+          blue = "#d6acff";
+          magenta = "#ff92df";
+          cyan = "#a4ffff";
+          white = "#ffffff";
         };
-    };
-    cursor = {
-        unfocused_hollow = true;
-    };
-    live_config_reload = true;
-    shell = {
-        program = "/Users/$USER/.nix-profile/bin/fish";
-    };
-    mouse = null;
-    hints = {
+      };
+      cursor = {unfocused_hollow = true;};
+      live_config_reload = true;
+      shell = {
+        program = "/Users/${config.home.username}/.nix-profile/bin/fish";
+        args = ["--login"];
+      };
+      hints = {
         alphabet = "jfkdls;ahgurieowpq";
         enabled = [
-            {
-                regex = "(ipfs:|ipns:|magnet:|mailto:|gemini:|gopher:|https:|http:|news:|file:|git:|ssh:|ftp:)[^\u0000-\u001f-<>\"\\s{-}\\^⟨⟩`]+";
-                command = "open";
-                post_processing = true;
-                mouse = {
-                    enabled = true;
-                    mods = "None";
-                };
-                binding = {
-                    key = "U";
-                    mods = "Control|Shift";
-                };
-            }
+          {
+            # TODO: DO NOT RUN THROUGH A FORMATTER!
+            regex = ''
+              (ipfs:|ipns:|magnet:|mailto:|gemini:|gopher:|https:|http:|news:|file:|git:|ssh:|ftp:)[^\u0000-\u001F\u007F-\u009F<>"\\s{-}\\^⟨⟩`]+'';
+            command = "open";
+            post_processing = true;
+            mouse = {
+              enabled = true;
+              mods = "None";
+            };
+            binding = {
+              key = "U";
+              mods = "Control|Shift";
+            };
+          }
         ];
+      };
+      key_bindings = [
+        {
+          key = "K";
+          mods = "Command";
+          mode = "~Vi|~Search";
+          chars = "f";
+        }
+        {
+          key = "K";
+          mods = "Command";
+          mode = "~Vi|~Search";
+          action = "ClearHistory";
+        }
+        {
+          key = "Key0";
+          mods = "Command";
+          action = "ResetFontSize";
+        }
+        {
+          key = "Equals";
+          mods = "Command";
+          action = "IncreaseFontSize";
+        }
+        {
+          key = "Plus";
+          mods = "Command";
+          action = "IncreaseFontSize";
+        }
+        {
+          key = "Minus";
+          mods = "Command";
+          action = "DecreaseFontSize";
+        }
+        {
+          key = "V";
+          mods = "Command";
+          action = "Paste";
+        }
+        {
+          key = "C";
+          mods = "Command";
+          action = "Copy";
+        }
+      ];
     };
-    key_bindings = [
-        {
-            key = "K";
-            mods = "Command";
-            mode = "~Vi|~Search";
-            chars = "\f";
-        }
-        {
-            key = "K";
-            mods = "Command";
-            mode = "~Vi|~Search";
-            action = "ClearHistory";
-        }
-        {
-            key = "Key0";
-            mods = "Command";
-            action = "ResetFontSize";
-        }
-        {
-            key = "Equals";
-            mods = "Command";
-            action = "IncreaseFontSize";
-        }
-        {
-            key = "Plus";
-            mods = "Command";
-            action = "IncreaseFontSize";
-        }
-        {
-            key = "Minus";
-            mods = "Command";
-            action = "DecreaseFontSize";
-        }
-        {
-            key = "V";
-            mods = "Command";
-            action = "Paste";
-        }
-        {
-            key = "C";
-            mods = "Command";
-            action = "Copy";
-        }
-    ];
-};
   };
 
   # This value determines the Home Manager release that your

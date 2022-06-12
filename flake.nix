@@ -21,52 +21,51 @@
     # nix-colors.url = "github:misterio77/nix-colors";
   };
 
-  outputs = inputs:
-    let
-      # Bring some functions into scope (from builtins and other flakes)
-      inherit (builtins) mapAttrs attrValues;
-      inherit (inputs.nixpkgs.lib) genAttrs systems;
-      forAllSystems = genAttrs systems.flakeExposed;
-    in
-    rec {
+  outputs = inputs: let
+    # Bring some functions into scope (from builtins and other flakes)
+    inherit (builtins) mapAttrs attrValues;
+    inherit (inputs.nixpkgs.lib) genAttrs systems;
+    forAllSystems = genAttrs systems.flakeExposed;
+  in rec {
+    # importAttrset = path: mapAttrs (_: import) (import path);
 
-      # importAttrset = path: mapAttrs (_: import) (import path);
+    # TODO: If you want to use packages exported from other flakes, add their overlays here.
+    # They will be added to your 'pkgs'
+    overlays = {
+      default = import ./overlay {inherit inputs;}; # Our own overlay
+    };
 
-      # TODO: If you want to use packages exported from other flakes, add their overlays here.
-      # They will be added to your 'pkgs'
-      overlays = {
-        default = import ./overlay { inherit inputs; }; # Our own overlay
-      };
-
-      # Packages
-      # Accessible via 'nix build'
-      packages = forAllSystems (system:
-        # Propagate nixpkgs' packages, with our overlays applied
-        import inputs.nixpkgs { inherit system; overlays = attrValues overlays; }
-      );
-
-      # Devshell for bootstrapping
-      # Accessible via 'nix develop'
-      devShells = forAllSystems (system: {
-        default = import ./shell.nix { pkgs = packages.${system}; };
-      });
-
-      # nixosModules = importAttrset ./modules/nixos;
-      # homeManagerModules = importAttrset ./modules/home-manager;
-
-      mkSystem =
-        { hostname
-        , system ? "x86_64-linux"
-        , overlays ? { }
-        , users ? [ ]
-        , persistence ? false
-        }:
-        inputs.nixpkgs.lib.nixosSystem {
+    # Packages
+    # Accessible via 'nix build'
+    packages = forAllSystems (system:
+      # Propagate nixpkgs' packages, with our overlays applied
+        import inputs.nixpkgs {
           inherit system;
-          specialArgs = {
-            inherit inputs system hostname persistence;
-          };
-          modules = attrValues (import ./modules/nixos) ++ [
+          overlays = attrValues overlays;
+        });
+
+    # Devshell for bootstrapping
+    # Accessible via 'nix develop'
+    devShells = forAllSystems (system: {
+      default = import ./shell.nix {pkgs = packages.${system};};
+    });
+
+    # nixosModules = importAttrset ./modules/nixos;
+    # homeManagerModules = importAttrset ./modules/home-manager;
+
+    mkSystem = {
+      hostname,
+      system ? "x86_64-linux",
+      overlays ? {},
+      users ? [],
+      persistence ? false,
+    }:
+      inputs.nixpkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs = {inherit inputs system hostname persistence;};
+        modules =
+          attrValues (import ./modules/nixos)
+          ++ [
             ./hosts/${hostname}/system.nix
             {
               networking.hostName = hostname;
@@ -76,71 +75,83 @@
                 config.allowUnfree = true;
               };
               # Add each input as a registry
-              nix.registry = inputs.nixpkgs.lib.mapAttrs'
-                (n: v:
-                  inputs.nixpkgs.lib.nameValuePair n { flake = v; })
+              nix.registry =
+                inputs.nixpkgs.lib.mapAttrs'
+                (n: v: inputs.nixpkgs.lib.nameValuePair n {flake = v;})
                 inputs;
             }
             # System wide config for each user
-          ] ++ inputs.nixpkgs.lib.forEach users
-            (u:
-              { pkgs, persistence, ... }: {
-                users.users = {
-                  "${u}" = {
-                    isNormalUser = true;
-                    initialPassword = "passwd-change-me-on-login";
-                    shell = pkgs.fish;
-                    openssh.authorizedKeys.keys = [
-                      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINiUTw0dJPgY4aSNv69av01Ona3TR91l9TCDrhDIBD7u df@makati"
-                    ];
-                    # TODO: Be sure to add any other groups you need (such as networkmanager, audio, docker, etc)
-                    extraGroups = [ "wheel" ];
-                  };
-                };
-              }
-            );
-        };
-
-      # System configurations
-      # Accessible via 'nixos-rebuild'
-      nixosConfigurations = {
-        makati = mkSystem {
-          inherit overlays;
-          hostname = "makati";
-          system = "aarch64-linux";
-          users = [ "donski" ];
-        };
-        belfast = mkSystem {
-          inherit overlays;
-          hostname = "belfast";
-          system = "aarch64-linux";
-          users = [ "df" ];
-        };
+          ]
+          ++ inputs.nixpkgs.lib.forEach users (u: {
+            pkgs,
+            persistence,
+            ...
+          }: {
+            users.users = {
+              "${u}" = {
+                isNormalUser = true;
+                initialPassword = "passwd-change-me-on-login";
+                shell = pkgs.fish;
+                openssh.authorizedKeys.keys = [
+                  "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINiUTw0dJPgY4aSNv69av01Ona3TR91l9TCDrhDIBD7u df@makati"
+                ];
+                # TODO: Be sure to add any other groups you need (such as networkmanager, audio, docker, etc)
+                extraGroups = ["wheel"];
+              };
+            };
+          });
       };
 
-      mkHome =
-        { username
-        , hostname
-        , system ? "x86_64-linux"
-        , overlays ? { }
-        , persistence ? false
-        , desktop ? null
-        , trusted ? false
-        , colorscheme ? "dracula"
-        }:
-        inputs.home-manager.lib.homeManagerConfiguration {
-          inherit username system;
-          extraSpecialArgs = {
-            inherit system hostname persistence desktop trusted colorscheme inputs;
-          };
+    # System configurations
+    # Accessible via 'nixos-rebuild'
+    nixosConfigurations = {
+      makati = mkSystem {
+        inherit overlays;
+        hostname = "makati";
+        system = "aarch64-linux";
+        users = ["donski"];
+      };
+      belfast = mkSystem {
+        inherit overlays;
+        hostname = "belfast";
+        system = "aarch64-linux";
+        users = ["df"];
+      };
+    };
 
-          # TODO: Needed for a bug on hm in OSX. Maybe doesn't matter on Linux?
-          # https://github.com/nix-community/home-manager/issues/2622
-          stateVersion = "22.05";
-          
-          homeDirectory = /home/${username};
-          configuration = ./hosts/${hostname}/home.nix;
-          extraModules = attrValues (import ./modules/home-manager) ++ [
+    mkHome = {
+      username,
+      hostname,
+      system ? "x86_64-linux",
+      overlays ? {},
+      persistence ? false,
+      desktop ? null,
+      trusted ? false,
+      colorscheme ? "dracula",
+    }:
+      inputs.home-manager.lib.homeManagerConfiguration {
+        inherit username system;
+        extraSpecialArgs = {
+          inherit
+            system
+            hostname
+            persistence
+            desktop
+            trusted
+            colorscheme
+            inputs
+            ;
+        };
+
+        # TODO: Needed for a bug on hm in OSX. Maybe doesn't matter on Linux?
+        # https://github.com/nix-community/home-manager/issues/2622
+        stateVersion = "22.05";
+
+        homeDirectory = /home/${username};
+        configuration = ./hosts/${hostname}/home.nix;
+        extraModules =
+          attrValues (import ./modules/home-manager)
+          ++ [
             # Base configuration
             {
               nixpkgs = {
@@ -153,24 +164,23 @@
               };
             }
           ];
-        };
-
-      # Home configurations
-      # Accessible via 'home-manager'
-      homeConfigurations = {
-        "donski@makati" = mkHome {
-          inherit overlays;
-          username = "donski";
-          hostname = "makati";
-          system = "aarch64-darwin";
-        };
-        "df@belfast" = mkHome {
-          inherit overlays;
-          username = "df";
-          hostname = "belfast";
-          system = "aarch64-linux";
-        };
       };
 
+    # Home configurations
+    # Accessible via 'home-manager'
+    homeConfigurations = {
+      "donski@makati" = mkHome {
+        inherit overlays;
+        username = "donski";
+        hostname = "makati";
+        system = "aarch64-darwin";
+      };
+      "df@belfast" = mkHome {
+        inherit overlays;
+        username = "df";
+        hostname = "belfast";
+        system = "aarch64-linux";
+      };
     };
+  };
 }

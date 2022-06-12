@@ -1,8 +1,9 @@
 # Your overlays go here (see https://nixos.wiki/wiki/Overlays)
-{ inputs, ... }: final: prev:
+{inputs, ...}: final: prev:
 {
   # example = prev.example.overrideAttrs (oldAttrs: rec {
   # ...
   # });
   # This line adds our custom packages into the overlay.
-} // import ../pkgs { pkgs = final; }
+}
+// import ../pkgs {pkgs = final;}

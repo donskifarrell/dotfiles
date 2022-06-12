@@ -1,7 +1,13 @@
 # This is your home-manager configuration file
 # Use this to configure your home environment (it replaces ~/.config/nixpkgs/home.nix)
-
-{ inputs, lib, config, pkgs, hostname, ... }: {
+{
+  inputs,
+  lib,
+  config,
+  pkgs,
+  hostname,
+  ...
+}: {
   imports = [
     # If you want to use home-manager modules from other flakes (such as nix-colors), use something like:
     # inputs.nix-colors.homeManagerModule
@@ -10,13 +16,5 @@
     ../common/home-base-linux.nix
   ];
 
-  home.packages = [
-    pkgs.ffmpeg
-  ];
-
-  programs.git = {
-    includes = [
-      { path = "~/.dotfiles/hosts/${hostname}/.gitconfig.local"; }
-    ];
-  };
+  home.packages = [pkgs.ffmpeg];
 }

@@ -1,8 +1,12 @@
 # This is your system's configuration file.
 # Use this to configure your system environment (it replaces /etc/nixos/configuration.nix)
-
-{ inputs, lib, config, pkgs, ... }: {
-
+{
+  inputs,
+  lib,
+  config,
+  pkgs,
+  ...
+}: {
   imports = [
     # If you want to use modules from other flakes (such as nixos-hardware), use something like:
     # inputs.hardware.nixosModules.common-cpu-amd
@@ -17,7 +21,8 @@
 
   # This will add your inputs as registries, making operations with them (such
   # as nix shell nixpkgs#name) consistent with your flake inputs.
-  nix.registry = lib.mapAttrs' (n: v: lib.nameValuePair n { flake = v; }) inputs;
+  nix.registry =
+    lib.mapAttrs' (n: v: lib.nameValuePair n {flake = v;}) inputs;
 
   # Will activate home-manager profiles for each user upon login
   # This is useful when using ephemeral installations
@@ -51,7 +56,6 @@
     jq
     fx
     tmux
-    git
   ];
 
   # The global useDHCP flag is deprecated, therefore explicitly set to false here.
