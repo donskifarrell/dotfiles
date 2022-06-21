@@ -22,10 +22,6 @@ get_ssid()
 			fi
 		;;
 
-		CYGWIN*|MINGW32*|MSYS*|MINGW*)
-			# leaving empty - TODO - windows compatability
-		;;
-
 		*)
 		;;
 	esac

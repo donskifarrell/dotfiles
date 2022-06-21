@@ -2,7 +2,7 @@
 
 set -e
 
-echo "Restore Age file to ~/.ssh folder"
+echo "Restore Age file to ~/.local folder"
 while getopts 'f:' OPTION; do
     case "$OPTION" in
     f)
@@ -20,8 +20,8 @@ shift "$(($OPTIND - 1))"
 echo "Press Enter to continue"
 read -r
 
-mkdir -p ~/.ssh
-cd ~/.ssh
+mkdir -p ~/.local
+cd ~/.local
 
 FILENAME=$(basename ${AGEFILEPATH})
 TARFILE=${FILENAME::-4}
@@ -32,17 +32,8 @@ tar xvf $TARFILE
 rm -v $TARFILE
 
 cd -
-echo "Restore of ~/.ssh from $AGEFILEPATH complete"
+echo "Restore of ~/.local from $AGEFILEPATH complete"
 
-# echo "Set permissions on .SSH folder"
-# sudo chmod 600 ~/.ssh/*
-# sudo chmod 644 ~/.ssh/known_hosts
-# sudo chmod 755 ~/.ssh
-
-echo ""
-echo "You'll likely want to run 'ssh-add --apple-use-keychain ~/.ssh/[your-private-key]' for each of the keys you need."
-echo "Also update the ~/.ssh/sshconfig.local file too"
-echo ""
 echo "Done. Press Enter"
 
 read -r

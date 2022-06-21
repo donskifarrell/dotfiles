@@ -33,9 +33,6 @@
       kubectx
       (nerdfonts.override {fonts = ["JetBrainsMono"];})
     ];
-
-    # file."secrets".source = ../../secrets;
-    # file."secrets".recursive = true;
   };
 
   programs.go = {
@@ -72,7 +69,36 @@
       # vscode-extensions.waderyan.gitblame
     ];
 
-    # TODO: VSCode common user settings
+    userSettings = {
+      "alejandra.program" = "alejandra";
+      "diffEditor.ignoreTrimWhitespace" = false;
+      "editor.wordWrap" = "on";
+      "editor.linkedEditing" = true;
+      "editor.formatOnSave" = true;
+      "editor.bracketPairColorization.enabled" = true;
+      "editor.unicodeHighlight.includeStrings" = false;
+      "editor.tabSize" = 2;
+      "explorer.confirmDelete" = false;
+      "files.trimTrailingWhitespace" = true;
+      "files.insertFinalNewline" = true;
+      "files.encoding" = "utf8";
+      "files.eol" = "\n";
+      "git.confirmSync" = true;
+      "go.toolsManagement.autoUpdate" = true;
+      "go.formatTool" = "gofmt";
+      "html.format.enable" = false;
+      "[html]"."editor.defaultFormatter" = "esbenp.prettier-vscode";
+      "[json]"."editor.defaultFormatter" = "vscode.json-language-features";
+      "redhat.telemetry.enabled" = false;
+      "vetur.format.defaultFormatter.html" = "none";
+      "workbench.iconTheme" = "vscode-icons";
+      "workbench.colorTheme" = "Dracula";
+      "[nix]"."editor.defaultFormatter" = "kamadorueda.alejandra";
+      "[nix]"."editor.formatOnPaste" = true;
+      "[nix]"."editor.formatOnSave" = true;
+      "[nix]"."editor.formatOnType" = false;
+      "[typescript]"."editor.defaultFormatter" = "esbenp.prettier-vscode";
+    };
   };
 
   programs.git = {
@@ -82,17 +108,26 @@
 
     includes = [
       {
-        path = ".gitconfig.brankas";
+        path = "~/.local/git/.gitconfig.brankas";
         condition = "gitdir/i:brankas/";
       }
       {
-        path = ".gitconfig.brankas";
+        path = "~/.local/git/.gitconfig.brankas";
         condition = "gitdir/i:brank.as/";
       }
     ];
   };
 
   programs.fish = {
+    shellAliases = {
+      brew = "/opt/homebrew/bin/brew";
+
+      dprune = "docker system prune --volumes -fa";
+      k = "kubectl";
+      kctx = "kubectx";
+      kns = "kubens";
+    };
+
     loginShellInit = ''
       if test -e /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
         fenv source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
@@ -171,6 +206,19 @@
         '';
       };
     };
+  };
+
+  programs.tmux = {
+    enable = true;
+    # terminal = "alacritty";
+
+    extraConfig = ''
+      # ----------------------
+      # From home.nix
+      # -----------------------
+
+      set -s copy-command 'pbcopy'
+    '';
   };
 
   # TODO: DO NOT RUN THROUGH A FORMATTER! (hints -> enabled -> regex gets borked at the "\\s )

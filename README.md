@@ -47,43 +47,6 @@ df@Dublin - Linux workstation
 
 pihole?
 
-
-TODO:
-
-== FIXES
-fzf - preview file on ctrl-T view
-forgit/fzf - glo alias, grayed out dates. Also reverse list
-nvim - aliases etc
-
-== INSTALLS
-Brew
-direnv
-kubectx https://github.com/ahmetb/kubectx
-kubectrl /gcloud https://github.com/kubernetes/kubectl
-Vim bufferline https://github.com/akinsho/bufferline.nvim
-Vim tree https://github.com/kyazdani42/nvim-tree.lua
-
-
-### For Review
-
-Secrets, etc https://github.com/jordanisaacs/homeage
-
-https://github.com/myme/dotfiles/tree/1d8e0602e9503c561ca483f6b7708bb1def19486
-
-https://github.com/Gerschtli/nix-config/tree/master
-
-M1 overlay Add access to x86 packages system is running Apple Silicon: https://gist.github.com/ptrfrncsmrph/2d1646fbb035bd76cf8c691c0d5cf47f#file-flake-nix-L72
-
-OSX config: https://discourse.nixos.org/t/simple-workable-config-for-m1-macbook-pro-monterey-12-0-1-with-nix-flakes-nix-darwin-and-home-manager/16834
-
-https://discourse.nixos.org/t/fixing-your-install-after-osx-upgrade/19339
-
-Review settings:
-
-https://github.com/mitchellh/nixos-config/tree/main
-(fish funcs)
-
-
 ```
 
 # NixOS Setup
@@ -174,7 +137,30 @@ sh ./scripts/vm-first-boot.sh <HOST> <USER>
 
 Only tested on M1 Macbook Pro.
 
+## Backup
+
+Apps that I should manually backup:
+
 ```
+- Brave/Vivaldi/Firefox
+-- just zip their profile folders
+- Check brewfile is updated
+- Little Snitch ruleset
+- fish shell history
+- .local folder (mainly git configs)
+- .ssh folder
+- .hammerspoon if anything changes
+- .kube and .gcloud
+```
+
+## Install
+
+Run through these steps for a mostly automated installation
+
+```
+# Install the XCode developer tools first (running `git --version` triggers it)
+xcode-select --install
+
 # Make sure we are on the correct system config (rosetta processes will fake the arch as i386/x86_64)
 uname -p
 uname -m
@@ -184,8 +170,7 @@ sh <(curl -L https://nixos.org/nix/install)
 
 # Run setup script
 cd ~/.dotfiles
-sh scripts/os-hm-setup.sh
-source ~/.zprofile # assuming zsh is the shell
+sh scripts/osx-hm-setup.sh
 
 # Install home-manager
 nix-shell '<home-manager>' -A install
@@ -193,13 +178,22 @@ nix-shell '<home-manager>' -A install
 # Install home-manager config
 home-manager switch --flake .#username@hostname
 
+# Copy over local configs. In fish shell
+restore_local_config ~/.dotfiles/secrets/<age file>
+
+# Copy over SSH keys. In fish shell
+restore_ssh ~/.dotfiles/secrets/<age file>
+
+# Setup
+sh scripts/osx-set-defaults.sh
 ```
 
-Applications on OSX that still need manual install:
+Applications on OSX that still need manual install via App Store:
 
-- Alacritty
-- Fonts (Jetbrains Mono)
-- Hammerspoon
+- Coin Tick - Menu Bar Crypto
+- ColorSlurp
+- Unsplash Wallpapers
+- WireGuard
 
 Some VSCode extensions need to be manually added:
 
@@ -225,7 +219,7 @@ nix store, be sure to check them out if you're interested.
 You might have noticed that there's impurity in your NixOS system, in the form
 of configuration files and other cruft your system generates when running. What
 if you change them in a whim to get something working and forget about it?
-Boom, your system is not fully reproductible anymore.
+Boom, your system is not fully reproducible anymore.
 
 You can instead fully delete your `/` and `/home` on every boot! Nix is okay
 with a empty root on boot (all you need is `/boot` and `/nix`), and will
@@ -269,7 +263,7 @@ to package stuff.
 
 Found some outdated package on nixpkgs you need the latest version of? Perhaps
 you want to apply a patch to fix a behaviour you don't like? Nix makes it easy
-and manageble with overlays!
+and manageable with overlays!
 
 Use the `overlay/default.nix` file for this.
 
@@ -294,3 +288,23 @@ them.
 ## Nix Starter Config (Full version)
 
 This repo was based heavily off this starter: https://github.com/Misterio77/nix-starter-config
+
+## Useful Repos
+
+https://github.com/malob/nixpkgs
+
+https://github.com/mitchellh/nixos-config
+
+https://github.com/chvp/nixos-config (check out SSH, Secrets)
+
+https://github.com/Misterio77/nix-config
+
+https://gist.github.com/ptrfrncsmrph/2d1646fbb035bd76cf8c691c0d5cf47f#file-flake-nix-L72
+
+> Setup nix, nix-darwin and home-manager from scratch on an M1 Macbook Pro
+
+https://discourse.nixos.org/t/fixing-your-install-after-osx-upgrade/19339
+
+http://ghedam.at/15978/an-introduction-to-nix-shell
+
+> How to use different dev envs

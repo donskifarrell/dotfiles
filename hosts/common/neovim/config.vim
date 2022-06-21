@@ -16,6 +16,15 @@ set ignorecase          " Make searching case insensitive
 set smartcase           " ... unless the query has capital letters.
 set gdefault            " Use 'g' flag by default with :s/foo/bar/.
 
+" Git / fugitive
+nmap <silent> <Leader>gg :Git<Return>
+
+" FZF
+nmap <silent> <Leader>.  :Files<Return>
+nmap <silent> <Leader>g. :GitFiles<Return>
+nmap <silent> <Leader><  :Buffers<Return>
+nmap <silent> <Leader>sb :BLines<Return>
+
 " Use <C-L> to clear the highlighting of :set hlsearch.
 if maparg('<C-L>', 'n') ==# ''
   nnoremap <silent> <C-L> :nohlsearch<CR><C-L>

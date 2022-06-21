@@ -109,7 +109,7 @@
         inherit overlays;
         hostname = "makati";
         system = "aarch64-linux";
-        users = ["donski"];
+        users = ["df"];
       };
       belfast = mkSystem {
         inherit overlays;
@@ -169,9 +169,9 @@
     # Home configurations
     # Accessible via 'home-manager'
     homeConfigurations = {
-      "donski@makati" = mkHome {
+      "df@makati" = mkHome {
         inherit overlays;
-        username = "donski";
+        username = "df";
         hostname = "makati";
         system = "aarch64-darwin";
       };

@@ -42,6 +42,7 @@
     alejandra
     cht-sh
     rlwrap
+    mkcert
   ];
 
   programs.home-manager.enable = true;
@@ -103,7 +104,7 @@
       ".Trash/"
     ];
 
-    includes = [{path = "~/.dotfiles/hosts/${hostname}/.gitconfig.local";}];
+    includes = [{path = "~/.local/git/.gitconfig.local";}];
 
     extraConfig = {
       core = {editor = "nvim";};
@@ -127,7 +128,7 @@
       "..." = "cd ../..";
 
       hm-switch = "home-manager switch --flake ~/.dotfiles/#${config.home.username}@${hostname}";
-      nix-shell = "nix-shell -run fish";
+      fnix-shell = "nix-shell --run fish";
     };
 
     shellAliases = {
@@ -166,9 +167,6 @@
       gpph = "git push personal HEAD";
       gpst = "git push origin HEAD:staging-test";
       cdr = "cd '$(git rev-parse --show-toplevel)'";
-
-      dprune = "docker system prune --volumes -fa";
-      k = "kubectl";
     };
 
     functions = {
@@ -180,6 +178,16 @@
       restore_ssh = {
         description = "Restores a tar file to the ~/.ssh folder";
         body = "sh ~/.dotfiles/scripts/ssh-restore.sh -f $argv[1]";
+      };
+
+      backup_local_config = {
+        description = "Backs up the ~/.local folder";
+        body = "sh ~/.dotfiles/scripts/local-config-backup.sh -h $hostname";
+      };
+
+      restore_local_config = {
+        description = "Restores a tar file to the ~/.local folder";
+        body = "sh ~/.dotfiles/scripts/local-config-restore.sh -f $argv[1]";
       };
 
       certp = {
@@ -219,7 +227,11 @@
     };
 
     interactiveShellInit = ''
-      fzf_configure_bindings
+      fzf_configure_bindings --directory=\ct
+      set fzf_fd_opts --hidden --exclude=.git --exclude=Library
+
+      set FORGIT_LOG_FZF_OPTS "--reverse"
+      set FORGIT_GLO_FORMAT "%C(auto)%h%d %s %C(blue)%an %C(green)%C(bold)%cr"
     '';
 
     plugins = [
@@ -320,7 +332,7 @@
       vim-fugitive
       nvim-web-devicons
       lualine-nvim
-      barbar-nvim
+      bufferline-nvim
       nvim-tree-lua
       nvim-colorizer-lua
     ];
@@ -337,7 +349,7 @@
     # Configuration written to ~/.config/starship.toml
     settings = {
       add_newline = true;
-      format = "$time$username$hostname$directory$git_branch$git_commit$git_state$git_status$env_var$cmd_duration$custom$line_break$jobs$character";
+      format = "$time$username$hostname$nix_shell$directory$git_branch$git_commit$git_state$git_status$env_var$cmd_duration$custom$line_break$jobs$character";
       username = {format = "[$user]($style) in ";};
       directory = {
         format = "in [$path]($style)[$read_only]($read_only_style) ";
@@ -360,6 +372,10 @@
         error_symbol = "[❯](bold red)";
         vicmd_symbol = "[➜](bold green)";
       };
+      nix_shell = {
+        format = "[$symbol$state( \($name\) )]($style)";
+        symbol = "";
+      };
     };
   };
 
@@ -375,7 +391,7 @@
       # ----------------------
       # Settings
       # -----------------------
-      set -g default-command /Users/${config.home.username}/.nix-profile/bin/fish
+      set -g default-shell /Users/${config.home.username}/.nix-profile/bin/fish
 
       # scrollback size
       set -g history-limit 100000
@@ -400,6 +416,9 @@
       # Visual Activity Monitoring between windows
       setw -g monitor-activity on
       set -g visual-activity off
+
+      # address vim mode switching delay (http://superuser.com/a/252717/65504)
+      set -s escape-time 0
 
       # ----------------------
       # Styling & Status Bar
@@ -455,7 +474,7 @@
       bind-key C-p paste-buffer
 
       # reload tmux config with ctrl + a + o
-      unbind r
+      unbind o
       bind o \
           source-file ~/.config/tmux/tmux.conf \;\
               display 'Reloaded tmux config.'
@@ -526,8 +545,11 @@
           set -g @continuum-save-interval '5' # minutes
         '';
       }
-      # TODO:
-      # set -g @plugin 'NHDaly/tmux-better-mouse-mode' # Improves using the mouse with tmux
+      {
+        plugin = tmuxPlugins.better-mouse-mode;
+        extraConfig = ''
+        '';
+      }
     ];
   };
 

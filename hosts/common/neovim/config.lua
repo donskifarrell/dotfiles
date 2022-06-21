@@ -27,6 +27,7 @@ require('lualine').setup {
         theme = 'dracula'
     }
 }
+require("bufferline").setup {}
 
 require'nvim-tree'.setup()
 require'colorizer'.setup()
