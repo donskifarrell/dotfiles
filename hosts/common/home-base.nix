@@ -27,6 +27,9 @@
   };
 
   home.packages = with pkgs; [
+    coreutils
+    gawk
+    # unixtools.netstat # Won't build on OSX. Might need it for linux and tmux bar
     bash # Need latest version for scripts
     age
     wget
@@ -435,7 +438,9 @@
       set-option -g status-right-length 100
       set-option -g status-right ""
 
-      set-option -ga status-right "#[fg=$dr_white,bg=$dr_dark_purple]  #{network_bandwidth} "
+      set-option -ga status-right "#[fg=$dr_dark_gray,bg=$dr_orange] #(~/.dotfiles/hosts/common/tmux/kubectl-ctx.sh) "
+      set-option -ga status-right "#[fg=$dr_white,bg=$dr_dark_purple] #(~/.dotfiles/hosts/common/tmux/net-speed.sh) "
+      set-option -ga status-right "#[fg=$dr_dark_gray,bg=$dr_cyan] #(~/.dotfiles/hosts/common/tmux/net-interface.sh)  "
 
       # window tabs
       set-window-option -g window-status-current-format "#[fg=$dr_white,bg=$dr_dark_purple] #I #W #{?window_zoomed_flag,🔍 , }"
@@ -449,9 +454,9 @@
       bind-key C-d detach-client
       bind-key C-p paste-buffer
 
-      # reload tmux config with ctrl + a + r
+      # reload tmux config with ctrl + a + o
       unbind r
-      bind r \
+      bind o \
           source-file ~/.config/tmux/tmux.conf \;\
               display 'Reloaded tmux config.'
 
@@ -509,6 +514,7 @@
         extraConfig = ''
           set -g @continuum-restore 'on'
           set -g @continuum-boot 'on'
+          set -g @continuum-boot-options 'alacritty'
           set -g @continuum-save-interval '5' # minutes
         '';
       }
@@ -520,6 +526,8 @@
           set -g @continuum-save-interval '5' # minutes
         '';
       }
+      # TODO:
+      # set -g @plugin 'NHDaly/tmux-better-mouse-mode' # Improves using the mouse with tmux
     ];
   };
 
