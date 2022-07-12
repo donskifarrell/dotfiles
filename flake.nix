@@ -104,6 +104,7 @@
 
     # System configurations
     # Accessible via 'nixos-rebuild'
+    # NOTE: Add to homeConfigurations below too!
     nixosConfigurations = {
       # OSX Build - just home-manager
       makati = mkSystem {
@@ -190,6 +191,12 @@
         inherit overlays;
         username = "df";
         hostname = "belfast";
+        system = "aarch64-linux";
+      };
+      "df@london" = mkHome {
+        inherit overlays;
+        username = "df";
+        hostname = "london";
         system = "aarch64-linux";
       };
     };
