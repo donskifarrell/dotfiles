@@ -9,13 +9,18 @@ Configuration for VMs and OSX
 - Run `home-manager switch --flake .#username@hostname` to apply your home
   configuration.
 
+## TODO
+
+- Stop scripts if args are bad
+- shell-formatter in vscode is broken on OSX
+
 ## Machines
 
 | Hostname | Users  | System                 | What For?                  |
 | -------- | ------ | ---------------------- | -------------------------- |
 | makati   | donski | aarch64-darwin         | daily driver               |
-| belfast  | df     | aarch64-linux (OSX VM) | media and doc backups, vpn |
-| london   | df     | ?/vm                   | fun stuff. unstable        |
+| belfast  | df     | ?/cloud vm             | media and doc backups, vpn |
+| london   | df     | aarch64-linux (OSX VM) | fun stuff. unstable        |
 | dublin   | df     | ?/vm                   | linux workstation          |
 
 Aside from `makati` everything is NixOS based.
@@ -53,6 +58,15 @@ pihole?
 
 For now, let's assume we're using a VM.
 Boot the VM with the NixOS ISO image to get to a live env.
+
+Useful blog post: https://calcagno.blog/m1dev/
+
+## ISO
+
+Review the UEFI installation page: https://nixos.wiki/wiki/NixOS_on_ARM/UEFI
+
+> In short, unstable ISO images can be found here: https://hydra.nixos.org/job/nixos/trunk-combined/nixos.iso_minimal_new_kernel.aarch64-linux
+
 Once at login, set the `nixos` and `root` password. These are throwaway just to enable SSH.
 
 #### REMOTE
@@ -95,7 +109,7 @@ cd /home/nixos/.dotfiles
 sudo sh ./scripts/vm-disk-setup.sh
 
 nix-shell
-sudo sh ./scripts/vm-nixos-setup.sh <HOST> <USER>
+sudo sh ./scripts/vm-nixos-setup.sh -h <TARGET_HOSTNAME>
 
 # If you want, push the changes to a repo. Password token is needed.
 git add flake.lock "./hosts/${1}/hardware-configuration.nix"
@@ -103,8 +117,8 @@ git commit -am "Committing new hardware-config and flake lock"
 git push
 
 # Or copy them back to remote. From LOCAL:
-scp -r nixos@<machine-ip>:/home/nixos/.dotfiles/hosts/<HOST>/hardware-configuration.nix <LOCAL_PATH>/.dotfiles/hosts/<HOST>/
-scp -r nixos@<machine-ip>:/home/nixos/.dotfiles/hosts/<HOST>/hardware-configuration.nix <LOCAL_PATH>/.dotfiles/hosts/<HOST>/
+scp -r nixos@<machine-ip>:/home/nixos/.dotfiles/hosts/<TARGET_HOSTNAME>/hardware-configuration.nix <LOCAL_PATH>/.dotfiles/hosts/<TARGET_HOSTNAME>/
+scp -r nixos@<machine-ip>:/home/nixos/.dotfiles/hosts/<TARGET_HOSTNAME>/hardware-configuration.nix <LOCAL_PATH>/.dotfiles/hosts/<TARGET_HOSTNAME>/
 
 # Reboot and remove .iso disk
 sudo reboot
@@ -130,7 +144,7 @@ git clone https://github.com/donskifarrell/dotfiles.git .dotfiles
 ```
 cd /home/<USER>/.dotfiles
 nix-shell
-sh ./scripts/vm-first-boot.sh <HOST> <USER>
+sh ./scripts/vm-first-boot.sh -h <TARGET_HOSTNAME> -u <USER>
 ```
 
 # OSX Setup

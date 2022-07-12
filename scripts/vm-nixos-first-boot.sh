@@ -6,8 +6,8 @@ echo "Ensure NixOS config and home-manager are setup. Press Enter"
 while getopts 'h:u:' OPTION; do
     case "$OPTION" in
     h)
-        HOSTNAME="$OPTARG"
-        echo "Hostname: $HOSTNAME"
+        TARGET_HOSTNAME="$OPTARG"
+        echo "Hostname: $TARGET_HOSTNAME"
         ;;
     u)
         USERNAME="$OPTARG"
@@ -50,7 +50,7 @@ rm -v /home/df/.config/fish/config.fish
 cd /home/$USERNAME/.dotfiles
 
 home-manager --version
-home-manager switch --flake ".#$USERNAME@$HOSTNAME"
+home-manager switch --flake ".#$USERNAME@$TARGET_HOSTNAME"
 
 printf "\rEnvironment configured, reboot just to be sure. \n"
 

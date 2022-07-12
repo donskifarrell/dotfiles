@@ -105,15 +105,26 @@
     # System configurations
     # Accessible via 'nixos-rebuild'
     nixosConfigurations = {
+      # OSX Build - just home-manager
       makati = mkSystem {
         inherit overlays;
         hostname = "makati";
         system = "aarch64-linux";
         users = ["df"];
       };
+
+      # NixOS VM - deployed in cloud
       belfast = mkSystem {
         inherit overlays;
         hostname = "belfast";
+        system = "aarch64-linux";
+        users = ["df"];
+      };
+
+      # NixOS VM - usually as QEMU VM
+      london = mkSystem {
+        inherit overlays;
+        hostname = "london";
         system = "aarch64-linux";
         users = ["df"];
       };

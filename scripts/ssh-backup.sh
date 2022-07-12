@@ -6,8 +6,8 @@ echo "Backup of ~/.ssh folder with Age"
 while getopts 'h:' OPTION; do
     case "$OPTION" in
     h)
-        HOSTNAME="$OPTARG"
-        echo "Hostname: $HOSTNAME"
+        TARGET_HOSTNAME="$OPTARG"
+        echo "Hostname: $TARGET_HOSTNAME"
         ;;
     ?)
         echo "script usage: $(basename \$0) [-h <machine-hostname>]" >&2
@@ -27,11 +27,11 @@ read -r
 DATE=$(date '+%Y-%m-%d')
 
 cd ~/.ssh
-tar czvf ./ssh-$HOSTNAME-$DATE.tar.gz --exclude config .
-age -p ./ssh-$HOSTNAME-$DATE.tar.gz > ~/.dotfiles/secrets/ssh-$HOSTNAME-$DATE.tar.gz.age
-rm -v ./ssh-$HOSTNAME-$DATE.tar.gz
+tar czvf ./ssh-$TARGET_HOSTNAME-$DATE.tar.gz --exclude config .
+age -p ./ssh-$TARGET_HOSTNAME-$DATE.tar.gz > ~/.dotfiles/secrets/ssh-$TARGET_HOSTNAME-$DATE.tar.gz.age
+rm -v ./ssh-$TARGET_HOSTNAME-$DATE.tar.gz
 cd -
-echo "Backup of ~/.ssh to ~/.dotfiles/secrets/ssh-$HOSTNAME-$DATE.tar.gz.age complete"
+echo "Backup of ~/.ssh to ~/.dotfiles/secrets/ssh-$TARGET_HOSTNAME-$DATE.tar.gz.age complete"
 
 echo "Done. Press Enter"
 

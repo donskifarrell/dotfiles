@@ -6,8 +6,8 @@ echo "Backup of ~/.local folder with Age"
 while getopts 'h:' OPTION; do
     case "$OPTION" in
     h)
-        HOSTNAME="$OPTARG"
-        echo "Hostname: $HOSTNAME"
+        TARGET_HOSTNAME="$OPTARG"
+        echo "Hostname: $TARGET_HOSTNAME"
         ;;
     ?)
         echo "script usage: $(basename \$0) [-h <machine-hostname>]" >&2
@@ -27,11 +27,11 @@ read -r
 DATE=$(date '+%Y-%m-%d')
 
 cd ~/.local
-tar czvf ./local-config-$HOSTNAME-$DATE.tar.gz --exclude share .
-age -p ./local-config-$HOSTNAME-$DATE.tar.gz > ~/.dotfiles/secrets/local-config-$HOSTNAME-$DATE.tar.gz.age
-rm -v ./local-config-$HOSTNAME-$DATE.tar.gz
+tar czvf ./local-config-$TARGET_HOSTNAME-$DATE.tar.gz --exclude share .
+age -p ./local-config-$TARGET_HOSTNAME-$DATE.tar.gz > ~/.dotfiles/secrets/local-config-$TARGET_HOSTNAME-$DATE.tar.gz.age
+rm -v ./local-config-$TARGET_HOSTNAME-$DATE.tar.gz
 cd -
-echo "Backup of ~/.local to ~/.dotfiles/secrets/local-config-$HOSTNAME-$DATE.tar.gz.age complete"
+echo "Backup of ~/.local to ~/.dotfiles/secrets/local-config-$TARGET_HOSTNAME-$DATE.tar.gz.age complete"
 
 echo "Done. Press Enter"
 
