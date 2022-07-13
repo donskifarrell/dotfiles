@@ -13,6 +13,7 @@ Configuration for VMs and OSX
 
 - Stop scripts if args are bad
 - shell-formatter in vscode is broken on OSX
+- Integrate lorri https://github.com/nix-community/lorri
 
 ## Machines
 
@@ -23,7 +24,7 @@ Configuration for VMs and OSX
 | london   | df     | aarch64-linux (OSX VM) | fun stuff. unstable        |
 | dublin   | df     | ?/vm                   | linux workstation          |
 
-Aside from `makati` everything is NixOS based.
+All machines use [home-manager](https://github.com/nix-community/home-manager), and aside from `makati`, everything is [NixOS](https://nixos.org/) based.
 
 ```
 # Dump of what to install, maybe
@@ -88,7 +89,7 @@ Next, copy the script files over.
 
 ```
 # On local
-scp -r ./.dotfiles nixos@<machine-ip>:/home/nixos
+scp -r ~/.dotfiles nixos@<machine-ip>:/home/nixos
 ```
 
 SSH in, and run scripts
@@ -112,13 +113,15 @@ nix-shell
 sudo sh ./scripts/vm-nixos-setup.sh -h <TARGET_HOSTNAME>
 
 # If you want, push the changes to a repo. Password token is needed.
-git add flake.lock "./hosts/${1}/hardware-configuration.nix"
-git commit -am "Committing new hardware-config and flake lock"
+git add "./hosts/<TARGET_HOSTNAME>/hardware-configuration.nix"
+# If first time running the flake:
+# git add flake.lock
+git commit -am "Committing new hardware-config"
 git push
 
 # Or copy them back to remote. From LOCAL:
 scp -r nixos@<machine-ip>:/home/nixos/.dotfiles/hosts/<TARGET_HOSTNAME>/hardware-configuration.nix <LOCAL_PATH>/.dotfiles/hosts/<TARGET_HOSTNAME>/
-scp -r nixos@<machine-ip>:/home/nixos/.dotfiles/hosts/<TARGET_HOSTNAME>/hardware-configuration.nix <LOCAL_PATH>/.dotfiles/hosts/<TARGET_HOSTNAME>/
+# scp -r nixos@<machine-ip>:/home/nixos/.dotfiles/flake.lock <LOCAL_PATH>/.dotfiles/
 
 # Reboot and remove .iso disk
 sudo reboot

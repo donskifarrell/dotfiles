@@ -93,7 +93,7 @@
                 initialPassword = "passwd-change-me-on-login";
                 shell = pkgs.fish;
                 openssh.authorizedKeys.keys = [
-                  "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINiUTw0dJPgY4aSNv69av01Ona3TR91l9TCDrhDIBD7u df@makati"
+                  (hostname == "london" && "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKdNislbiV21PqoaREbPATGeCj018IwKufVcgR4Ft9Fl london")
                 ];
                 # TODO: Be sure to add any other groups you need (such as networkmanager, audio, docker, etc)
                 extraGroups = ["wheel"];
