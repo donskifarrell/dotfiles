@@ -81,6 +81,9 @@ passwd root
 
 # Get machine ip address
 ifconfig
+
+# create /home/nixos/.dotfiles
+mkdir -p .dotfiles
 ```
 
 Next, copy the script files over.
@@ -89,7 +92,11 @@ Next, copy the script files over.
 
 ```
 # On local
-scp -r ~/.dotfiles nixos@<machine-ip>:/home/nixos
+
+# When SSH'ing into box you will need to clear the fingerprint after install
+ssh-keygen -R <machine-ip>
+
+GLOBIGNORE='.git' scp -o IdentitiesOnly=yes -r ~/.dotfiles/* nixos@<machine-ip>:/home/nixos/.dotfiles
 ```
 
 SSH in, and run scripts
@@ -98,7 +105,7 @@ SSH in, and run scripts
 
 ```
 # On local
-ssh nixos@<machine-ip>
+ssh -o IdentitiesOnly=yes nixos@<machine-ip>
 ```
 
 #### REMOTE

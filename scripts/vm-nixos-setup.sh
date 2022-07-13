@@ -25,6 +25,10 @@ sudo nixos-generate-config --root /mnt
 # Copy in hardware config from generate step
 sudo cp -v /mnt/etc/nixos/hardware-configuration.nix "/home/nixos/.dotfiles/hosts/${TARGET_HOSTNAME}/hardware-configuration.nix"
 
+# TODO: Remove sed once nixpkgs.hostPlatform is standard
+printf "\r!!!! Removing 'nixpkgs.hostPlatform' line from hardware configuration as it breaks the current build. It's a new feature for 22.11 and unstable for now !!!!\n"
+sed -i '/nixpkgs.hostPlatform/d' hosts/london/hardware-configuration.nix
+
 # Installing System config
 cd /home/nixos/.dotfiles
 sudo nixos-install --no-root-passwd --flake ".#${TARGET_HOSTNAME}"

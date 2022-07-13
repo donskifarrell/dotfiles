@@ -58,6 +58,7 @@
       system ? "x86_64-linux",
       overlays ? {},
       users ? [],
+      authorizedKeys ? [],
       persistence ? false,
     }:
       inputs.nixpkgs.lib.nixosSystem {
@@ -92,9 +93,7 @@
                 isNormalUser = true;
                 initialPassword = "passwd-change-me-on-login";
                 shell = pkgs.fish;
-                openssh.authorizedKeys.keys = [
-                  (hostname == "london" && "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKdNislbiV21PqoaREbPATGeCj018IwKufVcgR4Ft9Fl london")
-                ];
+                openssh.authorizedKeys.keys = [] ++ authorizedKeys;
                 # TODO: Be sure to add any other groups you need (such as networkmanager, audio, docker, etc)
                 extraGroups = ["wheel"];
               };
@@ -128,6 +127,7 @@
         hostname = "london";
         system = "aarch64-linux";
         users = ["df"];
+        authorizedKeys = ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKdNislbiV21PqoaREbPATGeCj018IwKufVcgR4Ft9Fl london"];
       };
     };
 
