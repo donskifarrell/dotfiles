@@ -830,24 +830,29 @@ defaults -currentHost write com.apple.ImageCapture disableHotPlug -bool true
 # defaults write com.apple.messageshelper.MessageController SOInputLineSettings -dict-add "continuousSpellCheckingEnabled" -bool false
 
 ###############################################################################
-# Google Chrome & Google Chrome Canary                                        #
+# Google Chrome & Brave Browser                                               #
 ###############################################################################
+
+# Useful way to find the bundleID to default write:
+# osascript -e 'id of app "'$appName'"'
 
 # Disable the all too sensitive backswipe on trackpads
 defaults write com.google.Chrome AppleEnableSwipeNavigateWithScrolls -bool false
-defaults write com.google.Chrome.canary AppleEnableSwipeNavigateWithScrolls -bool false
-
-# Disable the all too sensitive backswipe on Magic Mouse
-defaults write com.google.Chrome AppleEnableMouseSwipeNavigateWithScrolls -bool false
-defaults write com.google.Chrome.canary AppleEnableMouseSwipeNavigateWithScrolls -bool false
+defaults write com.brave.Browser AppleEnableSwipeNavigateWithScrolls -bool false
+defaults write org.mozilla.firefox AppleEnableSwipeNavigateWithScrolls -bool false
+defaults write com.vivaldi.Vivaldi AppleEnableSwipeNavigateWithScrolls -bool false
 
 # Use the system-native print preview dialog
 defaults write com.google.Chrome DisablePrintPreview -bool true
-defaults write com.google.Chrome.canary DisablePrintPreview -bool true
+defaults write com.brave.Browser DisablePrintPreview -bool true
+defaults write org.mozilla.firefox DisablePrintPreview -bool true
+defaults write com.vivaldi.Vivaldi DisablePrintPreview -bool true
 
 # Expand the print dialog by default
 defaults write com.google.Chrome PMPrintingExpandedStateForPrint2 -bool true
-defaults write com.google.Chrome.canary PMPrintingExpandedStateForPrint2 -bool true
+defaults write com.brave.Browser PMPrintingExpandedStateForPrint2 -bool true
+defaults write org.mozilla.firefox PMPrintingExpandedStateForPrint2 -bool true
+defaults write com.vivaldi.Vivaldi PMPrintingExpandedStateForPrint2 -bool true
 
 ###############################################################################
 # Kill affected applications                                                  #
