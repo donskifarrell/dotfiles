@@ -28,7 +28,7 @@ DATE=$(date '+%Y-%m-%d')
 
 cd ~/.ssh
 tar czvf ./ssh-$TARGET_HOSTNAME-$DATE.tar.gz --exclude config .
-age -p ./ssh-$TARGET_HOSTNAME-$DATE.tar.gz > ~/.dotfiles/secrets/ssh-$TARGET_HOSTNAME-$DATE.tar.gz.age
+age -p ./ssh-$TARGET_HOSTNAME-$DATE.tar.gz >~/.dotfiles/secrets/ssh-$TARGET_HOSTNAME-$DATE.tar.gz.age
 rm -v ./ssh-$TARGET_HOSTNAME-$DATE.tar.gz
 cd -
 echo "Backup of ~/.ssh to ~/.dotfiles/secrets/ssh-$TARGET_HOSTNAME-$DATE.tar.gz.age complete"

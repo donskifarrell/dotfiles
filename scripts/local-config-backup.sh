@@ -28,7 +28,7 @@ DATE=$(date '+%Y-%m-%d')
 
 cd ~/.local
 tar czvf ./local-config-$TARGET_HOSTNAME-$DATE.tar.gz --exclude share .
-age -p ./local-config-$TARGET_HOSTNAME-$DATE.tar.gz > ~/.dotfiles/secrets/local-config-$TARGET_HOSTNAME-$DATE.tar.gz.age
+age -p ./local-config-$TARGET_HOSTNAME-$DATE.tar.gz >~/.dotfiles/secrets/local-config-$TARGET_HOSTNAME-$DATE.tar.gz.age
 rm -v ./local-config-$TARGET_HOSTNAME-$DATE.tar.gz
 cd -
 echo "Backup of ~/.local to ~/.dotfiles/secrets/local-config-$TARGET_HOSTNAME-$DATE.tar.gz.age complete"

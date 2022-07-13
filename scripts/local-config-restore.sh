@@ -27,7 +27,7 @@ FILENAME=$(basename ${AGEFILEPATH})
 TARFILE=${FILENAME::-4}
 echo "Tar file name: $TARFILE"
 
-age -d $AGEFILEPATH > $TARFILE
+age -d $AGEFILEPATH >$TARFILE
 tar xvf $TARFILE
 rm -v $TARFILE
 
