@@ -98,6 +98,7 @@
       "[nix]"."editor.formatOnSave" = true;
       "[nix]"."editor.formatOnType" = false;
       "[typescript]"."editor.defaultFormatter" = "esbenp.prettier-vscode";
+      "shellformat.path" = "/Users/df/.nix-profile/bin/shfmt";
     };
   };
 

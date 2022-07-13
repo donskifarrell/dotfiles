@@ -12,7 +12,6 @@ Configuration for VMs and OSX
 ## TODO
 
 - Stop scripts if args are bad
-- shell-formatter in vscode is broken on OSX
 - Integrate lorri https://github.com/nix-community/lorri
 
 ## Machines

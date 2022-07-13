@@ -43,6 +43,7 @@
     cht-sh
     rlwrap
     mkcert
+    shfmt
   ];
 
   programs.home-manager.enable = true;
