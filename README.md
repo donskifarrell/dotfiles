@@ -13,6 +13,7 @@ Configuration for VMs and OSX
 
 - Stop scripts if args are bad
 - Integrate lorri https://github.com/nix-community/lorri
+- Create an iso image with base installed
 
 ## Machines
 
@@ -132,7 +133,7 @@ scp -r nixos@<machine-ip>:/home/nixos/.dotfiles/hosts/<TARGET_HOSTNAME>/hardware
 # Reboot and remove .iso disk
 sudo reboot
 
-# After reboot and <USER> login
+# After reboot and <USER> login (password: passwd-change-me-on-login)
 passwd <USER>
 ```
 
@@ -142,7 +143,7 @@ passwd <USER>
 # When SSH'ing into box you will need to clear the fingerprint after install
 ssh-keygen -R <machine-ip>
 ssh-add ~/.ssh/path/to/key
-scp -r ./.dotfiles <USER>@<machine-ip>:/home/<USER>
+scp -r ~/.dotfiles <USER>@<machine-ip>:/home/<USER>
 
 # Optionally on remote machine, pull files from repo
 git clone https://github.com/donskifarrell/dotfiles.git .dotfiles
@@ -153,8 +154,11 @@ git clone https://github.com/donskifarrell/dotfiles.git .dotfiles
 ```
 cd /home/<USER>/.dotfiles
 nix-shell
-sh ./scripts/vm-first-boot.sh -h <TARGET_HOSTNAME> -u <USER>
+sh ./scripts/vm-nixos-first-boot.sh -h <TARGET_HOSTNAME> -u <USER>
+sudo reboot
 ```
+
+TODO: Setup github fetch so dotfiles are synced
 
 # OSX Setup
 
@@ -167,13 +171,15 @@ Apps that I should manually backup:
 ```
 - Brave/Vivaldi/Firefox
 -- just zip their profile folders
-- Check brewfile is updated
+- Check Brewfile is updated
 - Little Snitch ruleset
-- fish shell history
+-- Can be exported
+- fish-shell history
 - .local folder (mainly git configs)
 - .ssh folder
-- .hammerspoon if anything changes
+-- use shell function
 - .kube and .gcloud
+-- just zip folders and replace
 ```
 
 ## Install
@@ -223,6 +229,11 @@ Some VSCode extensions need to be manually added:
 - wayou.vscode-todo-highlight
 - vscode-icons-team.vscode-icons
 - waderyan.gitblame
+
+Browser extension that needs to be installed manually:
+
+- Paywall bypass https://github.com/iamadamdev/bypass-paywalls-chrome
+  -- unzip to a folder: ~/.bypass-paywalls-chrome so it's out of the way (don't delete folder)
 
 # What's next?
 
