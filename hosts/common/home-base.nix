@@ -167,7 +167,7 @@
 
       gpph = "git push personal HEAD";
       gpst = "git push origin HEAD:staging-test";
-      cdr = "cd '$(git rev-parse --show-toplevel)'";
+      cdr = "cd $(git rev-parse --show-toplevel)";
     };
 
     functions = {

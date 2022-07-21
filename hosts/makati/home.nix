@@ -26,17 +26,19 @@
 
     packages = with pkgs; [
       ffmpeg
-      go
+      go_1_18
       gopls
-      google-cloud-sdk
+      google-cloud-sdk # Issues with auth plugin. Check out https://github.com/jgresty/gcloud-components-nix
       kubectl
       kubectx
       (nerdfonts.override {fonts = ["JetBrainsMono"];})
+      git-filter-repo
     ];
   };
 
   programs.go = {
     enable = true;
+    package = pkgs.go_1_18;
     goPath = "go";
   };
 
@@ -98,7 +100,18 @@
       "[nix]"."editor.formatOnSave" = true;
       "[nix]"."editor.formatOnType" = false;
       "[typescript]"."editor.defaultFormatter" = "esbenp.prettier-vscode";
-      "shellformat.path" = "/Users/df/.nix-profile/bin/shfmt";
+      "shellformat.path" = "/Users/${config.home.username}/.nix-profile/bin/shfmt";
+      "remote.SSH.configFile" = "/Users/${config.home.username}/.ssh/sshconfig.local";
+
+      # TODO: Needed to fix issue with remote SSH failing to connect to VMs
+      "remote.SSH.useLocalServer" = false;
+      "remote.SSH.remotePlatform"."192.168.64.1" = "linux";
+      "remote.SSH.remotePlatform"."192.168.64.2" = "linux";
+      "remote.SSH.remotePlatform"."192.168.64.3" = "linux";
+      "remote.SSH.remotePlatform"."192.168.64.4" = "linux";
+      "remote.SSH.remotePlatform"."192.168.64.5" = "linux";
+      "remote.SSH.remotePlatform"."192.168.64.6" = "linux";
+      "remote.SSH.remotePlatform"."192.168.64.7" = "linux";
     };
   };
 
