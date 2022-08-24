@@ -40,6 +40,7 @@
     enable = true;
     package = pkgs.go_1_18;
     goPath = "go";
+    goBin = "bin";
   };
 
   programs.vscode = {
@@ -150,6 +151,17 @@
       if test -e /nix/var/nix/profiles/default/etc/profile.d/nix.sh
         fenv source /nix/var/nix/profiles/default/etc/profile.d/nix.sh
       end
+
+    '';
+
+    interactiveShellInit = ''
+      fzf_configure_bindings --directory=\ct
+      set fzf_fd_opts --hidden --exclude=.git --exclude=Library
+
+      set FORGIT_LOG_FZF_OPTS "--reverse"
+      set FORGIT_GLO_FORMAT "%C(auto)%h%d %s %C(blue)%an %C(green)%C(bold)%cr"
+
+      fish_add_path -pmP /Users/${config.home.username}/go/bin
     '';
 
     functions = {

@@ -47,6 +47,12 @@ echo "\n# Added via dotfile setup script\nexperimental-features = nix-command fl
 echo "/Users/$USERNAME/.nix-profile/bin/fish" >>/etc/shells
 cat /etc/shells
 
+# Add router and gateway to the /etc/hosts file
+echo "192.168.50.1    router.local" >>/etc/hosts
+echo "192.168.254.254 gateway.local" >>/etc/hosts
+cat /etc/hosts
+dscacheutil -flushcache
+
 # For Go directories
 [ ! -d ~/go/bin ] && mkdir -vp ~/go/bin
 [ ! -d ~/go/pkg ] && mkdir -vp ~/go/pkg

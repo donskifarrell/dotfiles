@@ -29,5 +29,6 @@ cask "the-unarchiver"
 cask "utm"
 cask "vivaldi"
 cask "vlc"
+cask "pgadmin4"
 
 brew "scrcpy"

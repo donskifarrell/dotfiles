@@ -223,6 +223,7 @@ Applications on OSX that still need manual install via App Store:
 - ColorSlurp
 - Unsplash Wallpapers
 - WireGuard
+- Prey (OSX has some trouble installing)
 
 Some VSCode extensions need to be manually added:
 

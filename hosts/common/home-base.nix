@@ -44,6 +44,7 @@
     rlwrap
     mkcert
     shfmt
+    netperf
   ];
 
   programs.home-manager.enable = true;
