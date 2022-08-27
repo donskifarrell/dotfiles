@@ -84,6 +84,9 @@ Save, exit, restart wg11.
 It's not really needed unless you're doing a full IP address
 
 `peer wg11 rule add vpn 192.168.50.102 comment Apple-TV to VPN-UK`
+
+You need to set the policy flag:
+
 `peer wg11 auto=P`
 
 ### 7. x3mRouting
@@ -119,9 +122,13 @@ Next, we need to setup the IPSet list for each filter we want. Taken mostly from
 
 x3mRouting gives us a nice quick way to create IPSets. It's built to create OpenVPN rules too, but we can skip that part.
 
-> List of commands to run taken from https://www.snbforums.com/threads/x3mrouting-liststats-ipset-becoming-0-after-reboot.77933/post-757102
+> List of commands to run taken from https://www.snbforums.com/threads/x3mrouting-liststats-ipset-becoming-0-after-reboot.77933/post-757102 also, https://www.snbforums.com/threads/x3mrouting-selective-routing-for-asuswrt-merlin-firmware-1-nov-2020.67388/post-715364
 
 `sh /jffs/scripts/x3mRouting/x3mRouting.sh ipset_name=BBC-ASN asnum=AS2818,AS31459,AS2906 #AS2906 also Netflix`
+
+You need to set the policy flag:
+
+`peer wg11 auto=P`
 
 #### For Manual Creation
 
@@ -209,6 +216,15 @@ Then, we can flush entries and attempt to destroy it:
 `ipset destroy IPLAYER`
 
 Note: for IPSets, once set, cannot be removed using `ipset destroy X` command even after flushing entries. You need to disable `nat-start` script and restart the router for them to clear properly.
+
+## AdGuardHome
+
+Open `amtm`, install AdGuardHome script and follow instructions.
+
+Check the output of the script to see the IP address for the UI
+
+Some DNS Blocklist settings can be found at:
+https://www.snbforums.com/threads/release-asuswrt-merlin-adguardhome-installer-amaghi.76506/page-13#post-735471
 
 ## Misc
 
