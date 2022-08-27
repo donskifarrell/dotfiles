@@ -142,7 +142,28 @@
       colorscheme ? "dracula",
     }:
       inputs.home-manager.lib.homeManagerConfiguration {
-        inherit username system;
+        pkgs = inputs.nixpkgs.legacyPackages.${system};
+
+        modules = [
+          ./hosts/${hostname}/home.nix
+          {
+            home = {
+              username = username;
+              # system = system;
+              homeDirectory = /home/${username};
+              stateVersion = "22.11";
+              # nixpkgs = {
+              #   overlays = attrValues overlays;
+              #   config.allowUnfree = true;
+              # };
+              # programs = {
+              #   home-manager.enable = true;
+              #   git.enable = true;
+              # };
+            };
+          }
+        ];
+
         extraSpecialArgs = {
           inherit
             system
@@ -155,27 +176,13 @@
             ;
         };
 
-        # TODO: Needed for a bug on hm in OSX. Maybe doesn't matter on Linux?
-        # https://github.com/nix-community/home-manager/issues/2622
-        stateVersion = "22.05";
-
-        homeDirectory = /home/${username};
-        configuration = ./hosts/${hostname}/home.nix;
-        extraModules =
-          attrValues (import ./modules/home-manager)
-          ++ [
-            # Base configuration
-            {
-              nixpkgs = {
-                overlays = attrValues overlays;
-                config.allowUnfree = true;
-              };
-              programs = {
-                home-manager.enable = true;
-                git.enable = true;
-              };
-            }
-          ];
+        # extraModules =
+        #   attrValues (import ./modules/home-manager)
+        #   ++ [
+        #     # Base configuration
+        #     {
+        #     }
+        #   ];
       };
 
     # Home configurations
