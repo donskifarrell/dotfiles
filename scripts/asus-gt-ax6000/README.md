@@ -63,6 +63,29 @@ You can see details of the client with `peer wg11`
 
 > Note: upon restarting the router, the server interface (wg21) is started automatically. Unsure about the client interface (wg11)
 
+#### PersistKeepAlive
+
+Stop the running wg client
+
+`stop wg11`
+
+exit amtm, then run:
+
+`nano /opt/etc/wireguard.d/wg11.conf`
+
+And add the line `PersistentKeepalive = 25`.
+
+Save, exit, restart wg11.
+
+`wg show` will show the line added correctly
+
+#### Auto Policy
+
+It's not really needed unless you're doing a full IP address
+
+`peer wg11 rule add vpn 192.168.50.102 comment Apple-TV to VPN-UK`
+`peer wg11 auto=P`
+
 ### 7. x3mRouting
 
 Using Entware, install x3mRouting (https://github.com/Xentrk/x3mRouting)
@@ -154,10 +177,12 @@ See `getdomainnames.sh` at https://github.com/Xentrk/x3mRouting#4-x3mrouting-uti
 
 Now add the IPSets to the Wireguard client interface to route those specific IPs through the VPN. Taken mostly from https://github.com/ZebMcKayhan/WireguardManager#create-rules-in-wgm
 
+> Note: May need to reboot the router to see the IPSet
+
 1. Add the IPSets to the interface peer
 
 `peer wg11 add ipset IPLAYER`
-`peer wg11 add ipset BBC-ANS`
+`peer wg11 add ipset BBC-ASN`
 
 2. Verify it's been added correctly. You should see it in the selective routing section
 
@@ -175,7 +200,7 @@ Now add the IPSets to the Wireguard client interface to route those specific IPs
 
 To remove an IPSet, make sure we remove it from the Wireguard interface, e.g
 
-`peer wg12 del ipset IPLAYER`
+`peer wg11 del ipset IPLAYER`
 
 Then, we can flush entries and attempt to destroy it:
 

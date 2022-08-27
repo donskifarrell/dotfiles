@@ -33,6 +33,7 @@
       kubectx
       (nerdfonts.override {fonts = ["JetBrainsMono"];})
       git-filter-repo
+      nodejs
     ];
   };
 
@@ -40,7 +41,6 @@
     enable = true;
     package = pkgs.go_1_18;
     goPath = "go";
-    goBin = "bin";
   };
 
   programs.vscode = {
@@ -161,6 +161,7 @@
       set FORGIT_LOG_FZF_OPTS "--reverse"
       set FORGIT_GLO_FORMAT "%C(auto)%h%d %s %C(blue)%an %C(green)%C(bold)%cr"
 
+      set GOBIN "/Users/${config.home.username}/go/bin"
       fish_add_path -pmP /Users/${config.home.username}/go/bin
     '';
 
