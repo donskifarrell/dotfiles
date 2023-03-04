@@ -26,7 +26,7 @@
 
     packages = with pkgs; [
       ffmpeg
-      go_1_18
+      go
       gopls
       google-cloud-sdk # Issues with auth plugin. Check out https://github.com/jgresty/gcloud-components-nix
       kubectl
@@ -39,7 +39,7 @@
 
   programs.go = {
     enable = true;
-    package = pkgs.go_1_18;
+    package = pkgs.go;
     goPath = "go";
   };
 
@@ -103,6 +103,7 @@
       "[typescript]"."editor.defaultFormatter" = "esbenp.prettier-vscode";
       "shellformat.path" = "/Users/${config.home.username}/.nix-profile/bin/shfmt";
       "remote.SSH.configFile" = "/Users/${config.home.username}/.ssh/sshconfig.local";
+      "[dockerfile]"."editor.defaultFormatter" = "ms-azuretools.vscode-docker";
 
       # TODO: Needed to fix issue with remote SSH failing to connect to VMs
       "remote.SSH.useLocalServer" = false;
@@ -129,6 +130,14 @@
       {
         path = "~/.local/git/.gitconfig.brankas";
         condition = "gitdir/i:brank.as/";
+      }
+      {
+        path = "~/.local/git/.gitconfig.brankas";
+        condition = "gitdir/i:testing/";
+      }
+      {
+        path = "~/.local/git/.gitconfig.polygonstar";
+        condition = "gitdir/i:polygonstar/";
       }
     ];
   };
@@ -163,6 +172,8 @@
 
       set GOBIN "/Users/${config.home.username}/go/bin"
       fish_add_path -pmP /Users/${config.home.username}/go/bin
+
+      fish_add_path -pmP /opt/homebrew/bin
     '';
 
     functions = {

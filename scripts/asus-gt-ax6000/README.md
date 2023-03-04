@@ -2,6 +2,10 @@
 
 Fancy router to do some fancy things. This is a running document of bits + pieces needed to setup the router if it ever needs reset.
 
+> Note: for issues, check the syslog
+
+`tail -f -n 50 /tmp/syslog.log`
+
 ## Basic Setup
 
 ### 1. Update Firmware
@@ -224,6 +228,9 @@ Open `amtm`, install AdGuardHome script and follow instructions.
 Check the output of the script to see the IP address for the UI
 
 Some DNS Blocklist settings can be found at:
+https://www.snbforums.com/threads/adguardhome-blocklists.77130/#post-741268
+
+Also, helpful thread at:
 https://www.snbforums.com/threads/release-asuswrt-merlin-adguardhome-installer-amaghi.76506/page-13#post-735471
 
 ## Misc

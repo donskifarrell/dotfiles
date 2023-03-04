@@ -2,6 +2,8 @@
 
 tap "homebrew/bundle"
 tap "homebrew/cask"
+tap "homebrew/core"
+tap "homebrew/services"
 
 # From casks
 cask "alfred"
@@ -18,8 +20,10 @@ cask "keepingyouawake"
 cask "libreoffice"
 cask "little-snitch"
 cask "mattermost"
+cask "obsidian"
 cask "omnidisksweeper"
 cask "openmtp"
+cask "pgadmin4"
 cask "postman"
 cask "rectangle"
 cask "skype"
@@ -29,6 +33,6 @@ cask "the-unarchiver"
 cask "utm"
 cask "vivaldi"
 cask "vlc"
-cask "pgadmin4"
 
 brew "scrcpy"
+brew "flyctl"

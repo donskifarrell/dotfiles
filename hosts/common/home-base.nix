@@ -308,14 +308,13 @@
     ];
 
     extraPackages = with pkgs; [
-      # used to compile tree-sitter grammar
-      tree-sitter
-
       # installs different langauge servers for neovim-lsp
       # have a look on the link below to figure out the ones for your languages
       # https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md
       nodePackages.typescript
       nodePackages.typescript-language-server
+
+      shfmt
       gopls
       rnix-lsp
     ];
@@ -323,7 +322,6 @@
     plugins = with pkgs.vimPlugins; [
       vim-tmux-navigator
       nvim-lspconfig
-      nvim-treesitter
       nvim-ts-rainbow
       nvim-ts-autotag
       The_NERD_Commenter
@@ -337,6 +335,31 @@
       bufferline-nvim
       nvim-tree-lua
       nvim-colorizer-lua
+      which-key-nvim
+
+      (nvim-treesitter.withPlugins (
+        # https://github.com/NixOS/nixpkgs/tree/nixos-unstable/pkgs/development/tools/parsing/tree-sitter/grammars
+        plugins:
+          with plugins; [
+            tree-sitter-lua
+            tree-sitter-html
+            tree-sitter-yaml
+            tree-sitter-json
+            tree-sitter-markdown
+            tree-sitter-comment
+            tree-sitter-bash
+            tree-sitter-javascript
+            tree-sitter-nix
+            tree-sitter-typescript
+            tree-sitter-query # for the tree-sitter itself
+            tree-sitter-python
+            tree-sitter-go
+            tree-sitter-sql
+            tree-sitter-graphql
+            tree-sitter-dockerfile
+            tree-sitter-fish
+          ]
+      ))
     ];
   };
 

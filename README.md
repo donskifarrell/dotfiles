@@ -1,6 +1,6 @@
 # NixOS & home-manager
 
-Configuration for VMs and OSX
+Configuration for VMs and OSX. For configuration of Asus ROG Rapture GT-AX6000, look [here](./scripts//asus-gt-ax6000/README.md)
 
 ## Usage
 

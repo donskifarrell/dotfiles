@@ -3,7 +3,7 @@ require'nvim-web-devicons'.setup {
 }
 
 require('nvim-treesitter.configs').setup {
-    ensure_installed = {"fish", "go", "lua", "javascript", "json", "nix", "typescript", "yaml"},
+    ensure_installed = {},
     highlight = {
         enable = true
     },
@@ -31,3 +31,4 @@ require("bufferline").setup {}
 
 require'nvim-tree'.setup()
 require'colorizer'.setup()
+require("which-key").setup()
