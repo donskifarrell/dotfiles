@@ -86,7 +86,7 @@
       "files.insertFinalNewline" = true;
       "files.encoding" = "utf8";
       "files.eol" = "\n";
-      "git.confirmSync" = true;
+      "git.confirmSync" = false;
       "go.toolsManagement.autoUpdate" = true;
       "go.formatTool" = "gofmt";
       "html.format.enable" = false;
@@ -104,6 +104,7 @@
       "shellformat.path" = "/Users/${config.home.username}/.nix-profile/bin/shfmt";
       "remote.SSH.configFile" = "/Users/${config.home.username}/.ssh/sshconfig.local";
       "[dockerfile]"."editor.defaultFormatter" = "ms-azuretools.vscode-docker";
+      "files"."associations"."*.tmpl" = "html";
 
       # TODO: Needed to fix issue with remote SSH failing to connect to VMs
       "remote.SSH.useLocalServer" = false;
