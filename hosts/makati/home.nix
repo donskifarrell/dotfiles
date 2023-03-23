@@ -289,7 +289,6 @@
           style = "Bold Italic";
         };
         size = 12;
-        use_thin_strokes = true;
         builtin_box_drawing = true;
       };
       draw_bold_text_with_bright_colors = false;
@@ -307,6 +306,10 @@
           text = "CellBackground";
           cursor = "CellForeground";
         };
+        footer_bar = {
+          background = "#282a36";
+          foreground = "#f8f8f2";
+        };
         search = {
           matches = {
             foreground = "#44475a";
@@ -315,10 +318,6 @@
           focused_match = {
             foreground = "#44475a";
             background = "#ffb86c";
-          };
-          bar = {
-            background = "#282a36";
-            foreground = "#f8f8f2";
           };
         };
         hints = {
