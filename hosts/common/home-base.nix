@@ -109,6 +109,7 @@
     includes = [{path = "~/.local/git/.gitconfig.local";}];
 
     extraConfig = {
+      init = {defaultBranch = "main";};
       core = {editor = "nvim";};
       pull = {rebase = true;};
       help = {autocorrect = 1;};
