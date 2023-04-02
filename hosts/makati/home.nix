@@ -34,6 +34,7 @@
       (nerdfonts.override {fonts = ["JetBrainsMono"];})
       git-filter-repo
       nodejs
+      nodePackages_latest.pnpm
     ];
   };
 
