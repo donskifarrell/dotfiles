@@ -105,6 +105,17 @@
     # libinput.enable = true;
   };
 
+  environment.gnome.excludePackages = with pkgs; [
+    gnome.totem
+    gnome.epiphany
+    gnome.gnome-calendar
+    gnome.gnome-clocks
+    gnome.gnome-contacts
+    gnome.gnome-maps
+    gnome.gnome-weather
+    gnome.gnome-clocks
+  ];
+
   # Enable CUPS to print documents.
   services.printing.enable = true;
 
@@ -128,6 +139,7 @@
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.df = {
     isNormalUser = true;
+    initialHashedPassword = "change_me";
     description = "df on makati";
 
     shell = pkgs.fish;
@@ -155,6 +167,12 @@
     jq
     fx
     tmux
+
+    gnomeExtensions.dash-to-dock
+    gnomeExtensions.gsconnect
+    gnomeExtensions.mpris-indicator-button
+    gnomeExtensions.caffeine
+    gnomeExtensions.vitals
   ];
 
   programs.fish.enable = true;
