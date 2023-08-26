@@ -28,7 +28,7 @@
       ffmpeg
       go
       gopls
-      google-cloud-sdk # Issues with auth plugin. Check out https://github.com/jgresty/gcloud-components-nix
+      (google-cloud-sdk.withExtraComponents [google-cloud-sdk.components.gke-gcloud-auth-plugin])
       kubectl
       kubectx
       (nerdfonts.override {fonts = ["JetBrainsMono"];})
@@ -102,6 +102,7 @@
       "[nix]"."editor.formatOnSave" = true;
       "[nix]"."editor.formatOnType" = false;
       "[typescript]"."editor.defaultFormatter" = "esbenp.prettier-vscode";
+      "[typescriptreact]"."editor.defaultFormatter" = "esbenp.prettier-vscode";
       "shellformat.path" = "/Users/${config.home.username}/.nix-profile/bin/shfmt";
       "remote.SSH.configFile" = "/Users/${config.home.username}/.ssh/sshconfig.local";
       "[dockerfile]"."editor.defaultFormatter" = "ms-azuretools.vscode-docker";
