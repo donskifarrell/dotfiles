@@ -38,6 +38,22 @@
     rlwrap
     shfmt
 
+    brave
+    chromium
+    vivaldi
+    firefox
+    meastral-gui
+    _1password-gui
+    gimp
+    vlc
+    spotify
+    mattermost
+    obsidian
+    sublime4
+    vscode
+    hunspell
+    libreoffice-still
+
     # # It is sometimes useful to fine-tune packages, for example, by applying
     # # overrides. You can do that directly here, just don't forget the
     # # parentheses. Maybe you want to install Nerd Fonts with a limited number of

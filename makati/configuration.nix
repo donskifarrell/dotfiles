@@ -140,7 +140,7 @@
   users.users.df = {
     isNormalUser = true;
     initialHashedPassword = "change_me";
-    description = "df on makati";
+    description = "df@makati";
 
     shell = pkgs.fish;
     openssh.authorizedKeys.keys = [];
@@ -153,6 +153,7 @@
     #  vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
     bash
     coreutils
+    dconf2nix
     gawk
     neovim
     wget
@@ -167,12 +168,20 @@
     jq
     fx
     tmux
+    unzip
 
+    ulauncher
+    gnome-extension-manager
+    gnomeExtensions.forge
     gnomeExtensions.dash-to-dock
     gnomeExtensions.gsconnect
     gnomeExtensions.mpris-indicator-button
     gnomeExtensions.caffeine
     gnomeExtensions.vitals
+    gnomeExtensions.just-perfection
+    gnomeExtensions.sound-output-device-chooser
+    gnomeExtensions.blur-my-shell
+    gnomeExtensions.appindicator
   ];
 
   programs.fish.enable = true;
