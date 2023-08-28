@@ -14,14 +14,14 @@
   home.stateVersion = "23.05";
 
   nixpkgs.config = {
-     # Allow unfree packages
-     allowUnfree = true;
-     # Workaround fix: https://github.com/nix-community/home-manager/issues/2942
-     allowUnfreePredicate = pkg: true;
-     
-     permittedInsecurePackages = [
+    # Allow unfree packages
+    allowUnfree = true;
+    # Workaround fix: https://github.com/nix-community/home-manager/issues/2942
+    allowUnfreePredicate = pkg: true;
+
+    permittedInsecurePackages = [
       "openssl-1.1.1v"
-     ];
+    ];
   };
 
   # Let Home Manager install and manage itself.
@@ -81,44 +81,43 @@
     # '')
   ];
 
-home.file = let
-  autostartPrograms = [ pkgs.ulauncher pkgs._1password-gui ];
-in
-  
-  # Home Manager is pretty good at managing dotfiles. The primary way to manage
-  # plain files is through 'home.file'.
-  builtins.listToAttrs (map
-    (pkg:
-      {
-	name = ".config/autostart/" + pkg.pname + ".desktop";
-	value =
-	  if pkg ? desktopItem then {
-	    # Application has a desktopItem entry. 
-	    # Assume that it was made with makeDesktopEntry, which exposes a
-	    # text attribute with the contents of the .desktop file
-	    text = pkg.desktopItem.text;
-	  } else {
-	    # Application does *not* have a desktopItem entry. Try to find a
-	    # matching .desktop name in /share/apaplications
-	    source = (pkg + "/share/applications/" + pkg.pname + ".desktop");
-	  };
+  home.file = let
+    autostartPrograms = [pkgs.ulauncher pkgs._1password-gui];
+  in
+    # Home Manager is pretty good at managing dotfiles. The primary way to manage
+    # plain files is through 'home.file'.
+    builtins.listToAttrs (map
+      (pkg: {
+        name = ".config/autostart/" + pkg.pname + ".desktop";
+        value =
+          if pkg ? desktopItem
+          then {
+            # Application has a desktopItem entry.
+            # Assume that it was made with makeDesktopEntry, which exposes a
+            # text attribute with the contents of the .desktop file
+            text = pkg.desktopItem.text;
+          }
+          else {
+            # Application does *not* have a desktopItem entry. Try to find a
+            # matching .desktop name in /share/apaplications
+            source = pkg + "/share/applications/" + pkg.pname + ".desktop";
+          };
       })
-    autostartPrograms);
-    
-    # # Building this configuration will create a copy of 'dotfiles/screenrc' in
-    # # the Nix store. Activating the configuration will then make '~/.screenrc' a
-    # # symlink to the Nix store copy.
-    # ".screenrc".source = dotfiles/screenrc;
+      autostartPrograms);
 
-    # # You can also set the file content immediately.
-    # ".gradle/gradle.properties".text = ''
-    #   org.gradle.console=verbose
-    #   org.gradle.daemon.idletimeout=3600000
-    # '';
-    #  home.file = {
-    # ...
-    #  };
+  # # Building this configuration will create a copy of 'dotfiles/screenrc' in
+  # # the Nix store. Activating the configuration will then make '~/.screenrc' a
+  # # symlink to the Nix store copy.
+  # ".screenrc".source = dotfiles/screenrc;
 
+  # # You can also set the file content immediately.
+  # ".gradle/gradle.properties".text = ''
+  #   org.gradle.console=verbose
+  #   org.gradle.daemon.idletimeout=3600000
+  # '';
+  #  home.file = {
+  # ...
+  #  };
 
   # You can also manage environment variables but you will have to manually
   # source
