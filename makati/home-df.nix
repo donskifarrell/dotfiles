@@ -13,6 +13,17 @@
   home.homeDirectory = homepath;
   home.stateVersion = "23.05";
 
+  nixpkgs.config = {
+     # Allow unfree packages
+     allowUnfree = true;
+     # Workaround fix: https://github.com/nix-community/home-manager/issues/2942
+     allowUnfreePredicate = pkg: true;
+     
+     permittedInsecurePackages = [
+      "openssl-1.1.1v"
+     ];
+  };
+
   # Let Home Manager install and manage itself.
   programs.home-manager.enable = true;
 
@@ -42,7 +53,7 @@
     chromium
     vivaldi
     firefox
-    meastral-gui
+    maestral-gui
     _1password-gui
     gimp
     vlc
