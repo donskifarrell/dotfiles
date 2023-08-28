@@ -169,10 +169,10 @@
     fx
     tmux
     unzip
+    wmctrl
 
     ulauncher
     gnome-extension-manager
-    gnomeExtensions.forge
     gnomeExtensions.dash-to-dock
     gnomeExtensions.gsconnect
     gnomeExtensions.mpris-indicator-button
@@ -182,6 +182,8 @@
     gnomeExtensions.sound-output-device-chooser
     gnomeExtensions.blur-my-shell
     gnomeExtensions.appindicator
+    gnomeExtensions.gtile
+    gnomeExtensions.allow-locked-remote-desktop
   ];
 
   programs.fish.enable = true;
