@@ -241,7 +241,8 @@
       ".." = "cd ..";
       "..." = "cd ../..";
 
-      hm-switch = "home-manager switch --flake ${homepath}/.dotfiles/#${config.home.username}@${hostname}";
+      # TODO: Drop tail makati
+      hm-switch = "home-manager switch --flake ${homepath}/.dotfiles/makati/#${config.home.username}@${hostname}";
       fnix-shell = "nix-shell --run fish";
 
       k = "kubectl";
@@ -361,7 +362,7 @@
         src = pkgs.fetchFromGitHub {
           owner = "PatrickF1";
           repo = "fzf.fish";
-          rev = "702439613a0b531fa1df2ad1fb2676444cd88307";
+          rev = "f9e2e48a54199fe7c6c846556a12003e75ab798e";
           sha256 = "sha256-F2gZwxVbLXDxdkDsnpIns32VsyYj84dA5cJjkqC0ZEo=";
         };
       }
@@ -370,7 +371,7 @@
         src = pkgs.fetchFromGitHub {
           owner = "oh-my-fish";
           repo = "plugin-foreign-env";
-          rev = "b3dd471bcc885b597c3922e4de836e06415e52dd";
+          rev = "7f0cf099ae1e1e4ab38f46350ed6757d54471de7";
           sha256 = "sha256-3h03WQrBZmTXZLkQh1oVyhv6zlyYsSDS7HTHr+7WjY8=";
         };
       }
@@ -379,8 +380,8 @@
         src = pkgs.fetchFromGitHub {
           owner = "dracula";
           repo = "fish";
-          rev = "62b109f12faab5604f341e8b83460881f94b1550";
-          sha256 = "sha256-0TlKq2ur2I6Bv7pu7JObrJxV0NbQhydmCuUs6ZdDU1I=";
+          rev = "269cd7d76d5104fdc2721db7b8848f6224bdf554";
+          sha256 = "sha256-Hyq4EfSmWmxwCYhp3O8agr7VWFAflcUe8BUKh50fNfY=";
         };
       }
       {
@@ -397,8 +398,8 @@
         src = pkgs.fetchFromGitHub {
           owner = "wfxr";
           repo = "forgit";
-          rev = "6385f85360b6fe0a1ac19cd5ce595b4f3921a2a7";
-          sha256 = "sha256-sWWv9UJR1K8Q5ZTcU7xjJtk8hTRXywVjSL2gQ5Kqj0M=";
+          rev = "48e91dadb53f7ac33cab238fb761b18630b6da6e";
+          sha256 = "sha256-WvJxjEzF3vi+YPVSH3QdDyp3oxNypMoB71TAJ7D8hOQ=";
         };
       }
       {
@@ -406,8 +407,8 @@
         src = pkgs.fetchFromGitHub {
           owner = "Gazorby";
           repo = "fish-abbreviation-tips";
-          rev = "d29a52375a0826ed86b0710f58b2495a73d3aff3";
-          sha256 = "sha256-841GmOAi/KS7HF7G29NUD8swaTTCPGdpIUV7B2ln32g=";
+          rev = "8ed76a62bb044ba4ad8e3e6832640178880df485";
+          sha256 = "sha256-F1t81VliD+v6WEWqj1c1ehFBXzqLyumx5vV46s/FZRU=";
         };
       }
     ];
@@ -712,6 +713,11 @@
       window = {
         decorations = "full";
         startup_mode = "Windowed";
+        dynamic_title = true;
+        class = {
+          instance = "Alacritty";
+          general = "Alacritty";
+        };
       };
       scrolling = {history = 10000;};
       font = {
@@ -830,45 +836,13 @@
       };
       key_bindings = [
         {
-          key = "K";
-          mods = "Command";
-          mode = "~Vi|~Search";
-          chars = "f";
-        }
-        {
-          key = "K";
-          mods = "Command";
-          mode = "~Vi|~Search";
-          action = "ClearHistory";
-        }
-        {
-          key = "Key0";
-          mods = "Command";
-          action = "ResetFontSize";
-        }
-        {
-          key = "Equals";
-          mods = "Command";
-          action = "IncreaseFontSize";
-        }
-        {
-          key = "Plus";
-          mods = "Command";
-          action = "IncreaseFontSize";
-        }
-        {
-          key = "Minus";
-          mods = "Command";
-          action = "DecreaseFontSize";
-        }
-        {
           key = "V";
-          mods = "Command";
+          mods = "Control";
           action = "Paste";
         }
         {
           key = "C";
-          mods = "Command";
+          mods = "Control|Shift";
           action = "Copy";
         }
       ];
