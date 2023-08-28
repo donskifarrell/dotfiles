@@ -848,4 +848,70 @@
       ];
     };
   };
+
+  programs.vscode = {
+    enable = true;
+    mutableExtensionsDir = true;
+
+    extensions = with pkgs; [
+      vscode-extensions.golang.go
+      vscode-extensions.kamadorueda.alejandra
+      vscode-extensions.bbenoist.nix
+      vscode-extensions.formulahendry.auto-close-tag
+      vscode-extensions.formulahendry.auto-rename-tag
+      vscode-extensions.tamasfe.even-better-toml
+      vscode-extensions.dracula-theme.theme-dracula
+      vscode-extensions.dbaeumer.vscode-eslint
+      vscode-extensions.hashicorp.terraform
+      vscode-extensions.esbenp.prettier-vscode
+      vscode-extensions.ms-vscode-remote.remote-ssh
+      vscode-extensions.foxundermoon.shell-format
+      vscode-extensions.bradlc.vscode-tailwindcss
+      vscode-extensions.redhat.vscode-yaml
+      vscode-extensions.streetsidesoftware.code-spell-checker
+      vscode-extensions.donjayamanne.githistory
+      vscode-extensions.jock.svg
+
+      # Not on nixpkgs yet:
+      # vscode-extensions.wayou.vscode-todo-highlight
+      # vscode-extensions.vscode-icons-team.vscode-icons
+      # vscode-extensions.waderyan.gitblame
+    ];
+
+    userSettings = {
+      "alejandra.program" = "alejandra";
+      "diffEditor.ignoreTrimWhitespace" = false;
+      "editor.wordWrap" = "on";
+      "editor.linkedEditing" = true;
+      "editor.formatOnSave" = true;
+      "editor.bracketPairColorization.enabled" = true;
+      "editor.unicodeHighlight.includeStrings" = false;
+      "editor.tabSize" = 2;
+      "explorer.confirmDelete" = false;
+      "files.trimTrailingWhitespace" = true;
+      "files.insertFinalNewline" = true;
+      "files.encoding" = "utf8";
+      "files.eol" = "\n";
+      "git.confirmSync" = false;
+      "go.toolsManagement.autoUpdate" = true;
+      "go.formatTool" = "gofmt";
+      "html.format.enable" = false;
+      "[html]"."editor.defaultFormatter" = "esbenp.prettier-vscode";
+      "[json]"."editor.defaultFormatter" = "vscode.json-language-features";
+      "redhat.telemetry.enabled" = false;
+      "vetur.format.defaultFormatter.html" = "none";
+      "workbench.iconTheme" = "vscode-icons";
+      "workbench.colorTheme" = "Dracula";
+      "[nix]"."editor.defaultFormatter" = "kamadorueda.alejandra";
+      "[nix]"."editor.formatOnPaste" = true;
+      "[nix]"."editor.formatOnSave" = true;
+      "[nix]"."editor.formatOnType" = false;
+      "[typescript]"."editor.defaultFormatter" = "esbenp.prettier-vscode";
+      "[typescriptreact]"."editor.defaultFormatter" = "esbenp.prettier-vscode";
+      "shellformat.path" = "${homepath}/.nix-profile/bin/shfmt";
+      "remote.SSH.configFile" = "${homepath}/.ssh/sshconfig.local";
+      "[dockerfile]"."editor.defaultFormatter" = "ms-azuretools.vscode-docker";
+      "files"."associations"."*.tmpl" = "html";
+    };
+  };
 }
