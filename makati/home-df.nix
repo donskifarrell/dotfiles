@@ -166,6 +166,11 @@
   programs.exa.enable = true;
   programs.fzf.enable = true;
 
+  programs.zoxide = {
+    enable = true;
+    enableFishIntegration = true;
+  };
+
   programs.git = {
     enable = true;
 
@@ -404,15 +409,6 @@
           repo = "fish";
           rev = "269cd7d76d5104fdc2721db7b8848f6224bdf554";
           sha256 = "sha256-Hyq4EfSmWmxwCYhp3O8agr7VWFAflcUe8BUKh50fNfY=";
-        };
-      }
-      {
-        name = "fish-z";
-        src = pkgs.fetchFromGitHub {
-          owner = "jethrokuan";
-          repo = "z";
-          rev = "85f863f20f24faf675827fb00f3a4e15c7838d76";
-          sha256 = "sha256-+FUBM7CodtZrYKqU542fQD+ZDGrd2438trKM0tIESs0=";
         };
       }
       {
