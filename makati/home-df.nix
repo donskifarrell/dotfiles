@@ -50,6 +50,7 @@
     shfmt
     wmctrl
 
+    opensnitch-ui
     brave
     chromium
     vivaldi
@@ -59,7 +60,7 @@
     gimp
     vlc
     spotify
-    mattermost
+    mattermost-desktop
     obsidian
     sublime4
     vscode
@@ -96,8 +97,14 @@
     # '')
   ];
 
+  home.activation = {
+    enableULauncher = ''
+      /run/current-system/sw/bin/systemctl --user enable --now ulauncher
+    '';
+  };
+
   home.file = let
-    autostartPrograms = [pkgs.ulauncher pkgs._1password-gui];
+    autostartPrograms = [pkgs._1password-gui];
   in
     # Home Manager is pretty good at managing dotfiles. The primary way to manage
     # plain files is through 'home.file'.
