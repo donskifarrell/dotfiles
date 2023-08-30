@@ -48,6 +48,7 @@
     nodePackages_latest.pnpm
     rlwrap
     shfmt
+    wmctrl
 
     brave
     chromium
@@ -64,6 +65,20 @@
     vscode
     hunspell
     libreoffice-still
+
+    ulauncher
+    gnome-extension-manager
+    gnomeExtensions.dash-to-dock
+    gnomeExtensions.gsconnect
+    gnomeExtensions.mpris-indicator-button
+    gnomeExtensions.caffeine
+    gnomeExtensions.vitals
+    gnomeExtensions.just-perfection
+    gnomeExtensions.sound-output-device-chooser
+    gnomeExtensions.blur-my-shell
+    gnomeExtensions.appindicator
+    gnomeExtensions.gtile
+    gnomeExtensions.allow-locked-remote-desktop
 
     # # It is sometimes useful to fine-tune packages, for example, by applying
     # # overrides. You can do that directly here, just don't forget the
