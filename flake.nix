@@ -1,210 +1,132 @@
 {
-  description = "Onworld Nix Setup";
+  description = "Donski Configuration for NixOS and MacOS";
 
   inputs = {
-    # Core
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
 
-    nixos-hardware = {
-      url = "github:NixOS/nixos-hardware";
+    agenix = {
+      url = "github:ryantm/agenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
-    # Nix tooling
+    darwin = {
+      url = "github:LnL7/nix-darwin/master";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    disko = {
+      url = "github:nix-community/disko";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    nix-homebrew = {
+      url = "github:zhaofengli-wip/nix-homebrew";
+    };
+    homebrew-core = {
+      url = "github:homebrew/homebrew-core";
+      flake = false;
+    };
+    homebrew-cask = {
+      url = "github:homebrew/homebrew-cask";
+      flake = false;
+    };
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
-    # Community flakes
-    # impermanence.url = "github:RiscadoA/impermanence";
-    # nix-colors.url = "github:misterio77/nix-colors";
+    nix-formatter-pack = {
+      url = "github:Gerschtli/nix-formatter-pack";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    nixos-hardware = {
+      url = "github:NixOS/nixos-hardware";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = inputs: let
-    # Bring some functions into scope (from builtins and other flakes)
-    inherit (builtins) mapAttrs attrValues;
-    inherit (inputs.nixpkgs.lib) genAttrs systems;
-    forAllSystems = genAttrs systems.flakeExposed;
-  in rec {
-    # importAttrset = path: mapAttrs (_: import) (import path);
-
-    # TODO: If you want to use packages exported from other flakes, add their overlays here.
-    # They will be added to your 'pkgs'
-    overlays = {
-      default = import ./overlay {inherit inputs;}; # Our own overlay
+  outputs = {
+    self,
+    nixpkgs,
+    agenix,
+    darwin,
+    disko,
+    nix-homebrew,
+    homebrew-core,
+    homebrew-cask,
+    home-manager,
+    nix-formatter-pack,
+  } @ inputs: let
+    user = "df";
+    systems = ["x86_64-linux" "aarch64-darwin"];
+    forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f system);
+    devShell = system: let
+      pkgs = nixpkgs.legacyPackages.${system};
+    in {
+      default = with pkgs;
+        mkShell {
+          # Enable experimental features without having to specify the argument
+          NIX_CONFIG = "experimental-features = nix-command flakes";
+          nativeBuildInputs = with pkgs; [fish git age neovim];
+          shellHook = with pkgs; ''
+            export EDITOR=nvim
+          '';
+        };
     };
+  in {
+    devShells = forAllSystems devShell;
 
-    # Packages
-    # Accessible via 'nix build'
-    packages = forAllSystems (system:
-      # Propagate nixpkgs' packages, with our overlays applied
-        import inputs.nixpkgs {
-          inherit system;
-          overlays = attrValues overlays;
-        });
+    # nix fmt
+    formatter = libx.forAllSystems (
+      system:
+        nix-formatter-pack.lib.mkFormatter {
+          pkgs = nixpkgs.legacyPackages.${system};
+          config.tools = {
+            alejandra.enable = true;
+            deadnix.enable = true;
+            nixpkgs-fmt.enable = false;
+            statix.enable = true;
+          };
+        }
+    );
 
-    # Devshell for bootstrapping
-    # Accessible via 'nix develop'
-    devShells = forAllSystems (system: {
-      default = import ./shell.nix {pkgs = packages.${system};};
-    });
-
-    # nixosModules = importAttrset ./modules/nixos;
-    # homeManagerModules = importAttrset ./modules/home-manager;
-
-    mkSystem = {
-      hostname,
-      system ? "x86_64-linux",
-      overlays ? {},
-      users ? [],
-      authorizedKeys ? [],
-      persistence ? false,
-    }:
-      inputs.nixpkgs.lib.nixosSystem {
-        inherit system;
-        specialArgs = {inherit inputs system hostname persistence;};
-        modules =
-          attrValues (import ./modules/nixos)
-          ++ [
-            ./hosts/${hostname}/system.nix
-            {
-              networking.hostName = hostname;
-              # Apply overlay and allow unfree packages
-              nixpkgs = {
-                overlays = attrValues overlays;
-                config.allowUnfree = true;
-              };
-              # Add each input as a registry
-              nix.registry =
-                inputs.nixpkgs.lib.mapAttrs'
-                (n: v: inputs.nixpkgs.lib.nameValuePair n {flake = v;})
-                inputs;
-            }
-            # System wide config for each user
-          ]
-          ++ inputs.nixpkgs.lib.forEach users (u: {
-            pkgs,
-            persistence,
-            ...
-          }: {
-            users.users = {
-              "${u}" = {
-                isNormalUser = true;
-                initialPassword = "passwd-change-me-on-login";
-                shell = pkgs.fish;
-                openssh.authorizedKeys.keys = [] ++ authorizedKeys;
-                # TODO: Be sure to add any other groups you need (such as networkmanager, audio, docker, etc)
-                extraGroups = ["wheel"];
-              };
-            };
-          });
-      };
-
-    # System configurations
-    # Accessible via 'nixos-rebuild'
-    # NOTE: Add to homeConfigurations below too!
-    nixosConfigurations = {
-      # OSX Build - just home-manager
-      makati = mkSystem {
-        inherit overlays;
-        hostname = "makati";
-        system = "aarch64-linux";
-        users = ["df"];
-      };
-
-      # NixOS VM - deployed in cloud
-      belfast = mkSystem {
-        inherit overlays;
-        hostname = "belfast";
-        system = "aarch64-linux";
-        users = ["df"];
-      };
-
-      # NixOS VM - usually as QEMU VM
-      london = mkSystem {
-        inherit overlays;
-        hostname = "london";
-        system = "aarch64-linux";
-        users = ["df"];
-        authorizedKeys = ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKdNislbiV21PqoaREbPATGeCj018IwKufVcgR4Ft9Fl london"];
-      };
-    };
-
-    mkHome = {
-      username,
-      hostname,
-      system ? "x86_64-linux",
-      overlays ? {},
-      persistence ? false,
-      desktop ? null,
-      trusted ? false,
-      colorscheme ? "dracula",
-    }:
-      inputs.home-manager.lib.homeManagerConfiguration {
-        pkgs = inputs.nixpkgs.legacyPackages.${system};
-
+    darwinConfigurations = let
+      user = "df";
+    in {
+      "df-manila-MBP" = darwin.lib.darwinSystem {
+        system = "aarch64-darwin";
+        specialArgs = inputs;
         modules = [
-          ./hosts/${hostname}/home.nix
+          nix-homebrew.darwinModules.nix-homebrew
           {
-            home = {
-              username = username;
-              # system = system;
-              homeDirectory = /home/${username};
-              stateVersion = "22.11";
-              # nixpkgs = {
-              #   overlays = attrValues overlays;
-              #   config.allowUnfree = true;
-              # };
-              # programs = {
-              #   home-manager.enable = true;
-              #   git.enable = true;
-              # };
+            nix-homebrew = {
+              enable = true;
+              user = "${user}";
+              taps = {
+                "homebrew/homebrew-core" = homebrew-core;
+                "homebrew/homebrew-cask" = homebrew-cask;
+              };
+              mutableTaps = false;
+              autoMigrate = true;
             };
           }
+          ./manila-osx
         ];
-
-        extraSpecialArgs = {
-          inherit
-            system
-            hostname
-            persistence
-            desktop
-            trusted
-            colorscheme
-            inputs
-            ;
-        };
-
-        # extraModules =
-        #   attrValues (import ./modules/home-manager)
-        #   ++ [
-        #     # Base configuration
-        #     {
-        #     }
-        #   ];
       };
+    };
 
-    # Home configurations
-    # Accessible via 'home-manager'
-    homeConfigurations = {
-      "df@makati" = mkHome {
-        inherit overlays;
-        username = "df";
-        hostname = "makati";
-        system = "aarch64-darwin";
-      };
-      "df@belfast" = mkHome {
-        inherit overlays;
-        username = "df";
-        hostname = "belfast";
-        system = "aarch64-linux";
-      };
-      "df@london" = mkHome {
-        inherit overlays;
-        username = "df";
-        hostname = "london";
-        system = "aarch64-linux";
+    nixosConfigurations = let
+      user = "df";
+    in {
+      makati = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = inputs;
+        modules = [
+          ./makati-nixos
+          disko.nixosModules.disko
+          home-manager.nixosModules.home-manager
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.users.${user} = import ./makati-nixos/home-manager.nix;
+          }
+        ];
       };
     };
   };
