@@ -151,21 +151,19 @@
     #  vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
     bash
     coreutils
-    dconf2nix
     gawk
-    neovim
+    micro
     wget
     curl
     git
     htop
     bat
-    exa
+    eza
     fzf
     fd
     ripgrep
     jq
     fx
-    tmux
     unzip
   ];
 

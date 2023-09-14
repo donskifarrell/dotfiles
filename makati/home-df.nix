@@ -49,7 +49,23 @@
     rlwrap
     shfmt
     wmctrl
-
+    lsof
+    android-tools
+    python311
+    python311Packages.pip
+    bash
+    gnome.zenity
+    quickemu
+    dconf2nix
+    htop
+    bat
+    eza
+    fzf
+    fd
+    ripgrep
+    jq
+    fx
+    unzip
     opensnitch-ui
     brave
     chromium
@@ -66,7 +82,6 @@
     vscode
     hunspell
     libreoffice-still
-
     ulauncher
     gnome-extension-manager
     gnomeExtensions.dash-to-dock
@@ -80,6 +95,8 @@
     gnomeExtensions.appindicator
     gnomeExtensions.gtile
     gnomeExtensions.allow-locked-remote-desktop
+    spice-gtk
+    spice
 
     # # It is sometimes useful to fine-tune packages, for example, by applying
     # # overrides. You can do that directly here, just don't forget the
@@ -689,6 +706,7 @@
         extraConfig = ''
           set -g @resurrect-strategy-nvim 'session'
           set -g @resurrect-capture-pane-contents 'on'
+          set -g @resurrect-dir '~/.local/tmux/resurrect'
         '';
       }
       {
@@ -703,9 +721,7 @@
       {
         plugin = tmuxPlugins.open;
         extraConfig = ''
-          set -g @continuum-restore 'on'
-          set -g @continuum-boot 'on'
-          set -g @continuum-save-interval '5' # minutes
+          set -g @open-S 'https://www.duckduckgo.com/?q='
         '';
       }
       {
