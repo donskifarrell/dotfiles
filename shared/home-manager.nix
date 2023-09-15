@@ -2,193 +2,24 @@
   config,
   pkgs,
   lib,
-  system,
-  hostname,
-  homepath,
   ...
-}: {
-  # Home Manager needs a bit of information about you and the paths it should
-  # manage.
-  home.username = "df";
-  home.homeDirectory = homepath;
-  home.stateVersion = "23.05";
-
-  nixpkgs.config = {
-    # Allow unfree packages
-    allowUnfree = true;
-    # Workaround fix: https://github.com/nix-community/home-manager/issues/2942
-    allowUnfreePredicate = pkg: true;
-
-    permittedInsecurePackages = [
-      "openssl-1.1.1v"
-    ];
-  };
-
-  # Let Home Manager install and manage itself.
-  programs.home-manager.enable = true;
-
-  # The home.packages option allows you to install Nix packages into your
-  # environment.
-  home.packages = with pkgs; [
-    # # Adds the 'hello' command to your environment. It prints a friendly
-    # # "Hello, world!" when run.
-    # pkgs.hello
-    age
-    alejandra
-    cht-sh
-    ffmpeg
-    git-filter-repo
-    go
-    gopls
-    kubectl
-    kubectx
-    mkcert
-    netperf
-    nodejs
-    nodePackages_latest.pnpm
-    rlwrap
-    shfmt
-    wmctrl
-    lsof
-    android-tools
-    python311
-    python311Packages.pip
-    bash
-    gnome.zenity
-    quickemu
-    dconf2nix
-    htop
-    bat
-    eza
-    fzf
-    fd
-    ripgrep
-    jq
-    fx
-    unzip
-    opensnitch-ui
-    brave
-    chromium
-    vivaldi
-    firefox
-    maestral-gui
-    _1password-gui
-    gimp
-    vlc
-    spotify
-    mattermost-desktop
-    obsidian
-    sublime4
-    vscode
-    hunspell
-    libreoffice-still
-    ulauncher
-    gnome-extension-manager
-    gnomeExtensions.dash-to-dock
-    gnomeExtensions.gsconnect
-    gnomeExtensions.mpris-indicator-button
-    gnomeExtensions.caffeine
-    gnomeExtensions.vitals
-    gnomeExtensions.just-perfection
-    gnomeExtensions.sound-output-device-chooser
-    gnomeExtensions.blur-my-shell
-    gnomeExtensions.appindicator
-    gnomeExtensions.gtile
-    gnomeExtensions.allow-locked-remote-desktop
-    spice-gtk
-    spice
-
-    # # It is sometimes useful to fine-tune packages, for example, by applying
-    # # overrides. You can do that directly here, just don't forget the
-    # # parentheses. Maybe you want to install Nerd Fonts with a limited number of
-    # # fonts?
-    # (pkgs.nerdfonts.override { fonts = [ "FantasqueSansMono" ]; })
-    (google-cloud-sdk.withExtraComponents [google-cloud-sdk.components.gke-gcloud-auth-plugin])
-    (nerdfonts.override {fonts = ["JetBrainsMono"];})
-
-    # # You can also create simple shell scripts directly inside your
-    # # configuration. For example, this adds a command 'my-hello' to your
-    # # environment:
-    # (pkgs.writeShellScriptBin "my-hello" ''
-    #   echo "Hello, ${config.home.username}!"
-    # '')
-  ];
-
-  home.activation = {
-    enableULauncher = ''
-      /run/current-system/sw/bin/systemctl --user enable --now ulauncher
-    '';
-  };
-
-  home.file = let
-    autostartPrograms = [pkgs._1password-gui];
-  in
-    # Home Manager is pretty good at managing dotfiles. The primary way to manage
-    # plain files is through 'home.file'.
-    builtins.listToAttrs (map
-      (pkg: {
-        name = ".config/autostart/" + pkg.pname + ".desktop";
-        value =
-          if pkg ? desktopItem
-          then {
-            # Application has a desktopItem entry.
-            # Assume that it was made with makeDesktopEntry, which exposes a
-            # text attribute with the contents of the .desktop file
-            text = pkg.desktopItem.text;
-          }
-          else {
-            # Application does *not* have a desktopItem entry. Try to find a
-            # matching .desktop name in /share/apaplications
-            source = pkg + "/share/applications/" + pkg.pname + ".desktop";
-          };
-      })
-      autostartPrograms);
-
-  # # Building this configuration will create a copy of 'dotfiles/screenrc' in
-  # # the Nix store. Activating the configuration will then make '~/.screenrc' a
-  # # symlink to the Nix store copy.
-  # ".screenrc".source = dotfiles/screenrc;
-
-  # # You can also set the file content immediately.
-  # ".gradle/gradle.properties".text = ''
-  #   org.gradle.console=verbose
-  #   org.gradle.daemon.idletimeout=3600000
-  # '';
-  #  home.file = {
-  # ...
-  #  };
-
-  # You can also manage environment variables but you will have to manually
-  # source
-  #
-  #  ~/.nix-profile/etc/profile.d/hm-session-vars.sh
-  #
-  # or
-  #
-  #  /etc/profiles/per-user/df/etc/profile.d/hm-session-vars.sh
-  #
-  # if you don't want to manage your shell through Home Manager.
-  home.sessionVariables = {
-    LANG = "en_GB.UTF-8";
-    LC_CTYPE = "en_GB.UTF-8";
-    LC_ALL = "en_GB.UTF-8";
-    EDITOR = "nvim";
-    PAGER = "less -FirSwX";
-    MANPAGER = "sh -c 'col -bx | ${pkgs.bat}/bin/bat -l man -p'";
-  };
-
-  fonts.fontconfig.enable = true;
-
-  programs.bat.enable = true;
-  programs.exa.enable = true;
-  programs.fzf.enable = true;
-
-  programs.zoxide = {
+}: let
+  user = "df";
+in {
+  # Shared shell configuration
+  bat.enable = true;
+  eza.enable = true;
+  fzf.enable = true;
+  zoxide = {
     enable = true;
     enableFishIntegration = true;
   };
-
-  programs.git = {
+  go = {
+    enable = true;
+    package = pkgs.go;
+    goPath = "go";
+  };
+  git = {
     enable = true;
 
     delta = {
@@ -265,7 +96,10 @@
 
     extraConfig = {
       init = {defaultBranch = "main";};
-      core = {editor = "nvim";};
+      core = {
+        editor = "nvim";
+        autocrlf = "input";
+      };
       pull = {rebase = true;};
       help = {autocorrect = 1;};
       grep = {lineNumber = true;};
@@ -273,20 +107,22 @@
       diff = {colorMoved = "default";};
       url = {"git@github.com:" = {insteadOf = "https://github.com/";};};
     };
+    lfs = {
+      enable = true;
+    };
   };
-
-  programs.fish = {
+  fish = {
     enable = true;
 
     shellAbbrs = {
-      tree = "exa --all --tree --long --color=automatic --level=2";
+      tree = "eza --all --tree --long --color=automatic --level=2";
       h = "cd ~";
       "-" = "cd -";
       ".." = "cd ..";
       "..." = "cd ../..";
 
       # TODO: Drop tail makati
-      hm-switch = "home-manager switch --flake ${homepath}/.dotfiles/makati/#${config.home.username}@${hostname}";
+      hm-switch = "home-manager switch --flake $HOME/.dotfiles/makati/#${config.home.username}@${hostname}";
       fnix-shell = "nix-shell --run fish";
 
       k = "kubectl";
@@ -297,6 +133,7 @@
     shellAliases = {
       reload = "exec fish";
       grep = "grep --color=auto";
+      diff = "difft";
       duf = "du -sh * | sort -hr";
       less = "less -r";
       cat = "bat";
@@ -309,9 +146,9 @@
       tn = "tmux new-session"; # Creates a new session
       tl = "tmux list-sessions"; # Lists all ongoing sessions
 
-      ls = "exa --git --color=automatic";
-      ll = "exa --all --long --git --color=automatic";
-      la = "exa --all --binary --group --header --long --git --color=automatic";
+      ls = "eza --git --color=automatic";
+      ll = "eza --all --long --git --color=automatic";
+      la = "eza --all --binary --group --header --long --git --color=automatic";
       l = "la";
 
       # See forgit - https://github.com/wfxr/forgit
@@ -396,8 +233,8 @@
       set FORGIT_LOG_FZF_OPTS "--reverse"
       set FORGIT_GLO_FORMAT "%C(auto)%h%d %s %C(blue)%an %C(green)%C(bold)%cr"
 
-      set GOBIN "${homepath}/go/bin"
-      fish_add_path -pmP ${homepath}/go/bin
+      set GOBIN "$HOME/go/bin"
+      fish_add_path -pmP $HOME/go/bin
     '';
 
     plugins = [
@@ -448,8 +285,7 @@
       }
     ];
   };
-
-  programs.neovim = {
+  neovim = {
     enable = true;
 
     # extraConfig = builtins.concatStringsSep "\n" [
@@ -517,14 +353,7 @@
     #   ))
     # ];
   };
-
-  programs.ssh = {
-    enable = true;
-
-    includes = ["~/.ssh/sshconfig.local"];
-  };
-
-  programs.starship = {
+  starship = {
     enable = true;
     # Configuration written to ~/.config/starship.toml
     settings = {
@@ -558,12 +387,11 @@
       };
     };
   };
-
-  programs.tmux = {
+  tmux = {
     enable = true;
     shortcut = "a";
     terminal = "screen-256color";
-    shell = "${homepath}/.nix-profile/bin/fish";
+    shell = "$HOME/.nix-profile/bin/fish";
     clock24 = true;
     keyMode = "vi";
 
@@ -571,7 +399,7 @@
       # ----------------------
       # Settings
       # -----------------------
-      set -g default-shell ${homepath}/.nix-profile/bin/fish
+      set -g default-shell $HOME/.nix-profile/bin/fish
 
       # scrollback size
       set -g history-limit 100000
@@ -706,7 +534,8 @@
         extraConfig = ''
           set -g @resurrect-strategy-nvim 'session'
           set -g @resurrect-capture-pane-contents 'on'
-          set -g @resurrect-dir '~/.local/tmux/resurrect'
+          set -g @resurrect-pane-contents-area 'visible'
+          set -g @resurrect-dir '$HOME/.local/tmux/resurrect'
         '';
       }
       {
@@ -731,15 +560,7 @@
       }
     ];
   };
-
-  programs.go = {
-    enable = true;
-    package = pkgs.go;
-    goPath = "go";
-  };
-
-  # TODO: DO NOT RUN THROUGH A FORMATTER! (hints -> enabled -> regex gets borked at the "\\s )
-  programs.alacritty = {
+  alacritty = {
     enable = true;
 
     settings = {
@@ -771,7 +592,10 @@
           family = "JetBrainsMono Nerd Font";
           style = "Bold Italic";
         };
-        size = 12;
+        size = lib.mkMerge [
+          (lib.mkIf pkgs.stdenv.hostPlatform.isLinux 12)
+          (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin 14)
+        ];
         builtin_box_drawing = true;
       };
       draw_bold_text_with_bright_colors = false;
@@ -845,7 +669,7 @@
       cursor = {unfocused_hollow = true;};
       live_config_reload = true;
       shell = {
-        program = "${homepath}/.nix-profile/bin/fish";
+        program = "$HOME/.nix-profile/bin/fish";
         args = ["--login"];
       };
       hints = {
@@ -882,70 +706,20 @@
       ];
     };
   };
-
-  programs.vscode = {
+  ssh = {
     enable = true;
-    mutableExtensionsDir = true;
 
-    extensions = with pkgs; [
-      vscode-extensions.golang.go
-      vscode-extensions.kamadorueda.alejandra
-      vscode-extensions.bbenoist.nix
-      vscode-extensions.formulahendry.auto-close-tag
-      vscode-extensions.formulahendry.auto-rename-tag
-      vscode-extensions.tamasfe.even-better-toml
-      vscode-extensions.dracula-theme.theme-dracula
-      vscode-extensions.dbaeumer.vscode-eslint
-      vscode-extensions.hashicorp.terraform
-      vscode-extensions.esbenp.prettier-vscode
-      vscode-extensions.ms-vscode-remote.remote-ssh
-      vscode-extensions.foxundermoon.shell-format
-      vscode-extensions.bradlc.vscode-tailwindcss
-      vscode-extensions.redhat.vscode-yaml
-      vscode-extensions.streetsidesoftware.code-spell-checker
-      vscode-extensions.donjayamanne.githistory
-      vscode-extensions.jock.svg
+    # includes = ["~/.ssh/sshconfig.local"];
 
-      # Not on nixpkgs yet:
-      # vscode-extensions.wayou.vscode-todo-highlight
-      # vscode-extensions.vscode-icons-team.vscode-icons
-      # vscode-extensions.waderyan.gitblame
+    extraConfig = lib.mkMerge [
+      ''
+        Host *
+         AddKeysToAgent yes
+      ''
+      (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin
+        ''
+          UseKeychain yes
+        '')
     ];
-
-    userSettings = {
-      "alejandra.program" = "alejandra";
-      "diffEditor.ignoreTrimWhitespace" = false;
-      "editor.wordWrap" = "on";
-      "editor.linkedEditing" = true;
-      "editor.formatOnSave" = true;
-      "editor.bracketPairColorization.enabled" = true;
-      "editor.unicodeHighlight.includeStrings" = false;
-      "editor.tabSize" = 2;
-      "explorer.confirmDelete" = false;
-      "files.trimTrailingWhitespace" = true;
-      "files.insertFinalNewline" = true;
-      "files.encoding" = "utf8";
-      "files.eol" = "\n";
-      "git.confirmSync" = false;
-      "go.toolsManagement.autoUpdate" = true;
-      "go.formatTool" = "gofmt";
-      "html.format.enable" = false;
-      "[html]"."editor.defaultFormatter" = "esbenp.prettier-vscode";
-      "[json]"."editor.defaultFormatter" = "vscode.json-language-features";
-      "redhat.telemetry.enabled" = false;
-      "vetur.format.defaultFormatter.html" = "none";
-      "workbench.iconTheme" = "vscode-icons";
-      "workbench.colorTheme" = "Dracula";
-      "[nix]"."editor.defaultFormatter" = "kamadorueda.alejandra";
-      "[nix]"."editor.formatOnPaste" = true;
-      "[nix]"."editor.formatOnSave" = true;
-      "[nix]"."editor.formatOnType" = false;
-      "[typescript]"."editor.defaultFormatter" = "esbenp.prettier-vscode";
-      "[typescriptreact]"."editor.defaultFormatter" = "esbenp.prettier-vscode";
-      "shellformat.path" = "${homepath}/.nix-profile/bin/shfmt";
-      "remote.SSH.configFile" = "${homepath}/.ssh/sshconfig.local";
-      "[dockerfile]"."editor.defaultFormatter" = "ms-azuretools.vscode-docker";
-      "files"."associations"."*.tmpl" = "html";
-    };
   };
 }
