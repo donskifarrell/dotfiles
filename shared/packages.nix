@@ -57,4 +57,5 @@ with pkgs; [
   bash
   gawk
   fx
+  nixos-generators
 ]

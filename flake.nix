@@ -3,6 +3,7 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
 
     agenix = {
       url = "github:ryantm/agenix";
@@ -29,8 +30,12 @@
     };
     home-manager = {
       url = "github:nix-community/home-manager";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
+    # hyprland = {
+    #   url = "github:hyprwm/Hyprland";
+    #   inputs.nixpkgs.follows = "nixpkgs-unstable";
+    # };
     nix-formatter-pack = {
       url = "github:Gerschtli/nix-formatter-pack";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -39,11 +44,16 @@
       url = "github:NixOS/nixos-hardware";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    nixos-generators = {
+      url = "github:nix-community/nixos-generators";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = {
     self,
     nixpkgs,
+    nixpkgs-unstable,
     agenix,
     darwin,
     disko,
@@ -51,7 +61,10 @@
     homebrew-core,
     homebrew-cask,
     home-manager,
+    # hyprland,
     nix-formatter-pack,
+    nixos-generators,
+    nixos-hardware,
   } @ inputs: let
     user = "df";
     systems = ["x86_64-linux" "aarch64-darwin"];
@@ -73,7 +86,7 @@
     devShells = forAllSystems devShell;
 
     # nix fmt
-    formatter = libx.forAllSystems (
+    formatter = forAllSystems (
       system:
         nix-formatter-pack.lib.mkFormatter {
           pkgs = nixpkgs.legacyPackages.${system};
@@ -127,6 +140,32 @@
             home-manager.users.${user} = import ./makati-nixos/home-manager.nix;
           }
         ];
+      };
+    };
+
+    packages.x86_64-linux = let
+      sys = "x86_64-linux";
+      pkgs = nixpkgs.legacyPackages.${sys};
+    in {
+      makati-vm = nixos-generators.nixosGenerate {
+        system = sys;
+        specialArgs = inputs;
+        modules = [
+          ./makati-nixos
+          disko.nixosModules.disko
+          home-manager.nixosModules.home-manager
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.users.${user} = import ./makati-nixos/home-manager.nix;
+          }
+          # ISO specific changes
+          {
+            services.openssh.settings.PermitRootLogin = nixpkgs.lib.mkForce "yes"; # So we can SSH into the VM easily
+            boot.kernelPackages = nixpkgs.lib.mkForce pkgs.linuxPackages_6_1; # To fix an issue with ZFS support
+          }
+        ];
+        format = "vm";
       };
     };
   };

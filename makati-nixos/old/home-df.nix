@@ -49,7 +49,6 @@
     git
     htop
     bat
-    eza
     fzf
     fd
     ripgrep
@@ -58,7 +57,7 @@
     unzip
     htop
     bat
-    eza
+    exa
     fzf
     fd
     ripgrep
