@@ -1,5 +1,6 @@
 {
   config,
+  lib,
   inputs,
   pkgs,
   agenix,
@@ -8,6 +9,12 @@
   user = "df";
   hostname = "makati";
   keys = ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKdNislbiV21PqoaREbPATGeCj018IwKufVcgR4Ft9Fl london"];
+  # flake-compat = builtins.fetchTarball "https://github.com/edolstra/flake-compat/archive/master.tar.gz";
+  # hyprland-flake =
+  #   (import flake-compat {
+  #     src = builtins.fetchTarball "https://github.com/hyprwm/Hyprland/archive/master.tar.gz";
+  #   })
+  #   .defaultNix;
 in {
   imports = [
     # ./secrets.nix
@@ -32,6 +39,7 @@ in {
   networking = {
     hostName = hostname;
     networkmanager.enable = true;
+    wireless.enable = false;
     firewall = {
       # 3389: RDP from OSX
       allowedTCPPorts = [3389];
@@ -41,10 +49,10 @@ in {
     # (the default) this is the recommended approach. When using systemd-networkd it's
     # still possible to use this option, but it's recommended to use it in conjunction
     # with explicit per-interface declarations with `networking.interfaces.<interface>.useDHCP`.
-    useDHCP = true;
+    useDHCP = lib.mkDefault true;
   };
   nix = {
-    auto-optimise-store = true;
+    # auto-optimise-store = true;
     # nixPath = ["nixos-config=/home/${user}/.local/share/src/nixos-config:/etc/nixos"];
     settings.allowed-users = ["${user}"];
     package = pkgs.nixUnstable;
@@ -56,6 +64,10 @@ in {
     # Needed for anything GTK related
     # dconf.enable = true;
     fish.enable = true;
+    hyprland = {
+      enable = true;
+      # package = hyprland-flake.packages.${pkgs.system}.hyprland;
+    };
   };
   services = {
     # Enable CUPS to print documents
@@ -102,7 +114,7 @@ in {
   users.users = {
     "${user}" = {
       isNormalUser = true;
-      initialHashedPassword = "change_me";
+      initialHashedPassword = "";
       description = "${user}@${hostname}";
       extraGroups = [
         "wheel" # Enable ‘sudo’ for the user.
@@ -131,9 +143,8 @@ in {
       }
     ];
   };
-  fonts.packages = with pkgs; [
+  fonts.fonts = with pkgs; [
     dejavu_fonts
-    feather-font # dustinlyons/nixpkgs
     jetbrains-mono
     font-awesome
     noto-fonts

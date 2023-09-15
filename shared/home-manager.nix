@@ -5,10 +5,11 @@
   ...
 }: let
   user = "df";
+  hostname = "makati";
 in {
   # Shared shell configuration
   bat.enable = true;
-  eza.enable = true;
+  exa.enable = true;
   fzf.enable = true;
   zoxide = {
     enable = true;
@@ -115,14 +116,14 @@ in {
     enable = true;
 
     shellAbbrs = {
-      tree = "eza --all --tree --long --color=automatic --level=2";
+      tree = "exa --all --tree --long --color=automatic --level=2";
       h = "cd ~";
       "-" = "cd -";
       ".." = "cd ..";
       "..." = "cd ../..";
 
       # TODO: Drop tail makati
-      hm-switch = "home-manager switch --flake $HOME/.dotfiles/makati/#${config.home.username}@${hostname}";
+      hm-switch = "home-manager switch --flake $HOME/.dotfiles/makati/#${user}@${hostname}";
       fnix-shell = "nix-shell --run fish";
 
       k = "kubectl";
@@ -146,9 +147,9 @@ in {
       tn = "tmux new-session"; # Creates a new session
       tl = "tmux list-sessions"; # Lists all ongoing sessions
 
-      ls = "eza --git --color=automatic";
-      ll = "eza --all --long --git --color=automatic";
-      la = "eza --all --binary --group --header --long --git --color=automatic";
+      ls = "exa --git --color=automatic";
+      ll = "exa --all --long --git --color=automatic";
+      la = "exa --all --binary --group --header --long --git --color=automatic";
       l = "la";
 
       # See forgit - https://github.com/wfxr/forgit
