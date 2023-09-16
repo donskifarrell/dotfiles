@@ -6,7 +6,7 @@
 }: let
   user = "df";
   xdg_configHome = "/home/${user}/.config";
-  shared-programs = import ../shared/home-manager.nix {inherit config pkgs lib;};
+  # shared-programs = import ../shared/home-manager.nix {inherit config pkgs lib;};
   # shared-files = import ../shared/files.nix {inherit config pkgs;};
 in {
   home = {
@@ -44,12 +44,29 @@ in {
     udiskie.enable = true;
   };
 
-  programs = shared-programs;
+  # programs = shared-programs;
 
   wayland.windowManager.hyprland = {
     enable = true;
     enableNvidiaPatches = false;
     systemdIntegration = true;
     xwayland.enable = true;
+
+    extraConfig = ''
+      # window resize
+      bind = ALT, q, exec, foot
+    '';
+    # settings = {
+    #   input = {
+    #     touchpad.disable_while_typing = false;
+    #   };
+
+    #   bind = let
+    #     terminal = pkgs.foot;
+    #   in [
+    #     # Program bindings
+    #     "CTRL,q,exec,${terminal}"
+    #   ];
+    # };
   };
 }
