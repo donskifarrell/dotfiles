@@ -32,10 +32,10 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
-    # hyprland = {
-    #   url = "github:hyprwm/Hyprland";
-    #   inputs.nixpkgs.follows = "nixpkgs-unstable";
-    # };
+    hyprland = {
+      url = "github:hyprwm/hyprland";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     nix-formatter-pack = {
       url = "github:Gerschtli/nix-formatter-pack";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -61,7 +61,7 @@
     homebrew-core,
     homebrew-cask,
     home-manager,
-    # hyprland,
+    hyprland,
     nix-formatter-pack,
     nixos-generators,
     nixos-hardware,
@@ -126,6 +126,8 @@
 
     nixosConfigurations = let
       user = "df";
+      sys = "x86_64-linux";
+      pkgs = nixpkgs.legacyPackages.${sys};
     in {
       makati = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
@@ -138,6 +140,52 @@
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
             home-manager.users.${user} = import ./makati-nixos/home-manager.nix;
+          }
+        ];
+      };
+      makati-vm = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = inputs;
+        modules = [
+          ./makati-nixos
+          disko.nixosModules.disko
+          home-manager.nixosModules.home-manager
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.users.${user} = import ./makati-nixos/home-manager.nix;
+          }
+          # ISO specific changes
+          {
+            services.openssh.settings.PermitRootLogin = nixpkgs.lib.mkForce "yes"; # So we can SSH into the VM easily
+            boot.kernelPackages = nixpkgs.lib.mkForce pkgs.linuxPackages_6_1; # To fix an issue with ZFS support
+          }
+          {
+            virtualisation.vmVariant = {
+              virtualisation.qemu.options = [
+                "-device virtio-vga-gl"
+                "-display sdl,gl=on,show-cursor=off"
+                "-audio pa,model=hda"
+              ];
+
+              services.openssh = {
+                enable = true;
+                settings.PasswordAuthentication = true;
+                settings.PermitRootLogin = "yes";
+              };
+              virtualisation.forwardPorts = [
+                {
+                  from = "host";
+                  host.port = 2222;
+                  guest.port = 22;
+                }
+              ];
+
+              environment.sessionVariables = {
+                WLR_NO_HARDWARE_CURSORS = "1";
+                HYPRLAND_LOG_WLR = "1";
+              };
+            };
           }
         ];
       };
@@ -163,6 +211,33 @@
           {
             services.openssh.settings.PermitRootLogin = nixpkgs.lib.mkForce "yes"; # So we can SSH into the VM easily
             boot.kernelPackages = nixpkgs.lib.mkForce pkgs.linuxPackages_6_1; # To fix an issue with ZFS support
+          }
+          {
+            virtualisation.vmVariant = {
+              virtualisation.qemu.options = [
+                "-device virtio-vga-gl"
+                "-display sdl,gl=on,show-cursor=off"
+                "-audio pa,model=hda"
+              ];
+
+              services.openssh = {
+                enable = true;
+                settings.PasswordAuthentication = true;
+                settings.PermitRootLogin = "yes";
+              };
+              virtualisation.forwardPorts = [
+                {
+                  from = "host";
+                  host.port = 2222;
+                  guest.port = 22;
+                }
+              ];
+
+              environment.sessionVariables = {
+                WLR_NO_HARDWARE_CURSORS = "1";
+                HYPRLAND_LOG_WLR = "1";
+              };
+            };
           }
         ];
         format = "vm";

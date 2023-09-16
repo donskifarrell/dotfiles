@@ -46,9 +46,10 @@ in {
 
   programs = shared-programs;
 
-  # wayland.windowManager = {
-  #   hyprland = {
-  #     enable = true;
-  #   };
-  # };
+  wayland.windowManager.hyprland = {
+    enable = true;
+    enableNvidiaPatches = false;
+    systemdIntegration = true;
+    xwayland.enable = true;
+  };
 }
