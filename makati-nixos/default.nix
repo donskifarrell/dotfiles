@@ -177,6 +177,7 @@ in {
     unzip
     curl
     dunst
+    foot
   ];
   system.stateVersion = "23.05"; # Don't change this
 }

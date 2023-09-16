@@ -44,10 +44,6 @@
       url = "github:NixOS/nixos-hardware";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    nixos-generators = {
-      url = "github:nix-community/nixos-generators";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs = {
@@ -63,7 +59,6 @@
     home-manager,
     hyprland,
     nix-formatter-pack,
-    nixos-generators,
     nixos-hardware,
   } @ inputs: let
     user = "df";
@@ -155,12 +150,9 @@
             home-manager.useUserPackages = true;
             home-manager.users.${user} = import ./makati-nixos/home-manager.nix;
           }
-          # ISO specific changes
+          # VM specific changes
           {
-            services.openssh.settings.PermitRootLogin = nixpkgs.lib.mkForce "yes"; # So we can SSH into the VM easily
             boot.kernelPackages = nixpkgs.lib.mkForce pkgs.linuxPackages_6_1; # To fix an issue with ZFS support
-          }
-          {
             virtualisation.vmVariant = {
               virtualisation.qemu.options = [
                 "-device virtio-vga-gl"
@@ -171,7 +163,7 @@
               services.openssh = {
                 enable = true;
                 settings.PasswordAuthentication = true;
-                settings.PermitRootLogin = "yes";
+                settings.PermitRootLogin = nixpkgs.lib.mkForce "yes";
               };
               virtualisation.forwardPorts = [
                 {
@@ -180,67 +172,61 @@
                   guest.port = 22;
                 }
               ];
-
               environment.sessionVariables = {
                 WLR_NO_HARDWARE_CURSORS = "1";
                 HYPRLAND_LOG_WLR = "1";
               };
             };
-          }
-        ];
-      };
-    };
-
-    packages.x86_64-linux = let
-      sys = "x86_64-linux";
-      pkgs = nixpkgs.legacyPackages.${sys};
-    in {
-      makati-vm = nixos-generators.nixosGenerate {
-        system = sys;
-        specialArgs = inputs;
-        modules = [
-          ./makati-nixos
-          disko.nixosModules.disko
-          home-manager.nixosModules.home-manager
-          {
-            home-manager.useGlobalPkgs = true;
-            home-manager.useUserPackages = true;
-            home-manager.users.${user} = import ./makati-nixos/home-manager.nix;
-          }
-          # ISO specific changes
-          {
-            services.openssh.settings.PermitRootLogin = nixpkgs.lib.mkForce "yes"; # So we can SSH into the VM easily
-            boot.kernelPackages = nixpkgs.lib.mkForce pkgs.linuxPackages_6_1; # To fix an issue with ZFS support
-          }
-          {
-            virtualisation.vmVariant = {
-              virtualisation.qemu.options = [
-                "-device virtio-vga-gl"
-                "-display sdl,gl=on,show-cursor=off"
-                "-audio pa,model=hda"
-              ];
-
-              services.openssh = {
+            # XDG Portals
+            xdg = {
+              autostart.enable = true;
+              portal = {
                 enable = true;
-                settings.PasswordAuthentication = true;
-                settings.PermitRootLogin = "yes";
+                extraPortals = [
+                  pkgs.xdg-desktop-portal
+                  pkgs.xdg-desktop-portal-gtk
+                ];
               };
-              virtualisation.forwardPorts = [
-                {
-                  from = "host";
-                  host.port = 2222;
-                  guest.port = 22;
-                }
-              ];
-
-              environment.sessionVariables = {
-                WLR_NO_HARDWARE_CURSORS = "1";
-                HYPRLAND_LOG_WLR = "1";
+            };
+            services = {
+              xserver = {
+                enable = true;
+                layout = "us";
+                xkbVariant = "";
+                libinput.enable = true;
+                displayManager.gdm = {
+                  enable = true;
+                  wayland = true;
+                };
+              };
+              dbus.enable = true;
+              gvfs.enable = true;
+              tumbler.enable = true;
+              gnome = {
+                sushi.enable = true;
+                gnome-keyring.enable = true;
+              };
+            };
+            programs = {
+              hyprland = {
+                enable = true;
+                xwayland = {
+                  enable = true;
+                };
+              };
+              waybar = {
+                enable = true;
+              };
+              thunar = {
+                enable = true;
+                plugins = with pkgs.xfce; [
+                  thunar-archive-plugin
+                  thunar-volman
+                ];
               };
             };
           }
         ];
-        format = "vm";
       };
     };
   };
