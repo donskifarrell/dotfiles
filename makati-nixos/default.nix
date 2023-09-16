@@ -35,6 +35,8 @@ in {
     kernelPackages = pkgs.linuxPackages_latest;
     kernelModules = ["uinput" "kvm-amd"];
   };
+
+  hardware.opengl.enable = true;
   time.timeZone = "Asia/Singapore";
   networking = {
     hostName = hostname;
@@ -129,19 +131,22 @@ in {
     };
   };
   # Don't require password for users in `wheel` group for these commands
-  security.sudo = {
-    enable = true;
-    extraRules = [
-      {
-        commands = [
-          {
-            command = "${pkgs.systemd}/bin/reboot";
-            options = ["NOPASSWD"];
-          }
-        ];
-        groups = ["wheel"];
-      }
-    ];
+  security = {
+    sudo = {
+      enable = true;
+      extraRules = [
+        {
+          commands = [
+            {
+              command = "${pkgs.systemd}/bin/reboot";
+              options = ["NOPASSWD"];
+            }
+          ];
+          groups = ["wheel"];
+        }
+      ];
+    };
+    polkit.enable = true;
   };
   fonts.fonts = with pkgs; [
     dejavu_fonts
@@ -171,6 +176,7 @@ in {
     micro
     unzip
     curl
+    dunst
   ];
   system.stateVersion = "23.05"; # Don't change this
 }
