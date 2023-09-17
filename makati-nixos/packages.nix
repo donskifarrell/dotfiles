@@ -46,4 +46,36 @@ in
 
     # Music and entertainment
     spotify
+
+    opensnitch-ui
+    brave
+    chromium
+    vivaldi
+    firefox
+    maestral-gui
+    _1password-gui
+    mattermost-desktop
+    obsidian
+    sublime4
+    vscode
+    hunspell
+    libreoffice-still
+
+    quickemu
+    dconf2nix
+
+    # # It is sometimes useful to fine-tune packages, for example, by applying
+    # # overrides. You can do that directly here, just don't forget the
+    # # parentheses. Maybe you want to install Nerd Fonts with a limited number of
+    # # fonts?
+    # (pkgs.nerdfonts.override { fonts = [ "FantasqueSansMono" ]; })
+    (google-cloud-sdk.withExtraComponents [google-cloud-sdk.components.gke-gcloud-auth-plugin])
+    (nerdfonts.override {fonts = ["JetBrainsMono"];})
+
+    # # You can also create simple shell scripts directly inside your
+    # # configuration. For example, this adds a command 'my-hello' to your
+    # # environment:
+    # (pkgs.writeShellScriptBin "my-hello" ''
+    #   echo "Hello, ${config.home.username}!"
+    # '')
   ]
