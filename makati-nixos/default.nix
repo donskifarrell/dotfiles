@@ -16,7 +16,7 @@ in {
     # ./disk-config.nix
     ../shared
     ../shared/cachix
-    ./vm/hardware-configuration.nix
+    # ./vm/hardware-configuration.nix
     agenix.nixosModules.default
   ];
 
@@ -48,13 +48,19 @@ in {
     useDHCP = lib.mkDefault true;
   };
   nix = {
-    # auto-optimise-store = true;
+    auto-optimise-store = true;
     # nixPath = ["nixos-config=/home/${user}/.local/share/src/nixos-config:/etc/nixos"];
     settings.allowed-users = ["${user}"];
+    settings.trusted-users = ["${user}"];
     package = pkgs.nixUnstable;
     extraOptions = ''
       experimental-features = nix-command flakes
     '';
+    gc = {
+      automatic = true;
+      dates = "weekly";
+      options = "--delete-older-than 1w";
+    };
   };
   programs = {
     # Needed for anything GTK related
