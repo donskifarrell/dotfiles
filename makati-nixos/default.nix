@@ -5,12 +5,11 @@
   pkgs,
   agenix,
   hyprland,
+  user,
+  hostname,
+  keys,
   ...
-}: let
-  user = "df";
-  hostname = "makati";
-  keys = ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKdNislbiV21PqoaREbPATGeCj018IwKufVcgR4Ft9Fl london"];
-in {
+}: {
   imports = [
     # ./secrets.nix
     # ./disk-config.nix
@@ -47,8 +46,11 @@ in {
     # with explicit per-interface declarations with `networking.interfaces.<interface>.useDHCP`.
     useDHCP = lib.mkDefault true;
   };
+  nixpkgs.config.permittedInsecurePackages = [
+    "openssl-1.1.1w"
+  ];
   nix = {
-    auto-optimise-store = true;
+    settings.auto-optimise-store = true;
     # nixPath = ["nixos-config=/home/${user}/.local/share/src/nixos-config:/etc/nixos"];
     settings.allowed-users = ["${user}"];
     settings.trusted-users = ["${user}"];

@@ -123,64 +123,66 @@
       user = "df";
       sys = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${sys};
-    in {
-      makati = nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        specialArgs = inputs;
-        modules = [
-          ./makati-nixos
-          disko.nixosModules.disko
-          home-manager.nixosModules.home-manager
-          {
-            home-manager.useGlobalPkgs = true;
-            home-manager.useUserPackages = true;
-            home-manager.users.${user} = import ./makati-nixos/home-manager.nix;
-          }
-        ];
-      };
-      makati-vm = nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        specialArgs = inputs;
-        modules = [
-          ./makati-nixos
-          disko.nixosModules.disko
-          home-manager.nixosModules.home-manager
-          {
-            home-manager.useGlobalPkgs = true;
-            home-manager.useUserPackages = true;
-            home-manager.users.${user} = import ./makati-nixos/home-manager.nix;
-          }
-          # VM specific changes
-          {
-            boot.kernelPackages = nixpkgs.lib.mkForce pkgs.linuxPackages_6_1; # To fix an issue with ZFS support
-            virtualisation.vmVariant = {
-              virtualisation.qemu.options = [
-                "-device virtio-vga-gl"
-                "-display sdl,gl=on,show-cursor=off"
-                "-audio pa,model=hda"
-                "-m 16G"
-              ];
 
-              services.openssh = {
-                enable = true;
-                settings.PasswordAuthentication = true;
-                settings.PermitRootLogin = nixpkgs.lib.mkForce "yes";
-              };
-              virtualisation.forwardPorts = [
-                {
-                  from = "host";
-                  host.port = 2222;
-                  guest.port = 22;
-                }
-              ];
-              environment.sessionVariables = {
-                WLR_NO_HARDWARE_CURSORS = "1";
-                HYPRLAND_LOG_WLR = "1";
-              };
-            };
+      makati-base = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs =
+          inputs
+          // {
+            user = "df";
+            hostname = "makati";
+            keys = ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKdNislbiV21PqoaREbPATGeCj018IwKufVcgR4Ft9Fl london"];
+          };
+        modules = [
+          ./makati-nixos
+          disko.nixosModules.disko
+          home-manager.nixosModules.home-manager
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.users.${user} = import ./makati-nixos/home-manager.nix;
           }
         ];
       };
+    in {
+      makati = makati-base;
+
+      makati-vm =
+        makati-base
+        // {
+          modules = [
+            # VM specific changes
+            {
+              boot.kernelPackages = nixpkgs.lib.mkForce pkgs.linuxPackages_6_1; # To fix an issue with ZFS support
+              virtualisation.vmVariant = {
+                virtualisation = {
+                  forwardPorts = [
+                    {
+                      from = "host";
+                      host.port = 2222;
+                      guest.port = 22;
+                    }
+                  ];
+                  qemu.options = [
+                    "-device virtio-vga-gl"
+                    "-display sdl,gl=on,show-cursor=off"
+                    "-audio pa,model=hda"
+                    "-m 16G"
+                  ];
+                };
+                services.openssh = {
+                  enable = true;
+                  settings.PasswordAuthentication = true;
+                  settings.PermitRootLogin = nixpkgs.lib.mkForce "yes";
+                };
+                environment.sessionVariables = {
+                  WLR_NO_HARDWARE_CURSORS = "1";
+                  HYPRLAND_LOG_WLR = "1";
+                };
+              };
+            }
+          ];
+        };
     };
   };
 }
