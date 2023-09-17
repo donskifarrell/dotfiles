@@ -46,6 +46,4 @@ in
 
     # Music and entertainment
     spotify
-
-    foot
   ]

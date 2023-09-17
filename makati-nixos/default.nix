@@ -4,6 +4,7 @@
   inputs,
   pkgs,
   agenix,
+  hyprland,
   ...
 }: let
   user = "df";
@@ -68,7 +69,7 @@ in {
     fish.enable = true;
     hyprland = {
       enable = true;
-      # package = hyprland-flake.packages.${pkgs.system}.hyprland;
+      package = hyprland.packages.${pkgs.system}.hyprland;
     };
   };
   services = {
