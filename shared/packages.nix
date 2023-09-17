@@ -15,6 +15,8 @@ with pkgs; [
   zip
   unzip
 
+  git-filter-repo
+
   # Encryption and security tools
   _1password
   age
@@ -26,6 +28,8 @@ with pkgs; [
   google-cloud-sdk
   go
   gopls
+  kubectl
+  kubectx
 
   # Media-related packages
   dejavu_fonts
@@ -41,6 +45,7 @@ with pkgs; [
   # Node.js development tools
   fzf
   nodejs
+  nodePackages_latest.pnpm
 
   # Source code management, Git, GitHub tools
 
@@ -57,5 +62,18 @@ with pkgs; [
   bash
   gawk
   fx
-  nixos-generators
+
+  # unixtools.netstat # Won't build on OSX. Might need it for linux and tmux bar
+
+  curl
+  alejandra
+  cht-sh
+  rlwrap
+  mkcert
+  shfmt
+  netperf
+
+  wmctrl
+  lsof
+  android-tools
 ]
