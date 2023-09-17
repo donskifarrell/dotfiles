@@ -158,6 +158,7 @@
                 "-device virtio-vga-gl"
                 "-display sdl,gl=on,show-cursor=off"
                 "-audio pa,model=hda"
+                "-m 16G"
               ];
 
               services.openssh = {
@@ -175,54 +176,6 @@
               environment.sessionVariables = {
                 WLR_NO_HARDWARE_CURSORS = "1";
                 HYPRLAND_LOG_WLR = "1";
-              };
-            };
-            # XDG Portals
-            xdg = {
-              autostart.enable = true;
-              portal = {
-                enable = true;
-                extraPortals = [
-                  pkgs.xdg-desktop-portal
-                  pkgs.xdg-desktop-portal-gtk
-                ];
-              };
-            };
-            services = {
-              xserver = {
-                enable = true;
-                layout = "us";
-                xkbVariant = "";
-                libinput.enable = true;
-                displayManager.gdm = {
-                  enable = true;
-                  wayland = true;
-                };
-              };
-              dbus.enable = true;
-              gvfs.enable = true;
-              tumbler.enable = true;
-              gnome = {
-                sushi.enable = true;
-                gnome-keyring.enable = true;
-              };
-            };
-            programs = {
-              hyprland = {
-                enable = true;
-                xwayland = {
-                  enable = true;
-                };
-              };
-              waybar = {
-                enable = true;
-              };
-              thunar = {
-                enable = true;
-                plugins = with pkgs.xfce; [
-                  thunar-archive-plugin
-                  thunar-volman
-                ];
               };
             };
           }

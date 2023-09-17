@@ -10,18 +10,13 @@
   user = "df";
   hostname = "makati";
   keys = ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKdNislbiV21PqoaREbPATGeCj018IwKufVcgR4Ft9Fl london"];
-  # flake-compat = builtins.fetchTarball "https://github.com/edolstra/flake-compat/archive/master.tar.gz";
-  # hyprland-flake =
-  #   (import flake-compat {
-  #     src = builtins.fetchTarball "https://github.com/hyprwm/Hyprland/archive/master.tar.gz";
-  #   })
-  #   .defaultNix;
 in {
   imports = [
     # ./secrets.nix
     # ./disk-config.nix
     ../shared
     ../shared/cachix
+    ./vm/hardware-configuration.nix
     agenix.nixosModules.default
   ];
 
@@ -36,8 +31,6 @@ in {
     kernelPackages = pkgs.linuxPackages_latest;
     kernelModules = ["uinput" "kvm-amd"];
   };
-
-  hardware.opengl.enable = true;
   time.timeZone = "Asia/Singapore";
   networking = {
     hostName = hostname;
@@ -70,6 +63,30 @@ in {
     hyprland = {
       enable = true;
       package = hyprland.packages.${pkgs.system}.hyprland;
+      xwayland = {
+        enable = true;
+      };
+    };
+    waybar = {
+      enable = true;
+    };
+    thunar = {
+      enable = true;
+      plugins = with pkgs.xfce; [
+        thunar-archive-plugin
+        thunar-volman
+      ];
+    };
+  };
+  # XDG Portals
+  xdg = {
+    autostart.enable = true;
+    portal = {
+      enable = true;
+      extraPortals = [
+        pkgs.xdg-desktop-portal
+        pkgs.xdg-desktop-portal-gtk
+      ];
     };
   };
   services = {
@@ -98,20 +115,28 @@ in {
         PermitRootLogin = "no";
       };
     };
+    xserver = {
+      enable = true;
+      layout = "us";
+      xkbVariant = "";
+      libinput.enable = true;
+      displayManager.gdm = {
+        enable = true;
+        wayland = true;
+      };
+    };
+    dbus.enable = true;
+    gnome = {
+      sushi.enable = true;
+      gnome-keyring.enable = true;
+    };
   };
   sound.enable = true;
-  security.rtkit.enable = true;
   hardware = {
+    opengl.enable = true;
     pulseaudio.enable = false;
     # Crypto wallet support
     ledger.enable = true;
-  };
-  virtualisation = {
-    # Add docker daemon
-    docker = {
-      enable = true;
-      logDriver = "json-file";
-    };
   };
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users = {
@@ -131,8 +156,8 @@ in {
       openssh.authorizedKeys.keys = keys;
     };
   };
-  # Don't require password for users in `wheel` group for these commands
   security = {
+    # Don't require password for users in `wheel` group for these commands
     sudo = {
       enable = true;
       extraRules = [
@@ -148,6 +173,7 @@ in {
       ];
     };
     polkit.enable = true;
+    rtkit.enable = true;
   };
   fonts.fonts = with pkgs; [
     dejavu_fonts
