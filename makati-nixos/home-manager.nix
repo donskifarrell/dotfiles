@@ -54,19 +54,19 @@ in {
 
     extraConfig = ''
       # window resize
-      bind = ALT, q, exec, foot
+      bind = CTRL, q, exec, foot
     '';
-    # settings = {
-    #   input = {
-    #     touchpad.disable_while_typing = false;
-    #   };
+    settings = {
+      input = {
+        touchpad.disable_while_typing = false;
+      };
 
-    #   bind = let
-    #     terminal = pkgs.foot;
-    #   in [
-    #     # Program bindings
-    #     "CTRL,q,exec,${terminal}"
-    #   ];
-    # };
+      bind = let
+        terminal = pkgs.foot;
+      in [
+        # Program bindings
+        "CTRL,q,exec,${terminal}"
+      ];
+    };
   };
 }
