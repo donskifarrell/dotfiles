@@ -8,6 +8,7 @@
   user,
   hostname,
   keys,
+  vm ? false,
   ...
 }: {
   imports = [
@@ -15,21 +16,9 @@
     # ./disk-config.nix
     ../shared
     ../shared/cachix
-    # ./vm/hardware-configuration.nix
     agenix.nixosModules.default
   ];
 
-  # Use the systemd-boot EFI boot loader.
-  boot = {
-    loader = {
-      systemd-boot.enable = true;
-      systemd-boot.configurationLimit = 42;
-      efi.canTouchEfiVariables = true;
-    };
-    initrd.availableKernelModules = ["xhci_pci" "ahci" "nvme" "usbhid" "usb_storage" "sd_mod"];
-    kernelPackages = pkgs.linuxPackages_latest;
-    kernelModules = ["uinput" "kvm-amd"];
-  };
   time.timeZone = "Asia/Singapore";
   networking = {
     hostName = hostname;
@@ -40,11 +29,6 @@
       allowedTCPPorts = [3389];
       # allowedUDPPorts = [ ... ];
     };
-    # Enables DHCP on each ethernet and wireless interface. In case of scripted networking
-    # (the default) this is the recommended approach. When using systemd-networkd it's
-    # still possible to use this option, but it's recommended to use it in conjunction
-    # with explicit per-interface declarations with `networking.interfaces.<interface>.useDHCP`.
-    useDHCP = lib.mkDefault true;
   };
   nixpkgs.config.permittedInsecurePackages = [
     "openssl-1.1.1w"
