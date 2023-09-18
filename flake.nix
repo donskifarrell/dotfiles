@@ -171,16 +171,11 @@
           ++ [
             ./makati-nixos/qemu/hardware-configuration.nix
             {
-              # Setup keyfile
-              boot.initrd.secrets = {
-                "/crypto_keyfile.bin" = null;
-              };
-
-              # Enable swap on luks
-              boot.initrd.luks.devices."luks-6f07ffae-ddc8-4883-8a6a-dc1804732ea7".device = "/dev/disk/by-uuid/6f07ffae-ddc8-4883-8a6a-dc1804732ea7";
-              boot.initrd.luks.devices."luks-6f07ffae-ddc8-4883-8a6a-dc1804732ea7".keyFile = "/crypto_keyfile.bin";
-
               # VM specific changes
+              # Bootloader.
+              boot.loader.systemd-boot.enable = true;
+              boot.loader.efi.canTouchEfiVariables = true;
+
               boot.kernelPackages = nixpkgs.lib.mkForce pkgs.linuxPackages_6_1; # To fix an issue with ZFS compatibility
               virtualisation.vmVariant = {
                 virtualisation = {

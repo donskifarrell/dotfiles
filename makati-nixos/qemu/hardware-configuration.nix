@@ -12,34 +12,23 @@
     (modulesPath + "/profiles/qemu-guest.nix")
   ];
 
-  # Use the systemd-boot EFI boot loader.
-  boot = {
-    loader = {
-      systemd-boot.enable = true;
-      systemd-boot.configurationLimit = 42;
-      efi.canTouchEfiVariables = true;
-    };
-  };
-
   boot.initrd.availableKernelModules = ["xhci_pci" "ohci_pci" "ehci_pci" "virtio_pci" "ahci" "usbhid" "sr_mod" "virtio_blk"];
   boot.initrd.kernelModules = [];
   boot.kernelModules = ["kvm-amd"];
   boot.extraModulePackages = [];
 
   fileSystems."/" = {
-    device = "/dev/disk/by-uuid/b47921f7-be8c-461f-aae5-d87aba09b918";
+    device = "/dev/disk/by-uuid/5b57f390-c163-4cb1-8b01-cafa4796ccbf";
     fsType = "ext4";
   };
 
-  boot.initrd.luks.devices."luks-14808613-a29c-42f8-8b58-c4cf6da9ad42".device = "/dev/disk/by-uuid/14808613-a29c-42f8-8b58-c4cf6da9ad42";
-
   fileSystems."/boot" = {
-    device = "/dev/disk/by-uuid/D663-9CF1";
+    device = "/dev/disk/by-uuid/8BDA-2046";
     fsType = "vfat";
   };
 
   swapDevices = [
-    {device = "/dev/disk/by-uuid/30720770-f067-47bd-bfbb-a9db8b2db303";}
+    {device = "/dev/disk/by-uuid/4507e9c9-6833-4d54-8922-9c56a8265165";}
   ];
 
   # Enables DHCP on each ethernet and wireless interface. In case of scripted networking
