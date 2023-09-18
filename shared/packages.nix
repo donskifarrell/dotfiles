@@ -25,7 +25,6 @@ with pkgs; [
   docker
   docker-compose
   flyctl
-  google-cloud-sdk
   go
   gopls
   kubectl

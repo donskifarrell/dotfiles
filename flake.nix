@@ -124,13 +124,11 @@
       sys = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${sys};
 
-      makati-base = nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
+      makati-base = {
         specialArgs =
           inputs
           // {
             user = "df";
-            hostname = "makati";
             keys = ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKdNislbiV21PqoaREbPATGeCj018IwKufVcgR4Ft9Fl london"];
           };
         modules = [
@@ -145,14 +143,43 @@
         ];
       };
     in {
-      makati = makati-base;
+      makati = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs =
+          makati-base.specialArgs
+          // {
+            hostname = "makati";
+            vm = false;
+          };
+        modules = makati-base.modules;
+      };
 
-      makati-vm =
-        makati-base
-        // {
-          modules = [
-            # VM specific changes
+      makati-vm = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs =
+          makati-base.specialArgs
+          // {
+            hostname = "makati-vm";
+            vm = true;
+          };
+        modules =
+          makati-base.modules
+          ++ [
+            ./makati-nixos/vm/fresh-hardware-configuration.nix
             {
+              # Bootloader.
+              boot.loader.systemd-boot.enable = true;
+              boot.loader.efi.canTouchEfiVariables = true;
+
+              # # Setup keyfile
+              # boot.initrd.secrets = {
+              #   "/crypto_keyfile.bin" = null;
+              # };
+              # Enable swap on luks
+              boot.initrd.luks.devices."luks-03f891fe-b948-4a0a-8512-fe6c3014332b".device = "/dev/disk/by-uuid/03f891fe-b948-4a0a-8512-fe6c3014332b";
+              boot.initrd.luks.devices."luks-03f891fe-b948-4a0a-8512-fe6c3014332b".keyFile = "/crypto_keyfile.bin";
+
+              # VM specific changes
               boot.kernelPackages = nixpkgs.lib.mkForce pkgs.linuxPackages_6_1; # To fix an issue with ZFS support
               virtualisation.vmVariant = {
                 virtualisation = {
@@ -182,7 +209,7 @@
               };
             }
           ];
-        };
+      };
     };
   };
 }

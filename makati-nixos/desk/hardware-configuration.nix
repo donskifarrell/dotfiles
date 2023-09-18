@@ -9,30 +9,35 @@
   ...
 }: {
   imports = [
-    (modulesPath + "/profiles/qemu-guest.nix")
+    (modulesPath + "/installer/scan/not-detected.nix")
   ];
 
-  boot.initrd.availableKernelModules = ["xhci_pci" "ohci_pci" "ehci_pci" "virtio_pci" "ahci" "usbhid" "sr_mod" "virtio_blk"];
+  # Use the systemd-boot EFI boot loader.
+  boot = {
+    loader = {
+      systemd-boot.enable = true;
+      systemd-boot.configurationLimit = 42;
+      efi.canTouchEfiVariables = true;
+    };
+  };
+
+  boot.initrd.availableKernelModules = ["xhci_pci" "ahci" "nvme" "usbhid" "sd_mod"];
   boot.initrd.kernelModules = [];
-  boot.kernelModules = ["kvm-amd"];
+  boot.kernelModules = ["kvm-amd" "uinput"];
   boot.extraModulePackages = [];
 
   fileSystems."/" = {
-    device = "/dev/disk/by-uuid/fcc98615-6f30-4c1f-b757-5ddccd1afc7e";
+    device = "/dev/disk/by-uuid/8a7401a5-b56a-4e6a-97b9-54ed9e1d7725";
     fsType = "ext4";
   };
-  fileSystems."/".device = "/dev/disk/by-label/nixos";
-  # boot.initrd.luks.devices."cryptroot".device = "/dev/nvme0n1p1";
-
-  boot.initrd.luks.devices."luks-4b5d2fb8-a8a9-4288-8ec3-41705b4ccbb0".device = "/dev/disk/by-uuid/4b5d2fb8-a8a9-4288-8ec3-41705b4ccbb0";
 
   fileSystems."/boot" = {
-    device = "/dev/disk/by-uuid/2676-B121";
+    device = "/dev/disk/by-uuid/3A70-60E5";
     fsType = "vfat";
   };
 
   swapDevices = [
-    {device = "/dev/disk/by-uuid/1c063e91-c6ba-4c4a-a4ea-07a6dd216af8";}
+    {device = "/dev/disk/by-uuid/8e0c9bef-adae-48cd-885c-b77be7bd0444";}
   ];
 
   # Enables DHCP on each ethernet and wireless interface. In case of scripted networking
@@ -40,7 +45,10 @@
   # still possible to use this option, but it's recommended to use it in conjunction
   # with explicit per-interface declarations with `networking.interfaces.<interface>.useDHCP`.
   networking.useDHCP = lib.mkDefault true;
-  # networking.interfaces.enp0s8.useDHCP = lib.mkDefault true;
+  # networking.interfaces.enp14s0f3u2u4.useDHCP = lib.mkDefault true;
+  # networking.interfaces.enp6s0.useDHCP = lib.mkDefault true;
+  # networking.interfaces.wlp5s0.useDHCP = lib.mkDefault true;
 
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
+  hardware.cpu.amd.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
 }
