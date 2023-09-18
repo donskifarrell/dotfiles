@@ -151,7 +151,11 @@
             hostname = "makati";
             vm = false;
           };
-        modules = makati-base.modules;
+        modules =
+          makati-base.modules
+          ++ [
+            ./makati-nixos/desk/hardware-configuration.nix
+          ];
       };
 
       makati-vm = nixpkgs.lib.nixosSystem {
@@ -165,22 +169,19 @@
         modules =
           makati-base.modules
           ++ [
-            ./makati-nixos/vm/fresh-hardware-configuration.nix
+            ./makati-nixos/qemu/hardware-configuration.nix
             {
-              # Bootloader.
-              boot.loader.systemd-boot.enable = true;
-              boot.loader.efi.canTouchEfiVariables = true;
+              # Setup keyfile
+              boot.initrd.secrets = {
+                "/crypto_keyfile.bin" = null;
+              };
 
-              # # Setup keyfile
-              # boot.initrd.secrets = {
-              #   "/crypto_keyfile.bin" = null;
-              # };
               # Enable swap on luks
-              boot.initrd.luks.devices."luks-03f891fe-b948-4a0a-8512-fe6c3014332b".device = "/dev/disk/by-uuid/03f891fe-b948-4a0a-8512-fe6c3014332b";
-              boot.initrd.luks.devices."luks-03f891fe-b948-4a0a-8512-fe6c3014332b".keyFile = "/crypto_keyfile.bin";
+              boot.initrd.luks.devices."luks-6f07ffae-ddc8-4883-8a6a-dc1804732ea7".device = "/dev/disk/by-uuid/6f07ffae-ddc8-4883-8a6a-dc1804732ea7";
+              boot.initrd.luks.devices."luks-6f07ffae-ddc8-4883-8a6a-dc1804732ea7".keyFile = "/crypto_keyfile.bin";
 
               # VM specific changes
-              boot.kernelPackages = nixpkgs.lib.mkForce pkgs.linuxPackages_6_1; # To fix an issue with ZFS support
+              boot.kernelPackages = nixpkgs.lib.mkForce pkgs.linuxPackages_6_1; # To fix an issue with ZFS compatibility
               virtualisation.vmVariant = {
                 virtualisation = {
                   forwardPorts = [

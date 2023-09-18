@@ -12,27 +12,34 @@
     (modulesPath + "/profiles/qemu-guest.nix")
   ];
 
+  # Use the systemd-boot EFI boot loader.
+  boot = {
+    loader = {
+      systemd-boot.enable = true;
+      systemd-boot.configurationLimit = 42;
+      efi.canTouchEfiVariables = true;
+    };
+  };
+
   boot.initrd.availableKernelModules = ["xhci_pci" "ohci_pci" "ehci_pci" "virtio_pci" "ahci" "usbhid" "sr_mod" "virtio_blk"];
   boot.initrd.kernelModules = [];
   boot.kernelModules = ["kvm-amd"];
   boot.extraModulePackages = [];
 
   fileSystems."/" = {
-    device = "/dev/disk/by-uuid/fcc98615-6f30-4c1f-b757-5ddccd1afc7e";
+    device = "/dev/disk/by-uuid/b47921f7-be8c-461f-aae5-d87aba09b918";
     fsType = "ext4";
   };
-  fileSystems."/".device = "/dev/disk/by-label/nixos";
-  # boot.initrd.luks.devices."cryptroot".device = "/dev/nvme0n1p1";
 
-  boot.initrd.luks.devices."luks-4b5d2fb8-a8a9-4288-8ec3-41705b4ccbb0".device = "/dev/disk/by-uuid/4b5d2fb8-a8a9-4288-8ec3-41705b4ccbb0";
+  boot.initrd.luks.devices."luks-14808613-a29c-42f8-8b58-c4cf6da9ad42".device = "/dev/disk/by-uuid/14808613-a29c-42f8-8b58-c4cf6da9ad42";
 
   fileSystems."/boot" = {
-    device = "/dev/disk/by-uuid/2676-B121";
+    device = "/dev/disk/by-uuid/D663-9CF1";
     fsType = "vfat";
   };
 
   swapDevices = [
-    {device = "/dev/disk/by-uuid/1c063e91-c6ba-4c4a-a4ea-07a6dd216af8";}
+    {device = "/dev/disk/by-uuid/30720770-f067-47bd-bfbb-a9db8b2db303";}
   ];
 
   # Enables DHCP on each ethernet and wireless interface. In case of scripted networking

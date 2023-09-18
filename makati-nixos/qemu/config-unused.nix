@@ -21,8 +21,8 @@
   };
 
   # Enable swap on luks
-  boot.initrd.luks.devices."luks-03f891fe-b948-4a0a-8512-fe6c3014332b".device = "/dev/disk/by-uuid/03f891fe-b948-4a0a-8512-fe6c3014332b";
-  boot.initrd.luks.devices."luks-03f891fe-b948-4a0a-8512-fe6c3014332b".keyFile = "/crypto_keyfile.bin";
+  boot.initrd.luks.devices."luks-6f07ffae-ddc8-4883-8a6a-dc1804732ea7".device = "/dev/disk/by-uuid/6f07ffae-ddc8-4883-8a6a-dc1804732ea7";
+  boot.initrd.luks.devices."luks-6f07ffae-ddc8-4883-8a6a-dc1804732ea7".keyFile = "/crypto_keyfile.bin";
 
   networking.hostName = "nixos"; # Define your hostname.
   # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
