@@ -52,32 +52,32 @@ in {
       };
     };
 
-  wayland.windowManager.hyprland = {
-    enable = true;
-    enableNvidiaPatches = false;
-    systemdIntegration = true;
-    xwayland.enable = true;
-
-    extraConfig = ''
-      # window resize
-      # bind = CTRL, q, exec, alacritty
-    '';
-    settings = {
-      "monitor" = "Virtual-1,1920x1080@60,0x0,1";
-
-      input = {
-        touchpad.disable_while_typing = false;
-      };
-
-      bind = let
-        terminal = pkgs.alacritty;
-      in [
-        # Program bindings ${terminal}
-        "CTRL,q,exec,alacritty"
-        "ALT,space,exec,rofi -show drun"
-      ];
-    };
-  };
+  #wayland.windowManager.hyprland = {
+  #  enable = true;
+  #  enableNvidiaPatches = false;
+  #  systemdIntegration = true;
+  #  xwayland.enable = true;
+#
+  #  extraConfig = ''
+  #    # window resize
+  #    # bind = CTRL, q, exec, alacritty
+  #  '';
+  #  settings = {
+  #    "monitor" = "Virtual-1,1920x1080@60,0x0,1";
+#
+  #    input = {
+  #      touchpad.disable_while_typing = false;
+  #    };
+#
+  #    bind = let
+  #      terminal = pkgs.alacritty;
+  #    in [
+  #      # Program bindings ${terminal}
+  #      "CTRL,q,exec,alacritty"
+  #      "ALT,space,exec,rofi -show drun"
+  #    ];
+  #  };
+  #};
 
   # programs.rofi = {
   #   enable = true;
