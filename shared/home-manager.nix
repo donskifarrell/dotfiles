@@ -393,9 +393,9 @@ in {
     shortcut = "a";
     terminal = "screen-256color";
     shell = lib.mkMerge [
-          (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "/home/${user}/.nix-profile/bin/fish")
-          (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/Users/${user}/.nix-profile/bin/fish")
-        ];
+      (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "/etc/profiles/per-user/${user}/bin/fish")
+      (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/Users/${user}/.nix-profile/bin/fish")
+    ];
     clock24 = true;
     keyMode = "vi";
 
@@ -403,7 +403,7 @@ in {
       # ----------------------
       # Settings
       # -----------------------
-      set -g default-shell ~/.nix-profile/bin/fish
+      # set -g default-shell ~/.nix-profile/bin/fish
 
       # scrollback size
       set -g history-limit 100000
@@ -674,7 +674,7 @@ in {
       live_config_reload = true;
       shell = {
         program = lib.mkMerge [
-          (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "/home/${user}/.nix-profile/bin/fish")
+          (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "/etc/profiles/per-user/${user}/bin/fish")
           (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/Users/${user}/.nix-profile/bin/fish")
         ];
         args = ["--login"];
@@ -789,13 +789,13 @@ in {
       "[typescript]"."editor.defaultFormatter" = "esbenp.prettier-vscode";
       "[typescriptreact]"."editor.defaultFormatter" = "esbenp.prettier-vscode";
       "shellformat.path" = lib.mkMerge [
-          (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "/home/${user}/.nix-profile/bin/shfmt")
-          (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/Users/${user}/.nix-profile/bin/shfmt")
-        ];
+        (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "/etc/profiles/per-user/${user}/bin/shfmt")
+        (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/Users/${user}/.nix-profile/bin/shfmt")
+      ];
       "remote.SSH.configFile" = lib.mkMerge [
-          (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "/home/${user}/.ssh/sshconfig.local")
-          (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/Users/${user}/.ssh/sshconfig.local")
-        ];
+        (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "/home/${user}/.ssh/sshconfig.local")
+        (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/Users/${user}/.ssh/sshconfig.local")
+      ];
       "[dockerfile]"."editor.defaultFormatter" = "ms-azuretools.vscode-docker";
       "files"."associations"."*.tmpl" = "html";
     };
