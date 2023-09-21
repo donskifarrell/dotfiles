@@ -82,4 +82,17 @@ in
     # '')
 
     themes.rofi-themes-collection
+
+    gnome-extension-manager
+    gnomeExtensions.dash-to-dock
+    gnomeExtensions.gsconnect
+    gnomeExtensions.mpris-indicator-button
+    gnomeExtensions.caffeine
+    gnomeExtensions.vitals
+    gnomeExtensions.just-perfection
+    gnomeExtensions.sound-output-device-chooser
+    gnomeExtensions.blur-my-shell
+    gnomeExtensions.appindicator
+    gnomeExtensions.gtile
+    gnomeExtensions.allow-locked-remote-desktop
   ]

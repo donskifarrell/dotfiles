@@ -52,16 +52,16 @@
     # Needed for anything GTK related
     # dconf.enable = true;
     fish.enable = true;
-    hyprland = {
-      enable = true;
-      package = hyprland.packages.${pkgs.system}.hyprland;
-      xwayland = {
-        enable = true;
-      };
-    };
-    waybar = {
-      enable = false;
-    };
+    #hyprland = {
+    #  enable = true;
+    #  package = hyprland.packages.${pkgs.system}.hyprland;
+    #  xwayland = {
+    #    enable = true;
+    #  };
+    #};
+    #waybar = {
+    #  enable = false;
+    #};
     thunar = {
       enable = true;
       plugins = with pkgs.xfce; [
@@ -71,21 +71,21 @@
     };
   };
   # XDG Portals
-  xdg = {
-    autostart.enable = true;
-    portal = {
-      enable = true;
-      extraPortals = [
-        pkgs.xdg-desktop-portal
-        pkgs.xdg-desktop-portal-gtk
-      ];
-    };
-  };
+  #xdg = {
+  #  autostart.enable = true;
+  #  portal = {
+  #    enable = true;
+  #    extraPortals = [
+  #      pkgs.xdg-desktop-portal
+  #      pkgs.xdg-desktop-portal-gtk
+  #    ];
+  #  };
+  #};
   services = {
     # Enable CUPS to print documents
     printing = {
       enable = true;
-      drivers = [pkgs.samsung-unified-linux-driver];
+    #  drivers = [pkgs.samsung-unified-linux-driver];
     };
     pipewire = {
       enable = true;
@@ -113,19 +113,20 @@
       layout = "us";
       xkbVariant = "";
       libinput.enable = true;
+      displayManager.gdm.enable = true;
       desktopManager.gnome.enable = true;
-      displayManager.sddm = {
-        enable = true;
-        enableHidpi = true;
-        # https://github.com/sddm/sddm/blob/develop/data/man/sddm.conf.rst.in
-        settings = {
-          General = {
-            DisplayServer = "wayland";
-          };
-        };
-
-        theme = "catppuccin-frappe";
-      };
+      # displayManager.sddm = {
+      #   enable = true;
+      #   enableHidpi = true;
+      #   # https://github.com/sddm/sddm/blob/develop/data/man/sddm.conf.rst.in
+      #   settings = {
+      #     General = {
+      #       DisplayServer = "wayland";
+      #     };
+      #   };
+# 
+      #   theme = "catppuccin-frappe";
+      # };
     };
     dbus.enable = true;
     gnome = {
