@@ -6,7 +6,9 @@
 }: let
   user = "df";
   xdg_configHome = "/home/${user}/.config";
-  # shared-programs = import ../shared/home-manager.nix {inherit config pkgs lib;};
+  packages = pkgs.callPackage ./packages.nix {};
+  themes = pkgs.callPackage ./custom/rofi-themes.nix {};
+  shared-programs = import ../shared/home-manager.nix {inherit config pkgs lib;};
   # shared-files = import ../shared/files.nix {inherit config pkgs;};
 in {
   home = {
@@ -40,7 +42,15 @@ in {
     udiskie.enable = true;
   };
 
-  # programs = shared-programs;
+  programs =
+    shared-programs
+    // {
+      rofi = {
+        enable = true;
+        package = pkgs.rofi-wayland;
+        theme = "${themes.rofi-themes-collection}/themes/spotlight-dark.rasi";
+      };
+    };
 
   wayland.windowManager.hyprland = {
     enable = true;
@@ -50,19 +60,28 @@ in {
 
     extraConfig = ''
       # window resize
-      bind = CTRL, q, exec, foot
+      # bind = CTRL, q, exec, alacritty
     '';
     settings = {
+      "monitor" = "Virtual-1,1920x1080@60,0x0,1";
+
       input = {
         touchpad.disable_while_typing = false;
       };
 
       bind = let
-        terminal = pkgs.foot;
+        terminal = pkgs.alacritty;
       in [
-        # Program bindings
-        "CTRL,q,exec,${terminal}"
+        # Program bindings ${terminal}
+        "CTRL,q,exec,alacritty"
+        "ALT,space,exec,rofi -show drun"
       ];
     };
   };
+
+  # programs.rofi = {
+  #   enable = true;
+  #   package = pkgs.rofi-wayland;
+  #   theme = "${themes.rofi-themes-collection}/themes/spotlight-dark.rasi";
+  # };
 }

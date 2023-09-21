@@ -60,7 +60,7 @@
       };
     };
     waybar = {
-      enable = true;
+      enable = false;
     };
     thunar = {
       enable = true;
@@ -93,6 +93,7 @@
       alsa.enable = false;
       alsa.support32Bit = false;
       pulse.enable = true;
+      wireplumber.enable = true;
 
       # use the example session manager (no others are packaged yet so this is enabled by default,
       # no need to redefine it in your config for now)
@@ -112,9 +113,18 @@
       layout = "us";
       xkbVariant = "";
       libinput.enable = true;
-      displayManager.gdm = {
+      desktopManager.gnome.enable = true;
+      displayManager.sddm = {
         enable = true;
-        wayland = true;
+        enableHidpi = true;
+        # https://github.com/sddm/sddm/blob/develop/data/man/sddm.conf.rst.in
+        settings = {
+          General = {
+            DisplayServer = "wayland";
+          };
+        };
+
+        theme = "catppuccin-frappe";
       };
     };
     dbus.enable = true;
@@ -188,15 +198,39 @@
       LC_TIME = "en_GB.UTF-8";
     };
   };
-  environment.systemPackages = with pkgs; [
+  environment.systemPackages = let
+    themes = pkgs.callPackage ./custom/sddm-themes.nix {};
+  in [
     agenix.packages."${pkgs.system}".default # "x86_64-linux"
-    gitAndTools.gitFull
-    inetutils
-    micro
-    unzip
-    curl
-    dunst
-    foot
+    pkgs.gitAndTools.gitFull
+    pkgs.inetutils
+    pkgs.micro
+    pkgs.unzip
+    pkgs.curl
+    pkgs.dunst
+    pkgs.foot
+    # pkgs.xdg-desktop-portal-hyprland
+    pkgs.qt6.qtwayland
+    pkgs.qt6.qt5compat
+    pkgs.libsForQt5.qt5.qtwayland
+    pkgs.libsForQt5.qt5.qtgraphicaleffects
+    pkgs.libsForQt5.qt5.qtsvg
+    pkgs.libsForQt5.qt5.qtquickcontrols2
+    pkgs.swaynotificationcenter
+    pkgs.wev
+    pkgs.nwg-look
+    pkgs.wlr-randr
+    themes.sddm-catppuccin-frappe
+  ];
+  environment.gnome.excludePackages = with pkgs; [
+    gnome.totem
+    gnome.epiphany
+    gnome.gnome-calendar
+    gnome.gnome-clocks
+    gnome.gnome-contacts
+    gnome.gnome-maps
+    gnome.gnome-weather
+    gnome.gnome-clocks
   ];
   system.stateVersion = "23.05"; # Don't change this
 }

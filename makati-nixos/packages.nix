@@ -1,6 +1,7 @@
 {pkgs}:
 with pkgs; let
   shared-packages = import ../shared/packages.nix {inherit pkgs;};
+  themes = pkgs.callPackage ./custom/rofi-themes.nix {};
 in
   shared-packages
   ++ [
@@ -63,6 +64,7 @@ in
 
     quickemu
     dconf2nix
+    rofi-wayland
 
     # # It is sometimes useful to fine-tune packages, for example, by applying
     # # overrides. You can do that directly here, just don't forget the
@@ -78,4 +80,6 @@ in
     # (pkgs.writeShellScriptBin "my-hello" ''
     #   echo "Hello, ${config.home.username}!"
     # '')
+
+    themes.rofi-themes-collection
   ]
