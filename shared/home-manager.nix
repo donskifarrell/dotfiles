@@ -234,8 +234,8 @@ in {
       set FORGIT_LOG_FZF_OPTS "--reverse"
       set FORGIT_GLO_FORMAT "%C(auto)%h%d %s %C(blue)%an %C(green)%C(bold)%cr"
 
-      set GOBIN "$HOME/go/bin"
-      fish_add_path -pmP $HOME/go/bin
+      # set GOBIN "$HOME/go/bin"
+      # fish_add_path -pmP $HOME/go/bin
     '';
 
     plugins = [
@@ -254,7 +254,7 @@ in {
           owner = "oh-my-fish";
           repo = "plugin-foreign-env";
           rev = "7f0cf099ae1e1e4ab38f46350ed6757d54471de7";
-          sha256 = "sha256-3h03WQrBZmTXZLkQh1oVyhv6zlyYsSDS7HTHr+7WjY8=";
+          sha256 = "sha256-4+k5rSoxkTtYFh/lEjhRkVYa2S4KEzJ/IJbyJl+rJjQ=";
         };
       }
       {
@@ -392,7 +392,10 @@ in {
     enable = true;
     shortcut = "a";
     terminal = "screen-256color";
-    shell = "$HOME/.nix-profile/bin/fish";
+    shell = lib.mkMerge [
+          (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "/home/${user}/.nix-profile/bin/fish")
+          (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/Users/${user}/.nix-profile/bin/fish")
+        ];
     clock24 = true;
     keyMode = "vi";
 
@@ -400,7 +403,7 @@ in {
       # ----------------------
       # Settings
       # -----------------------
-      set -g default-shell $HOME/.nix-profile/bin/fish
+      set -g default-shell ~/.nix-profile/bin/fish
 
       # scrollback size
       set -g history-limit 100000
@@ -536,7 +539,7 @@ in {
           set -g @resurrect-strategy-nvim 'session'
           set -g @resurrect-capture-pane-contents 'on'
           set -g @resurrect-pane-contents-area 'visible'
-          set -g @resurrect-dir '$HOME/.local/tmux/resurrect'
+          set -g @resurrect-dir '~/.local/tmux/resurrect'
         '';
       }
       {
@@ -670,7 +673,10 @@ in {
       cursor = {unfocused_hollow = true;};
       live_config_reload = true;
       shell = {
-        program = "$HOME/.nix-profile/bin/fish";
+        program = lib.mkMerge [
+          (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "/home/${user}/.nix-profile/bin/fish")
+          (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/Users/${user}/.nix-profile/bin/fish")
+        ];
         args = ["--login"];
       };
       hints = {
