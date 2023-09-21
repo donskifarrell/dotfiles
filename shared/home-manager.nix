@@ -245,7 +245,7 @@ in {
           owner = "PatrickF1";
           repo = "fzf.fish";
           rev = "f9e2e48a54199fe7c6c846556a12003e75ab798e";
-          sha256 = "sha256-F2gZwxVbLXDxdkDsnpIns32VsyYj84dA5cJjkqC0ZEo=";
+          sha256 = "sha256-CqRSkwNqI/vdxPKrShBykh+eHQq9QIiItD6jWdZ/DSM=";
         };
       }
       {
@@ -788,8 +788,14 @@ in {
       "[nix]"."editor.formatOnType" = false;
       "[typescript]"."editor.defaultFormatter" = "esbenp.prettier-vscode";
       "[typescriptreact]"."editor.defaultFormatter" = "esbenp.prettier-vscode";
-      "shellformat.path" = "${homepath}/.nix-profile/bin/shfmt";
-      "remote.SSH.configFile" = "${homepath}/.ssh/sshconfig.local";
+      "shellformat.path" = lib.mkMerge [
+          (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "/home/${user}/.nix-profile/bin/shfmt")
+          (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/Users/${user}/.nix-profile/bin/shfmt")
+        ];
+      "remote.SSH.configFile" = lib.mkMerge [
+          (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "/home/${user}/.ssh/sshconfig.local")
+          (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/Users/${user}/.ssh/sshconfig.local")
+        ];
       "[dockerfile]"."editor.defaultFormatter" = "ms-azuretools.vscode-docker";
       "files"."associations"."*.tmpl" = "html";
     };
