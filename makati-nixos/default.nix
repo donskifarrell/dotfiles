@@ -29,9 +29,11 @@
       # allowedUDPPorts = [ ... ];
     };
   };
-  nixpkgs.config.permittedInsecurePackages = [
-    "openssl-1.1.1w"
-  ];
+  nixpkgs = {
+    config.permittedInsecurePackages = [
+      "openssl-1.1.1w"
+    ];
+  };
   nix = {
     settings.auto-optimise-store = true;
     # nixPath = ["nixos-config=/home/${user}/.local/share/src/nixos-config:/etc/nixos"];
@@ -51,13 +53,13 @@
     # Needed for anything GTK related
     # dconf.enable = true;
     fish.enable = true;
-    #hyprland = {
-    #  enable = true;
-    #  package = hyprland.packages.${pkgs.system}.hyprland;
-    #  xwayland = {
-    #    enable = true;
-    #  };
-    #};
+    hyprland = {
+      enable = true;
+      package = hyprland.packages.${pkgs.system}.hyprland;
+      xwayland = {
+        enable = true;
+      };
+    };
     #waybar = {
     #  enable = false;
     #};

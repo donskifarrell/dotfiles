@@ -27,7 +27,15 @@ in {
       MANPAGER = "sh -c 'col -bx | ${pkgs.bat}/bin/bat -l man -p'";
     };
   };
-
+  nixpkgs = {
+    overlays = [
+      (self: super: {
+        waybar = super.waybar.overrideAttrs (oldAttrs: {
+          mesonFlags = oldAttrs.mesonFlags ++ ["-Dexperimental=true"];
+        });
+      })
+    ];
+  };
   fonts.fontconfig.enable = true;
 
   services = {
@@ -50,38 +58,40 @@ in {
         package = pkgs.rofi-wayland;
         theme = "${themes.rofi-themes-collection}/themes/spotlight-dark.rasi";
       };
+      waybar = {
+        enable = true;
+        systemd.enable = true;
+      };
     };
 
-  #wayland.windowManager.hyprland = {
-  #  enable = true;
-  #  enableNvidiaPatches = false;
-  #  systemdIntegration = true;
-  #  xwayland.enable = true;
-#
-  #  extraConfig = ''
-  #    # window resize
-  #    # bind = CTRL, q, exec, alacritty
-  #  '';
-  #  settings = {
-  #    "monitor" = "Virtual-1,1920x1080@60,0x0,1";
-#
-  #    input = {
-  #      touchpad.disable_while_typing = false;
-  #    };
-#
-  #    bind = let
-  #      terminal = pkgs.alacritty;
-  #    in [
-  #      # Program bindings ${terminal}
-  #      "CTRL,q,exec,alacritty"
-  #      "ALT,space,exec,rofi -show drun"
-  #    ];
-  #  };
-  #};
+  wayland.windowManager.hyprland = {
+    enable = true;
+    enableNvidiaPatches = false;
+    systemdIntegration = true;
+    xwayland.enable = true;
 
-  # programs.rofi = {
-  #   enable = true;
-  #   package = pkgs.rofi-wayland;
-  #   theme = "${themes.rofi-themes-collection}/themes/spotlight-dark.rasi";
-  # };
+    extraConfig = ''
+      # window resize
+      # bind = CTRL, q, exec, alacritty
+    '';
+    settings = {
+      # "monitor" = ",preferred,auto,auto";
+      "monitor" = "Virtual-1,1920x1080@60,0x0,1";
+      "exec-once" = "nwg-dock-hyprland -r -p \"left\"";
+
+      "$mainMod" = "CTRL";
+
+      input = {
+        touchpad.disable_while_typing = false;
+      };
+
+      bind = let
+        terminal = pkgs.alacritty;
+      in [
+        # Program bindings ${terminal}
+        "$mainMod,q,exec,alacritty"
+        "ALT,space,exec,rofi -show drun"
+      ];
+    };
+  };
 }
