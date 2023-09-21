@@ -13,7 +13,6 @@
 }: {
   imports = [
     # ./secrets.nix
-    # ./disk-config.nix
     ../shared
     ../shared/cachix
     agenix.nixosModules.default
@@ -85,7 +84,7 @@
     # Enable CUPS to print documents
     printing = {
       enable = true;
-    #  drivers = [pkgs.samsung-unified-linux-driver];
+      #  drivers = [pkgs.samsung-unified-linux-driver];
     };
     pipewire = {
       enable = true;
@@ -124,7 +123,7 @@
       #       DisplayServer = "wayland";
       #     };
       #   };
-# 
+      #
       #   theme = "catppuccin-frappe";
       # };
     };
