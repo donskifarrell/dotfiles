@@ -65,6 +65,8 @@ in
     quickemu
     dconf2nix
     rofi-wayland
+    nwg-dock-hyprland
+    swaylock
 
     # # It is sometimes useful to fine-tune packages, for example, by applying
     # # overrides. You can do that directly here, just don't forget the
