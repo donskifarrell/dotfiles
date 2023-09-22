@@ -158,12 +158,12 @@
           ];
       };
 
-      makati-vm = nixpkgs.lib.nixosSystem {
+      makati-qemu = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
         specialArgs =
           makati-base.specialArgs
           // {
-            hostname = "makati-vm";
+            hostname = "makati-qemu";
             vm = true;
           };
         modules =
@@ -202,6 +202,46 @@
                   WLR_NO_HARDWARE_CURSORS = "1";
                   WLR_RENDERER_ALLOW_SOFTWARE = "1";
                   # HYPRLAND_LOG_WLR = "1";
+                };
+              };
+            }
+          ];
+      };
+
+      makati-vb = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs =
+          makati-base.specialArgs
+          // {
+            hostname = "makati-vb";
+            vm = true;
+          };
+        modules =
+          makati-base.modules
+          ++ [
+            ./makati-nixos/qemu/hardware-configuration.nix
+            {
+              # VM specific changes
+              boot.kernelPackages = nixpkgs.lib.mkForce pkgs.linuxPackages_6_1; # To fix an issue with ZFS compatibility
+              virtualisation.vmVariant = {
+                virtualisation = {
+                  forwardPorts = [
+                    {
+                      from = "host";
+                      host.port = 21212;
+                      guest.port = 22;
+                    }
+                  ];
+                };
+                services.openssh = {
+                  enable = true;
+                  settings.PasswordAuthentication = true;
+                  settings.PermitRootLogin = nixpkgs.lib.mkForce "yes";
+                };
+                environment.sessionVariables = {
+                  WLR_NO_HARDWARE_CURSORS = "1";
+                  WLR_RENDERER_ALLOW_SOFTWARE = "1";
+                  HYPRLAND_LOG_WLR = "1";
                 };
               };
             }
