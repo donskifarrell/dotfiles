@@ -139,6 +139,10 @@
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
             home-manager.users.${user} = import ./makati-nixos/home-manager.nix;
+
+            virtualisation.libvirtd.enable = true;
+            programs.dconf.enable = true;
+            environment.systemPackages = with pkgs; [virt-manager];
           }
         ];
       };
@@ -169,7 +173,7 @@
         modules =
           makati-base.modules
           ++ [
-            ./makati-nixos/qemu/hardware-configuration.nix
+            ./makati-nixos/vm/qemu-hardware-configuration.nix
             {
               # VM specific changes
               # Bootloader.
@@ -219,9 +223,14 @@
         modules =
           makati-base.modules
           ++ [
-            ./makati-nixos/qemu/hardware-configuration.nix
+            ./makati-nixos/vm/virtualbox-hardware-configuration.nix
             {
               # VM specific changes
+              # Bootloader.
+
+              boot.loader.systemd-boot.enable = true;
+              boot.loader.efi.canTouchEfiVariables = true;
+
               boot.kernelPackages = nixpkgs.lib.mkForce pkgs.linuxPackages_6_1; # To fix an issue with ZFS compatibility
               virtualisation.vmVariant = {
                 virtualisation = {
@@ -242,6 +251,56 @@
                   WLR_NO_HARDWARE_CURSORS = "1";
                   WLR_RENDERER_ALLOW_SOFTWARE = "1";
                   HYPRLAND_LOG_WLR = "1";
+                };
+              };
+            }
+          ];
+      };
+
+      makati-virt-mgr = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs =
+          makati-base.specialArgs
+          // {
+            hostname = "makati-virtmgr";
+            vm = true;
+          };
+        modules =
+          makati-base.modules
+          ++ [
+            ./makati-nixos/vm/virt-mgr-hardware-configuration.nix
+            {
+              # VM specific changes
+              # Bootloader.
+              boot.loader.systemd-boot.enable = true;
+              boot.loader.efi.canTouchEfiVariables = true;
+
+              boot.kernelPackages = nixpkgs.lib.mkForce pkgs.linuxPackages_6_1; # To fix an issue with ZFS compatibility
+              virtualisation.vmVariant = {
+                virtualisation = {
+                  forwardPorts = [
+                    {
+                      from = "host";
+                      host.port = 2222;
+                      guest.port = 22;
+                    }
+                  ];
+                  qemu.options = [
+                    "-device virtio-vga-gl"
+                    "-display sdl,gl=on,show-cursor=off"
+                    "-audio pa,model=hda"
+                    "-m 16G"
+                  ];
+                };
+                services.openssh = {
+                  enable = true;
+                  settings.PasswordAuthentication = true;
+                  settings.PermitRootLogin = nixpkgs.lib.mkForce "yes";
+                };
+                environment.sessionVariables = {
+                  WLR_NO_HARDWARE_CURSORS = "1";
+                  WLR_RENDERER_ALLOW_SOFTWARE = "1";
+                  # HYPRLAND_LOG_WLR = "1";
                 };
               };
             }
