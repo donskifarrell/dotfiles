@@ -152,6 +152,7 @@
         "wheel" # Enable ‘sudo’ for the user.
         "docker"
         "networkmanager"
+        "libvirtd"
       ];
       shell = pkgs.fish;
       openssh.authorizedKeys.keys = keys;
