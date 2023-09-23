@@ -171,7 +171,6 @@ in {
       openssh.authorizedKeys.keys = keys;
     };
   };
-  users.extraGroups.vboxusers.members = ["${user}"];
   security = {
     # Don't require password for users in `wheel` group for these commands
     sudo = {
@@ -246,13 +245,5 @@ in {
     gnome.gnome-weather
     gnome.gnome-clocks
   ];
-
-  virtualisation = {
-    virtualbox = {
-      host.enable = true;
-      host.enableExtensionPack = true;
-      guest.enable = true;
-    };
-  };
   system.stateVersion = "23.05"; # Don't change this
 }
