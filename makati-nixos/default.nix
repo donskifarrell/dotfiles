@@ -3,6 +3,7 @@
   lib,
   inputs,
   pkgs,
+  flake-compat,
   agenix,
   hyprland,
   user,
@@ -10,7 +11,14 @@
   keys,
   vm ? false,
   ...
-}: {
+}: let
+  flake-compat = builtins.fetchTarball "https://github.com/edolstra/flake-compat/archive/master.tar.gz";
+  hyprland-flake =
+    (import flake-compat {
+      src = builtins.fetchTarball "https://github.com/hyprwm/Hyprland/archive/master.tar.gz";
+    })
+    .defaultNix;
+in {
   imports = [
     # ./secrets.nix
     ../shared
@@ -55,7 +63,8 @@
     fish.enable = true;
     hyprland = {
       enable = true;
-      package = hyprland.packages.${pkgs.system}.hyprland;
+      package = hyprland-flake.packages.${pkgs.system}.hyprland;
+      # package = hyprland.packages.${pkgs.system}.hyprland;
       xwayland = {
         enable = true;
       };

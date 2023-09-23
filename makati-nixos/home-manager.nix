@@ -80,6 +80,7 @@ in {
       "exec-once" = "nwg-dock-hyprland -r -p \"left\"";
 
       "$mainMod" = "CTRL";
+      "env" = "WLR_NO_HARDWARE_CURSORS,1";
 
       input = {
         touchpad.disable_while_typing = false;
