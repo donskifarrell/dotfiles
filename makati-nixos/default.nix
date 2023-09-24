@@ -69,9 +69,6 @@ in {
         enable = true;
       };
     };
-    #waybar = {
-    #  enable = false;
-    #};
     thunar = {
       enable = true;
       plugins = with pkgs.xfce; [
@@ -220,7 +217,6 @@ in {
     pkgs.micro
     pkgs.unzip
     pkgs.curl
-    pkgs.dunst
     pkgs.foot
     # pkgs.xdg-desktop-portal-hyprland
     pkgs.qt6.qtwayland
@@ -229,7 +225,6 @@ in {
     pkgs.libsForQt5.qt5.qtgraphicaleffects
     pkgs.libsForQt5.qt5.qtsvg
     pkgs.libsForQt5.qt5.qtquickcontrols2
-    pkgs.swaynotificationcenter
     pkgs.wev
     pkgs.nwg-look
     pkgs.wlr-randr

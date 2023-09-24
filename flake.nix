@@ -127,6 +127,7 @@
       user = "df";
       sys = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${sys};
+      lib = nixpkgs.lib;
 
       makati-base = {
         specialArgs =
@@ -137,12 +138,11 @@
           };
         modules = [
           ./makati-nixos
-          disko.nixosModules.disko
           home-manager.nixosModules.home-manager
           {
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
-            home-manager.users.${user} = import ./makati-nixos/home-manager.nix;
+            home-manager.users.${user} = import ./makati-nixos/home-manager.nix {inherit pkgs lib inputs;};
           }
         ];
       };
