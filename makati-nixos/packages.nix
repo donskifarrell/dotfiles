@@ -1,7 +1,7 @@
 {pkgs}:
 with pkgs; let
   shared-packages = import ../shared/packages.nix {inherit pkgs;};
-  themes = pkgs.callPackage ./custom/rofi-themes.nix {};
+  themes = pkgs.callPackage ./config/rofi-themes.nix {};
 in
   shared-packages
   ++ [
