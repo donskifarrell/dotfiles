@@ -6,7 +6,6 @@ in
   shared-packages
   ++ [
     # Security and authentication
-    _1password-gui
 
     # App and package management
     appimage-run

@@ -11,14 +11,7 @@
   keys,
   vm ? false,
   ...
-}: let
-  flake-compat = builtins.fetchTarball "https://github.com/edolstra/flake-compat/archive/master.tar.gz";
-  hyprland-flake =
-    (import flake-compat {
-      src = builtins.fetchTarball "https://github.com/hyprwm/Hyprland/archive/master.tar.gz";
-    })
-    .defaultNix;
-in {
+}: {
   imports = [
     # ./secrets.nix
     ../shared
@@ -61,14 +54,6 @@ in {
     # Needed for anything GTK related
     # dconf.enable = true;
     fish.enable = true;
-    hyprland = {
-      enable = true;
-      package = hyprland-flake.packages.${pkgs.system}.hyprland;
-      # package = hyprland.packages.${pkgs.system}.hyprland;
-      xwayland = {
-        enable = true;
-      };
-    };
     thunar = {
       enable = true;
       plugins = with pkgs.xfce; [
