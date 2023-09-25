@@ -64,6 +64,9 @@ in {
       waybar = {
         enable = true;
         systemd.enable = true;
+        style = builtins.path {
+          path = "/home/${user}/.dotfiles/makati-nixos/config/waybar/styles.css";
+        };
         settings = {
           mainBar = {
             layer = "top";
@@ -112,7 +115,6 @@ in {
             };
           };
         };
-        style = "~/.dotfiles/makati-nixos/config/waybar/styles.css";
       };
     };
 
