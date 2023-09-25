@@ -10,6 +10,8 @@
   themes = pkgs.callPackage ./custom/rofi-themes.nix {};
   shared-programs = import ../shared/home-manager.nix {inherit pkgs lib;};
   # shared-files = import ../shared/files.nix {inherit config pkgs;};
+
+  hyprland-flake = builtins.getFlake "github:hyprwm/Hyprland";
 in {
   home = {
     enableNixpkgsReleaseCheck = false;
@@ -67,6 +69,7 @@ in {
 
   wayland.windowManager.hyprland = {
     enable = true;
+    package = hyprland-flake.packages.${pkgs.system}.hyprland;
     enableNvidiaPatches = false;
     systemdIntegration = true;
     xwayland.enable = true;

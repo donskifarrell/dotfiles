@@ -37,7 +37,7 @@
     };
     hyprland = {
       url = "github:hyprwm/hyprland";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
     nix-formatter-pack = {
       url = "github:Gerschtli/nix-formatter-pack";
@@ -129,6 +129,9 @@
       pkgs = nixpkgs.legacyPackages.${sys};
       lib = nixpkgs.lib;
 
+      ################################################################################
+      # BASE SYSTEM CONFIG
+      ################################################################################
       makati-base = {
         specialArgs =
           inputs
@@ -137,12 +140,12 @@
             keys = ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKdNislbiV21PqoaREbPATGeCj018IwKufVcgR4Ft9Fl london"];
           };
         modules = [
-          ./makati-nixos
           home-manager.nixosModules.home-manager
+          ./makati-nixos
           {
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
-            home-manager.users.${user} = import ./makati-nixos/home-manager.nix {inherit pkgs lib inputs;};
+            home-manager.users.${user} = import ./makati-nixos/home-manager.nix;
           }
         ];
       };
