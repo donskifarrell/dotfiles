@@ -1,0 +1,15 @@
+* {
+  border: none;
+  border-radius: 0;
+  font-family: Source Code Pro;
+}
+window#waybar {
+  background: #f00606;
+  color: #AAB2BF;
+}
+#workspaces button {
+  padding: 0 5px;
+}
+#custom-notification {
+  font-family: "NotoSansMono Nerd Font";
+}
