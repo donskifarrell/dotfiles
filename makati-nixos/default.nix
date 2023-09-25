@@ -194,7 +194,7 @@
     };
   };
   environment.systemPackages = let
-    themes = pkgs.callPackage ./custom/sddm-themes.nix {};
+    themes = pkgs.callPackage ./config/sddm-themes.nix {};
   in [
     agenix.packages."${pkgs.system}".default # "x86_64-linux"
     pkgs.gitAndTools.gitFull

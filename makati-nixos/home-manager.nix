@@ -7,7 +7,7 @@
   user = "df";
   xdg_configHome = "/home/${user}/.config";
   packages = pkgs.callPackage ./packages.nix {};
-  themes = pkgs.callPackage ./custom/rofi-themes.nix {};
+  themes = pkgs.callPackage ./config/rofi-themes.nix {};
   shared-programs = import ../shared/home-manager.nix {inherit pkgs lib;};
   # shared-files = import ../shared/files.nix {inherit config pkgs;};
 
