@@ -72,27 +72,126 @@ in {
             layer = "top";
             position = "top";
             height = 30;
-            # output = [
-            #   "eDP-1"
-            #   "HDMI-A-1"
-            # ];
-            # modules-left = ["sway/workspaces" "sway/mode" "wlr/taskbar"];
-            # modules-center = ["sway/window" "custom/hello-from-waybar"];
-            # modules-right = ["mpd" "custom/mymodule#with-css-id" "temperature"];
+            margin-top = 0;
+            margin-left = 0;
+            margin-right = 0;
+            spacing = 0;
 
-            # "sway/workspaces" = {
-            #   disable-scroll = true;
-            #   all-outputs = true;
-            # };
-            "custom/hello-from-waybar" = {
-              format = "hello {}";
-              max-length = 40;
-              interval = "once";
-              exec = pkgs.writeShellScript "hello-from-waybar" ''
-                echo "from within waybar"
-              '';
+            modules-left = ["hyprland/workspaces" "hyprland/window"];
+            "hyprland/workspaces" = {
+              all-outputs = true;
+              on-scroll-up = "hyprctl dispatch workspace e+1";
+              on-scroll-down = "hyprctl dispatch workspace e-1";
+            };
+            "hyprland/window" = {
+              format = "{title}";
+              title-len = 30;
+              rewrite = {
+                "(.*) - Discord" = "󰙯  $1";
+                "(.*) — Mozilla Firefox" = "  $1";
+                "(.*) — File Explorer" = "  $1";
+                "(.*) - Visual Studio Code" = "󰨞  $1";
+              };
             };
 
+            modules-center = ["custom/hyprpicker"];
+            "custom/hyprpicker" = {
+              format = "󰈋";
+              on-click = "hyprpicker -a -f hex";
+              on-click-right = "hyprpicker -a -f rgb";
+            };
+
+            modules-right = [
+              "keyboard-state"
+              "disk"
+              "cpu"
+              "temperature"
+              "memory"
+              "network"
+              "bluetooth"
+              "wireplumber"
+              "clock"
+              "custom/notification"
+              "custom/power_btn"
+            ];
+            keyboard-state = {
+              numlock = true;
+              capslock = true;
+              format = {
+                numlock = " 󰎠";
+                capslock = "󰪛 ";
+              };
+            };
+            disk = {
+              interval = "30";
+              format = "{used}/{total}";
+              path = "/";
+            };
+            cpu = {
+              interval = 1;
+              format = "  {usage}%";
+              format-alt = "  {avg_frequency} GHz";
+              on-click = "alacritty --title btop -e sh -c 'btop'";
+            };
+            temperature = {
+              interval = 1;
+              format = "  {temperatureC}󰔄";
+            };
+            memory = {
+              format = "  {percentage}%";
+              format-alt = "  {used}/{total} GiB";
+              on-click = "alacritty --title btop -e sh -c 'btop'";
+            };
+            network = {
+              interval = 1;
+              format-wifi = "  {essid}";
+              format-disconnected = "󰤭  OFFLINE";
+              format-ethernet = "󰈀  ONLINE";
+              format-alt = "{icon} {ifname}: {ipaddr}/{cidr}";
+              tooltip-format = "{icon} {ifname}: {ipaddr}/{cidr}";
+              on-click-right = "nm-connection-editor";
+            };
+            bluetooth = {
+              format = " {status}";
+              format-connected = " {device_alias}";
+              format-connected-battery = " {device_alias} {device_battery_percentage}%";
+              # "format-device-preference" = [ "device1" "device2" ]; # preference list deciding the displayed device
+              tooltip-format = "{controller_alias}\t{controller_address}\n\n{num_connections} connected";
+              tooltip-format-connected = "{controller_alias}\t{controller_address}\n\n{num_connections} connected\n\n{device_enumerate}";
+              tooltip-format-enumerate-connected = "{device_alias}\t{device_address}";
+              tooltip-format-enumerate-connected-battery = "{device_alias}\t{device_address}\t{device_battery_percentage}%";
+            };
+            wireplumber = {
+              format = "{icon}  {volume}%";
+              # format = "  {volume}%";
+              format-muted = "  {volume}%";
+              format-icons = ["" "" ""];
+            };
+            clock = {
+              format = "{:%a %b %d %H:%M %p}";
+              tooltip-format = "<tt><small>{calendar}</small></tt>";
+              calendar = {
+                mode = "year";
+                "mode-mon-col" = 3;
+                "weeks-pos" = "right";
+                "on-scroll" = 1;
+                "on-click-right" = "mode";
+                format = {
+                  months = "<span color='#ffead3'><b>{}</b></span>";
+                  days = "<span color='#ecc6d9'><b>{}</b></span>";
+                  weeks = "<span color='#99ffdd'><b>W{}</b></span>";
+                  weekdays = "<span color='#ffcc66'><b>{}</b></span>";
+                  today = "<span color='#ff6699'><b><u>{}</u></b></span>";
+                };
+              };
+              actions = {
+                "on-click-right" = "mode";
+                "on-click-forward" = "tz_up";
+                "on-click-backward" = "tz_down";
+                "on-scroll-up" = "shift_up";
+                "on-scroll-down" = "shift_down";
+              };
+            };
             "custom/notification" = {
               tooltip = false;
               format = "{icon}";
@@ -112,6 +211,22 @@ in {
               on-click = "swaync-client -t -sw";
               on-click-right = "swaync-client -d -sw";
               escape = true;
+            };
+            "custom/power_btn" = {
+              format = "";
+              tooltip = false;
+              "exec-if" = "which swaync-client";
+              exec = "swaync-client -swb";
+              "on-click" = "sleep 0.1; swaync-client -t -sw";
+              "on-click-right" = "sleep 0.1; swaync-client -d -sw";
+            };
+
+            # Not placed yet
+            mpris = {
+              interval = 1;
+              title-len = 30;
+              format-playing = "󰝚  {dynamic}";
+              format-paused = "  {dynamic}";
             };
           };
         };
