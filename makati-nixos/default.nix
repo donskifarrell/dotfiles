@@ -61,6 +61,12 @@
         thunar-volman
       ];
     };
+    hyprland = {
+      enable = true;
+      package = hyprland.packages.${pkgs.system}.hyprland;
+      # systemdIntegration = true;
+      xwayland.enable = true;
+    };
   };
   # XDG Portals
   #xdg = {

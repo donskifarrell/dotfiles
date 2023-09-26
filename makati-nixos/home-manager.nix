@@ -29,6 +29,11 @@ in {
       MANPAGER = "sh -c 'col -bx | ${pkgs.bat}/bin/bat -l man -p'";
       MANROFFOPT = "-c";
     };
+
+    file."electron25-flags.conf" = {
+      source = "/home/${user}/.dotfiles/makati-nixos/config/electron25-flags.conf";
+      target = "${xdg_configHome}/electron25-flags.conf";
+    };
   };
   nixpkgs = {
     overlays = [
@@ -94,11 +99,16 @@ in {
               };
             };
 
-            modules-center = ["custom/hyprpicker"];
+            modules-center = ["custom/hyprpicker" "tray"];
             "custom/hyprpicker" = {
               format = "󰈋";
               on-click = "hyprpicker -a -f hex";
               on-click-right = "hyprpicker -a -f rgb";
+            };
+            "tray" = {
+              icon-size = 16;
+              spacing = 5;
+              show-passive-items = true;
             };
 
             modules-right = [
