@@ -128,6 +128,7 @@
   };
   sound.enable = true;
   hardware = {
+    bluetooth.enable = true;
     opengl.enable = true;
     pulseaudio.enable = false;
     # Crypto wallet support

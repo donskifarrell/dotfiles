@@ -60,6 +60,8 @@ in
     vscode
     hunspell
     libreoffice-still
+    hyprpicker
+    wl-clipboard
 
     quickemu
     dconf2nix

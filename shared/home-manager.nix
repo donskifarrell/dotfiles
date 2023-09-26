@@ -766,6 +766,8 @@ in {
       "editor.bracketPairColorization.enabled" = true;
       "editor.unicodeHighlight.includeStrings" = false;
       "editor.tabSize" = 2;
+      "editor.fontLigatures" = true;
+      "editor.fontFamily" = "JetBrainsMono Nerd Font, 'Droid Sans Mono', 'monospace', monospace";
       "explorer.confirmDelete" = false;
       "files.trimTrailingWhitespace" = true;
       "files.insertFinalNewline" = true;
