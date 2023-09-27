@@ -42,6 +42,16 @@ window#waybar {
   color: @purple;
   background: @bg2;
 }
+#network.upload {
+  color: @purple;
+  background: @bg3;
+  min-width: 75px;
+}
+#network.download {
+  color: @purple;
+  background: @bg4;
+  min-width: 75px;
+}
 
 #wireplumber {
   color: @orange;
