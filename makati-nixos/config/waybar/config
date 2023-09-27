@@ -41,28 +41,20 @@
       "title-len": 30
     },
     "modules-right": [
-      "keyboard-state",
       "disk",
       "cpu",
-      "temperature",
+      "temperature#tctl",
+      "temperature#igpu",
       "memory",
-      "network",
       "network#upload",
       "network#download",
+      "network",
       "bluetooth",
       "wireplumber",
       "clock",
       "custom/notification",
       "custom/power_btn"
     ],
-    "keyboard-state": {
-      "capslock": true,
-      "format": {
-        "capslock": "󰪛 ",
-        "numlock": " 󰎠"
-      },
-      "numlock": true
-    },
     "disk": {
       "format": "{used}/{total}",
       "interval": "30",
@@ -74,8 +66,14 @@
       "interval": 1,
       "on-click": "alacritty --title btop -e sh -c 'btop'"
     },
-    "temperature": {
-      "format": "  {temperatureC}󰔄",
+    "temperature#tctl": {
+      "format": "  {temperatureC}󰔄 (cpu)",
+      "hwmon-path": "/sys/class/hwmon/hwmon1/temp1_input",
+      "interval": 1
+    },
+    "temperature#igpu": {
+      "format": "  {temperatureC}󰔄 (iGPU)",
+      "hwmon-path": "/sys/class/hwmon/hwmon3/temp1_input",
       "interval": 1
     },
     "memory": {
@@ -83,22 +81,22 @@
       "format-alt": "  {used}/{total} GiB",
       "on-click": "alacritty --title btop -e sh -c 'btop'"
     },
-    "network": {
-      "format-alt": "{icon} {ifname}: {ipaddr}/{cidr}",
-      "format-disconnected": "󰤭  OFFLINE",
-      "format-ethernet": "󰈀  ONLINE",
-      "format-wifi": "  {essid}",
-      "interval": 1,
-      "on-click-right": "nm-connection-editor",
-      "tooltip-format": "{icon} {ifname}: {ipaddr}/{cidr}"
-    },
     "network#upload": {
-      "format": "󰅧  {bandwidthUpBytes}",
+      "format": "  {bandwidthUpBytes}",
       "interval": 1
     },
     "network#download": {
       "format": "  {bandwidthDownBytes}",
       "interval": 1
+    },
+    "network": {
+      "format-alt": "{icon} {ifname}: {ipaddr}/{cidr}",
+      "format-disconnected": "󰤭   OFFLINE",
+      "format-ethernet": "󰈀  ONLINE",
+      "format-wifi": "   {essid}",
+      "interval": 1,
+      "on-click-right": "nm-connection-editor",
+      "tooltip-format": "{icon} {ifname}: {ipaddr}/{cidr}"
     },
     "bluetooth": {
       "format": " {status}",
