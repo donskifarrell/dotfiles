@@ -11,13 +11,17 @@
   keys,
   vm ? false,
   ...
-}: {
+}: let
+  timestamp = lib.readFile "${pkgs.runCommand "timestamp" {env.when = builtins.currentTime;} "echo -n `date -d @$when +%Y%m%d_%X` > $out"}";
+in {
   imports = [
     # ./secrets.nix
     ../shared
     ../shared/cachix
     agenix.nixosModules.default
   ];
+
+  system.nixos.label = "${timestamp}--v${config.system.nixos.version}";
 
   time.timeZone = "Asia/Singapore";
   networking = {
