@@ -22,8 +22,38 @@
   color: @fg;
 }
 
-window#waybar {
+/* window#waybar {
   background: rgba(30, 30, 46, 0.5);
+} */
+
+window#waybar {
+  background-color: rgba(0,0,0,0.8);
+  border-bottom: 0px solid #ffffff;
+  /* color: #FFFFFF; */
+  background: transparent;
+  transition-property: background-color;
+  transition-duration: .5s;
+}
+#window {
+  color: @aqua;
+  padding-top: 0px;
+  padding-left: 10px;
+}
+#workspaces > * {
+  background: @bg0;
+  margin-right: 0px;
+  padding: 0px 5px;
+  padding-top: 0px;
+}
+#workspaces > .active {
+  background: @red;
+}
+#workspaces > * label {
+  color: @red;
+  font-family: Pro Font;
+}
+#workspaces  > .active label {
+  color: @bg_dim;
 }
 
 .modules-right > * > * {
@@ -37,7 +67,6 @@ window#waybar {
   color: @bg_dim;
   background: @aqua;
 }
-
 #network {
   color: @purple;
   background: @bg2;
@@ -49,87 +78,36 @@ window#waybar {
 }
 #network.download {
   color: @purple;
-  background: @bg4;
+  background: @bg3;
   min-width: 75px;
 }
-
 #wireplumber {
   color: @orange;
   background: @bg4;
 }
-
-#battery {
-  color: @yellow;
-  background: @bg3;
-}
-
-#backlight {
-  color: @aqua;
-  background: @bg1;
-}
-
 #disk {
   color: @bg4;
 }
-
 #memory {
   color: @purple;
   background: @bg0;
 }
-
 #temperature {
   color: @red;
   background: @bg0;
 }
-
 #cpu {
   color: @blue;
   background: @bg0;
 }
-
-#workspaces > * {
-  background: @bg0;
-  margin-right: 0px;
-  padding: 0px 5px;
-  padding-top: 0px;
-}
-
-#workspaces > .active {
-  background: @red;
-}
-
-#workspaces > * label {
-  color: @red;
-  font-family: Pro Font;
-}
-
-#workspaces  > .active label {
-  color: @bg_dim;
-}
-
-#mpris {
-  color: @blue;
-  padding-top: 0px;
-  padding-left: 10px;
-  /* border-top: 2px solid @blue; */
-}
-
-#window {
-  color: @aqua;
-  padding-top: 0px;
-  padding-left: 10px;
-}
-
-#mpris.paused {
-  color: @bg2;
-}
-
 #keyboard-state label {
   font-size: 16px;
   color: @yellow;
   opacity: 0;
 }
-
 #keyboard-state label.locked {
   opacity: 1;
 }
+
+
+
