@@ -17,6 +17,7 @@
     loader = {
       systemd-boot.enable = true;
       systemd-boot.configurationLimit = 42;
+      systemd-boot.consoleMode = "auto";
       efi.canTouchEfiVariables = true;
     };
   };
