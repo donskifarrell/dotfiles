@@ -63,6 +63,7 @@ in
     hyprpicker
     wl-clipboard
     wlogout
+    capitaine-cursors
 
     quickemu
     dconf2nix
