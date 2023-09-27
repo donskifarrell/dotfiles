@@ -758,6 +758,7 @@ in {
     ];
 
     userSettings = {
+      "window.zoomLevel" = -2;
       "alejandra.program" = "alejandra";
       "diffEditor.ignoreTrimWhitespace" = false;
       "editor.wordWrap" = "on";
