@@ -220,6 +220,7 @@
     pkgs.wev
     pkgs.nwg-look
     pkgs.wlr-randr
+    pkgs.libnotify
     themes.sddm-catppuccin-frappe
   ];
   environment.gnome.excludePackages = with pkgs; [

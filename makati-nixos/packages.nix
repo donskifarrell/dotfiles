@@ -62,6 +62,7 @@ in
     libreoffice-still
     hyprpicker
     wl-clipboard
+    wlogout
 
     quickemu
     dconf2nix

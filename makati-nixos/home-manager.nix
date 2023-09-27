@@ -118,6 +118,8 @@ in {
               "temperature"
               "memory"
               "network"
+              "network#upload"
+              "network#download"
               "bluetooth"
               "wireplumber"
               "clock"
@@ -160,6 +162,14 @@ in {
               format-alt = "{icon} {ifname}: {ipaddr}/{cidr}";
               tooltip-format = "{icon} {ifname}: {ipaddr}/{cidr}";
               on-click-right = "nm-connection-editor";
+            };
+            "network#upload" = {
+              interval = 1;
+              format = "󰅧  {bandwidthUpBytes}";
+            };
+            "network#download" = {
+              interval = 1;
+              format = "  {bandwidthDownBytes}";
             };
             bluetooth = {
               format = " {status}";
