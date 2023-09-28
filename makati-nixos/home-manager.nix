@@ -5,7 +5,11 @@
   ...
 }: let
   user = "df";
-  xdg_configHome = "/home/${user}/.config";
+  homeDir = "/home/${user}";
+  XDG_CACHE_HOME = "${homeDir}/.cache";
+  XDG_CONFIG_HOME = "${homeDir}/.config";
+  XDG_DATA_HOME = "${homeDir}/.local/share";
+
   packages = pkgs.callPackage ./packages.nix {};
   themes = pkgs.callPackage ./config/rofi-themes.nix {};
   shared-programs = import ../shared/home-manager.nix {inherit pkgs lib;};
@@ -16,7 +20,7 @@ in {
   home = {
     enableNixpkgsReleaseCheck = false;
     username = "${user}";
-    homeDirectory = "/home/${user}";
+    homeDirectory = "${homeDir}";
     packages = pkgs.callPackage ./packages.nix {};
     # file = shared-files // import ./files.nix {inherit user;};
     stateVersion = "23.05";
@@ -28,19 +32,26 @@ in {
       PAGER = "less -FirSwX";
       MANPAGER = "sh -c 'col -bx | ${pkgs.bat}/bin/bat -l man -p'";
       MANROFFOPT = "-c";
+      XDG_CACHE_HOME = "${XDG_CACHE_HOME}";
+      XDG_CONFIG_HOME = "${XDG_CONFIG_HOME}";
+      XDG_DATA_HOME = "${XDG_DATA_HOME}";
     };
 
     file."waybar" = {
       source = "/home/${user}/.dotfiles/makati-nixos/config/waybar";
-      target = "${xdg_configHome}/waybar";
+      target = "${XDG_CONFIG_HOME}/waybar";
     };
     file."swaync" = {
       source = "/home/${user}/.dotfiles/makati-nixos/config/swaync";
-      target = "${xdg_configHome}/swaync";
+      target = "${XDG_CONFIG_HOME}/swaync";
+    };
+    file."sway-lock" = {
+      source = "/home/${user}/.dotfiles/makati-nixos/config/sway-lock";
+      target = "${XDG_CONFIG_HOME}/sway-lock";
     };
     file."electron25-flags.conf" = {
       source = "/home/${user}/.dotfiles/makati-nixos/config/electron25-flags.conf";
-      target = "${xdg_configHome}/electron25-flags.conf";
+      target = "${XDG_CONFIG_HOME}/electron25-flags.conf";
     };
   };
   nixpkgs = {
