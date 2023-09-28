@@ -151,23 +151,13 @@
       "return-type": "json",
       "exec-if": "which swaync-client",
       "exec": "swaync-client -swb",
-      "on-click": "swaync-client -t -sw",
-      "on-click-right": "swaync-client -d -sw",
+      "on-click": "sleep 0.15 && swaync-client -t -sw",
+      "on-click-right": "sleep 0.15 && swaync-client -d -sw",
       "escape": true
     },
     "custom/power_btn": {
-      "exec": "swaync-client -swb",
-      "exec-if": "which swaync-client",
       "format": "",
-      "on-click": "sleep 0.1; swaync-client -t -sw",
-      "on-click-right": "sleep 0.1; swaync-client -d -sw",
       "tooltip": false
-    },
-    "mpris": {
-      "format-paused": "  {dynamic}",
-      "format-playing": "󰝚  {dynamic}",
-      "interval": 1,
-      "title-len": 30
     }
   }
 ]
