@@ -157,6 +157,7 @@
     },
     "custom/power_btn": {
       "format": "",
+      "on-click": "killall wlogout || wlogout --protocol layer-shell -b 3 -m 200",
       "tooltip": false
     }
   }

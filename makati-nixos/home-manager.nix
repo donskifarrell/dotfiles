@@ -42,6 +42,10 @@ in {
       source = "/home/${user}/.dotfiles/makati-nixos/config/waybar";
       target = "${XDG_CONFIG_HOME}/waybar";
     };
+    file."wlogout" = {
+      source = "/home/${user}/.dotfiles/makati-nixos/config/wlogout";
+      target = "${XDG_CONFIG_HOME}/wlogout";
+    };
     file."swaync" = {
       source = "/home/${user}/.dotfiles/makati-nixos/config/swaync";
       target = "${XDG_CONFIG_HOME}/swaync";
