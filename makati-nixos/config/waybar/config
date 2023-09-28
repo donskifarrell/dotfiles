@@ -8,14 +8,8 @@
     "position": "top",
     "spacing": 0,
     "modules-center": [
-      "custom/hyprpicker",
       "tray"
     ],
-    "custom/hyprpicker": {
-      "format": "󰈋",
-      "on-click": "hyprpicker -a -f hex",
-      "on-click-right": "hyprpicker -a -f rgb"
-    },
     "tray": {
       "icon-size": 16,
       "show-passive-items": true,
@@ -142,24 +136,24 @@
       "tooltip-format": "<tt><small>{calendar}</small></tt>"
     },
     "custom/notification": {
-      "escape": true,
-      "exec": "swaync-client -swb",
-      "exec-if": "which swaync-client",
+      "tooltip": false,
       "format": "{icon}",
       "format-icons": {
-        "dnd-inhibited-none": "",
-        "dnd-inhibited-notification": "<span foreground='red'><sup></sup></span>",
-        "dnd-none": "",
-        "dnd-notification": "<span foreground='red'><sup></sup></span>",
-        "inhibited-none": "",
-        "inhibited-notification": "<span foreground='red'><sup></sup></span>",
+        "notification": "<span foreground='red'><sup></sup></span>",
         "none": "",
-        "notification": "<span foreground='red'><sup></sup></span>"
+        "dnd-notification": "<span foreground='red'><sup></sup></span>",
+        "dnd-none": "",
+        "inhibited-notification": "<span foreground='red'><sup></sup></span>",
+        "inhibited-none": "",
+        "dnd-inhibited-notification": "<span foreground='red'><sup></sup></span>",
+        "dnd-inhibited-none": ""
       },
+      "return-type": "json",
+      "exec-if": "which swaync-client",
+      "exec": "swaync-client -swb",
       "on-click": "swaync-client -t -sw",
       "on-click-right": "swaync-client -d -sw",
-      "return-type": "json",
-      "tooltip": false
+      "escape": true
     },
     "custom/power_btn": {
       "exec": "swaync-client -swb",
