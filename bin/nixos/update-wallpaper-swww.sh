@@ -3,8 +3,10 @@
 wallpapers_path=$XDG_CACHE_HOME/wallpapers
 mkdir -p "$wallpapers_path"
 
-wallpaper=find "$wallpapers_path" -type f | shuf -n 1
+wallpaper=$(find "$wallpapers_path" -type f | shuf -n 1)
+echo $wallpaper
 wallpaper_name=$(echo $wallpaper | sed "s|$wallpapers_path/||g")
+echo $wallpaper_name
 
 cp $wallpaper $XDG_CACHE_HOME/current_wallpaper.jpg
 
