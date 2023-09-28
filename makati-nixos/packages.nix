@@ -64,6 +64,7 @@ in
     wl-clipboard
     wlogout
     capitaine-cursors
+    swww
 
     quickemu
     dconf2nix
