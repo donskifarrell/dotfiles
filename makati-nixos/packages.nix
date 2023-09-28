@@ -70,7 +70,7 @@ in
     dconf2nix
     rofi-wayland
     nwg-dock-hyprland
-    swaylock
+    swaylock-effects
     swaynotificationcenter
 
     # # It is sometimes useful to fine-tune packages, for example, by applying
