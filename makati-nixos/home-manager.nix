@@ -34,7 +34,10 @@ in {
       source = "/home/${user}/.dotfiles/makati-nixos/config/waybar";
       target = "${xdg_configHome}/waybar";
     };
-
+    file."swaync" = {
+      source = "/home/${user}/.dotfiles/makati-nixos/config/swaync";
+      target = "${xdg_configHome}/swaync";
+    };
     file."electron25-flags.conf" = {
       source = "/home/${user}/.dotfiles/makati-nixos/config/electron25-flags.conf";
       target = "${xdg_configHome}/electron25-flags.conf";
