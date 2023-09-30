@@ -12,8 +12,8 @@ with pkgs; [
   neofetch
   openssh
   wget
-  zip
-  unzip
+  archiver
+  p7zip
 
   git-filter-repo
 

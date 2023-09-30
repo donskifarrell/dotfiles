@@ -1,3 +1,37 @@
+# v2
+
+TODO: THEME
+
+- theme ROFI catppuccin: https://davatorium.github.io/rofi/current/rofi-theme.5/#examples
+- theme other apps with catppuccin
+
+TODO: ADD
+
+- add swayidle: https://github.com/swaywm/swayidle
+- add cron job to switch wallpapers: https://github.com/cronie-crond/cronie
+- switch to gtklock: https://github.com/jovanlanik/gtklock/wiki
+- swaync widgets: https://github.com/ErikReider/SwayNotificationCenter#available-widgets
+  -- audio
+  -- player
+- decide (and customise) nwg-dock: https://github.com/nwg-piotr/nwg-dock-hyprland/tree/master
+- add nixos-search somewhere?
+- add hardware controls for media
+- package vscode extenstions:
+  -- catppuccin vscode-icons: https://github.com/catppuccin/vscode-icons
+  -- wayou.vscode-todo-highlight
+- brillo: what is it and should I add?
+
+TODO: FIX
+
+- create windowrule to open btop in floating window
+- fix crashes when monitor turned off: https://github.com/hyprwm/Hyprland/issues/2770
+  -- hardware / temp logging
+- better font for GTK, maybe SF PRO
+
+useful links:
+https://nixos-and-flakes.thiscute.world/nixos-with-flakes/nixos-with-flakes-enabled#adding-custom-cache-mirrors
+https://github.com/iamadamdev/bypass-paywalls-chrome
+
 # NixOS & home-manager
 
 Configuration for VMs and OSX. For configuration of Asus ROG Rapture GT-AX6000, look [here](./scripts//asus-gt-ax6000/README.md)

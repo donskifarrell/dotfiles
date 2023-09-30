@@ -212,7 +212,8 @@ in {
     pkgs.gitAndTools.gitFull
     pkgs.inetutils
     pkgs.micro
-    pkgs.unzip
+    pkgs.archiver
+    pkgs.p7zip
     pkgs.curl
     pkgs.foot
     # pkgs.xdg-desktop-portal-hyprland
