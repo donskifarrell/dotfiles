@@ -1,17 +1,4 @@
-@define-color bg_dim #232A2E;
-@define-color bg0 #2D353B;
-@define-color bg1 #343F44;
-@define-color bg2 #3D484D;
-@define-color bg3 #475258;
-@define-color bg4 #4F585E;
-@define-color fg #D3C6AA;
-@define-color red 	 #E67E80;
-@define-color orange #E69875;
-@define-color yellow #DBBC7F;
-@define-color green  #A7C080;
-@define-color aqua 	 #83C092;
-@define-color blue 	 #7FBBB3;
-@define-color purple #D699B6;
+@import "macchiato.css";
 
 * {
   border: none;
@@ -19,41 +6,31 @@
   min-height: 0;
   font-family: Cascadia Code;
   font-size: 12px;
-  color: @fg;
+  color: @text;
 }
-
-/* window#waybar {
-  background: rgba(30, 30, 46, 0.5);
-} */
 
 window#waybar {
-  background-color: rgba(0,0,0,0.8);
-  border-bottom: 0px solid #ffffff;
-  /* color: #FFFFFF; */
-  background: transparent;
-  transition-property: background-color;
-  transition-duration: .5s;
+  background-color: alpha(@base, 0.3);
+  border: 2px solid alpha(@crust, 0.1);
 }
 #window {
-  color: @aqua;
   padding-top: 0px;
   padding-left: 10px;
 }
+
 #workspaces > * {
-  background: @bg0;
   margin-right: 0px;
   padding: 0px 5px;
   padding-top: 0px;
 }
 #workspaces > .active {
-  background: @red;
+  background: @lavender;
 }
 #workspaces > * label {
-  color: @red;
-  font-family: Pro Font;
+  color: @mauve;
 }
 #workspaces  > .active label {
-  color: @bg_dim;
+  color: @crust;
 }
 
 .modules-right > * > * {
@@ -63,51 +40,25 @@ window#waybar {
   border-radius: 0px;
 }
 
-#clock {
-  color: @bg_dim;
-  background: @aqua;
-}
-#network {
-  color: @purple;
-  background: @bg2;
-}
 #network.upload {
-  color: @purple;
-  background: @bg3;
   min-width: 75px;
 }
 #network.download {
-  color: @purple;
-  background: @bg3;
   min-width: 75px;
 }
-#wireplumber {
-  color: @orange;
-  background: @bg4;
-}
 #disk {
-  color: @bg4;
-}
-#memory {
-  color: @purple;
-  background: @bg0;
-}
-#temperature {
-  color: @red;
-  background: @bg0;
+  color: @peach;
 }
 #cpu {
   color: @blue;
-  background: @bg0;
 }
-#keyboard-state label {
-  font-size: 16px;
+#temperature {
+  color: @red;
+}
+#memory {
   color: @yellow;
-  opacity: 0;
 }
-#keyboard-state label.locked {
-  opacity: 1;
+#wireplumber {
+  color: shade(@green, 1.1);
+  min-width: 50px;
 }
-
-
-
