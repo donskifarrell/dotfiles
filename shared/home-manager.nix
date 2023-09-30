@@ -732,29 +732,30 @@ in {
     enable = true;
     mutableExtensionsDir = true;
 
-    extensions = with pkgs; [
-      vscode-extensions.golang.go
-      vscode-extensions.kamadorueda.alejandra
-      vscode-extensions.bbenoist.nix
-      vscode-extensions.formulahendry.auto-close-tag
-      vscode-extensions.formulahendry.auto-rename-tag
-      vscode-extensions.tamasfe.even-better-toml
-      vscode-extensions.dracula-theme.theme-dracula
-      vscode-extensions.dbaeumer.vscode-eslint
-      vscode-extensions.hashicorp.terraform
-      vscode-extensions.esbenp.prettier-vscode
-      vscode-extensions.ms-vscode-remote.remote-ssh
-      vscode-extensions.foxundermoon.shell-format
-      vscode-extensions.bradlc.vscode-tailwindcss
-      vscode-extensions.redhat.vscode-yaml
-      vscode-extensions.streetsidesoftware.code-spell-checker
-      vscode-extensions.donjayamanne.githistory
-      vscode-extensions.jock.svg
+    extensions = with pkgs.vscode-extensions; [
+      golang.go
+      kamadorueda.alejandra
+      bbenoist.nix
+      formulahendry.auto-close-tag
+      formulahendry.auto-rename-tag
+      tamasfe.even-better-toml
+      dbaeumer.vscode-eslint
+      hashicorp.terraform
+      esbenp.prettier-vscode
+      ms-vscode-remote.remote-ssh
+      foxundermoon.shell-format
+      bradlc.vscode-tailwindcss
+      redhat.vscode-yaml
+      streetsidesoftware.code-spell-checker
+      donjayamanne.githistory
+      jock.svg
+      catppuccin.catppuccin-vsc
 
       # Not on nixpkgs yet:
-      # vscode-extensions.wayou.vscode-todo-highlight
-      # vscode-extensions.vscode-icons-team.vscode-icons
-      # vscode-extensions.waderyan.gitblame
+      # wayou.vscode-todo-highlight
+      # Catppuccin.catppuccin-vsc-icons
+      # vscode-icons-team.vscode-icons
+      # waderyan.gitblame
     ];
 
     userSettings = {
@@ -782,8 +783,8 @@ in {
       "[json]"."editor.defaultFormatter" = "vscode.json-language-features";
       "redhat.telemetry.enabled" = false;
       "vetur.format.defaultFormatter.html" = "none";
-      "workbench.iconTheme" = "vscode-icons";
-      "workbench.colorTheme" = "Dracula";
+      "workbench.iconTheme" = "catppuccin-macchiato";
+      "workbench.colorTheme" = "Catppuccin Macchiato";
       "[nix]"."editor.defaultFormatter" = "kamadorueda.alejandra";
       "[nix]"."editor.formatOnPaste" = true;
       "[nix]"."editor.formatOnSave" = true;

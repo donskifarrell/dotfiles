@@ -70,8 +70,11 @@ in
     dconf2nix
     rofi-wayland
     nwg-dock-hyprland
+    gtklock
     swaylock-effects
     swaynotificationcenter
+    catppuccin-gtk
+    lm_sensors
 
     # # It is sometimes useful to fine-tune packages, for example, by applying
     # # overrides. You can do that directly here, just don't forget the
