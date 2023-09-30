@@ -568,6 +568,10 @@ in {
 
     settings = {
       env = {TERM = "alacritty";};
+      import = lib.mkMerge [
+        (lib.mkIf pkgs.stdenv.hostPlatform.isLinux ["/home/${user}/.dotfiles/shared/configs/theme/alacritty-catppuccin-macchiato.yml"])
+        (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin ["/Users/${user}/.dotfiles/shared/configs/theme/alacritty-catppuccin-macchiato.yml"])
+      ];
       window = {
         decorations = "full";
         startup_mode = "Windowed";
@@ -602,73 +606,6 @@ in {
         builtin_box_drawing = true;
       };
       draw_bold_text_with_bright_colors = false;
-      colors = {
-        primary = {
-          background = "#282a36";
-          foreground = "#f8f8f2";
-          bright_foreground = "#ffffff";
-        };
-        cursor = {
-          text = "CellBackground";
-          cursor = "CellForeground";
-        };
-        vi_mode_cursor = {
-          text = "CellBackground";
-          cursor = "CellForeground";
-        };
-        footer_bar = {
-          background = "#282a36";
-          foreground = "#f8f8f2";
-        };
-        search = {
-          matches = {
-            foreground = "#44475a";
-            background = "#50fa7b";
-          };
-          focused_match = {
-            foreground = "#44475a";
-            background = "#ffb86c";
-          };
-        };
-        hints = {
-          start = {
-            foreground = "#282a36";
-            background = "#f1fa8c";
-          };
-          end = {
-            foreground = "#f1fa8c";
-            background = "#282a36";
-          };
-        };
-        line_indicator = {
-          foreground = "None";
-          background = "None";
-        };
-        selection = {
-          text = "CellForeground";
-          background = "#44475a";
-        };
-        normal = {
-          black = "#21222c";
-          red = "#ff5555";
-          green = "#50fa7b";
-          yellow = "#f1fa8c";
-          blue = "#bd93f9";
-          magenta = "#ff79c6";
-          cyan = "#8be9fd";
-          white = "#f8f8f2";
-        };
-        bright = {
-          black = "#6272a4";
-          red = "#ff6e6e";
-          green = "#69ff94";
-          yellow = "#ffffa5";
-          blue = "#d6acff";
-          magenta = "#ff92df";
-          cyan = "#a4ffff";
-          white = "#ffffff";
-        };
-      };
       cursor = {unfocused_hollow = true;};
       live_config_reload = true;
       shell = {
