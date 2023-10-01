@@ -257,15 +257,6 @@ in {
         };
       }
       {
-        name = "fish-dracula";
-        src = pkgs.fetchFromGitHub {
-          owner = "dracula";
-          repo = "fish";
-          rev = "269cd7d76d5104fdc2721db7b8848f6224bdf554";
-          sha256 = "sha256-Hyq4EfSmWmxwCYhp3O8agr7VWFAflcUe8BUKh50fNfY=";
-        };
-      }
-      {
         name = "fish-forgit";
         src = pkgs.fetchFromGitHub {
           owner = "wfxr";

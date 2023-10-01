@@ -38,6 +38,10 @@ in {
       XDG_DATA_HOME = "${XDG_DATA_HOME}";
     };
 
+    file."fish-catppuccin-macchiato" = {
+      source = "/home/${user}/.dotfiles/shared/config/theme/fish-catppuccin-macchiato.theme";
+      target = "${XDG_CONFIG_HOME}/fish/themes/fish-catppuccin-macchiato.theme";
+    };
     file."waybar" = {
       source = "/home/${user}/.dotfiles/makati-nixos/config/waybar";
       target = "${XDG_CONFIG_HOME}/waybar";
