@@ -569,8 +569,8 @@ in {
     settings = {
       env = {TERM = "alacritty";};
       import = lib.mkMerge [
-        (lib.mkIf pkgs.stdenv.hostPlatform.isLinux ["/home/${user}/.dotfiles/shared/configs/theme/alacritty-catppuccin-macchiato.yml"])
-        (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin ["/Users/${user}/.dotfiles/shared/configs/theme/alacritty-catppuccin-macchiato.yml"])
+        (lib.mkIf pkgs.stdenv.hostPlatform.isLinux ["/home/${user}/.dotfiles/shared/config/theme/alacritty-catppuccin-macchiato.yml"])
+        (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin ["/Users/${user}/.dotfiles/shared/config/theme/alacritty-catppuccin-macchiato.yml"])
       ];
       window = {
         decorations = "full";
