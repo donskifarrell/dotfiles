@@ -1,7 +1,6 @@
 {pkgs}:
 with pkgs; let
   shared-packages = import ../shared/packages.nix {inherit pkgs;};
-  themes = pkgs.callPackage ./config/rofi-themes.nix {};
 in
   shared-packages
   ++ [
@@ -90,8 +89,6 @@ in
     # (pkgs.writeShellScriptBin "my-hello" ''
     #   echo "Hello, ${config.home.username}!"
     # '')
-
-    themes.rofi-themes-collection
 
     gnome-extension-manager
     gnomeExtensions.dash-to-dock

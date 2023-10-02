@@ -11,7 +11,6 @@
   XDG_DATA_HOME = "${homeDir}/.local/share";
 
   packages = pkgs.callPackage ./packages.nix {};
-  themes = pkgs.callPackage ./config/rofi-themes.nix {};
   shared-programs = import ../shared/home-manager.nix {inherit pkgs lib;};
   # shared-files = import ../shared/files.nix {inherit config pkgs;};
 
@@ -41,6 +40,10 @@ in {
     file."fish-catppuccin-macchiato" = {
       source = "/home/${user}/.dotfiles/shared/config/theme/fish-catppuccin-macchiato.theme";
       target = "${XDG_CONFIG_HOME}/fish/themes/fish-catppuccin-macchiato.theme";
+    };
+    file."rofi" = {
+      source = "/home/${user}/.dotfiles/makati-nixos/config/rofi";
+      target = "${XDG_CONFIG_HOME}/rofi";
     };
     file."waybar" = {
       source = "/home/${user}/.dotfiles/makati-nixos/config/waybar";
@@ -118,12 +121,6 @@ in {
   programs =
     shared-programs
     // {
-      rofi = {
-        enable = true;
-        package = pkgs.rofi-wayland;
-        theme = "${themes.rofi-themes-collection}/themes/spotlight-dark.rasi";
-      };
-
       # Run command in bash to see list of hardware sensors
       # for i in /sys/class/hwmon/hwmon*/temp*_input; do echo "$(<$(dirname $i)/name): $(cat ${i%_*}_label 2>/dev/null || echo $(basename ${i%_*})) $(readlink -f $i)"; done
       waybar.enable = true;
