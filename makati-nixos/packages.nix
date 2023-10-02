@@ -74,6 +74,7 @@ in
     swaynotificationcenter
     catppuccin-gtk
     lm_sensors
+    playerctl
 
     # # It is sometimes useful to fine-tune packages, for example, by applying
     # # overrides. You can do that directly here, just don't forget the

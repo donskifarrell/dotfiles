@@ -116,6 +116,7 @@ in {
 
     # Auto mount devices
     udiskie.enable = true;
+    playerctld.enable = true;
   };
 
   programs =
