@@ -634,7 +634,6 @@ in {
         builtin_box_drawing = true;
       };
       draw_bold_text_with_bright_colors = false;
-      cursor = {unfocused_hollow = true;};
       live_config_reload = true;
       shell = {
         program = lib.mkMerge [
