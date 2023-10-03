@@ -228,10 +228,15 @@ in {
 
     interactiveShellInit = ''
       fzf_configure_bindings --directory=\ct
-      set fzf_fd_opts --hidden --exclude=.git --exclude=Library
+      set -Ux fzf_fd_opts --hidden --exclude=.git --exclude=Library
+      set -Ux FZF_DEFAULT_OPTS "\
+      --height=80% --layout=reverse --info=inline --border --margin=1 --padding=1 \
+      --color=bg+:#363a4f,bg:#24273a,spinner:#f4dbd6,hl:#ed8796 \
+      --color=fg:#cad3f5,header:#ed8796,info:#c6a0f6,pointer:#f4dbd6 \
+      --color=marker:#f4dbd6,fg+:#cad3f5,prompt:#c6a0f6,hl+:#ed8796"
 
-      set FORGIT_LOG_FZF_OPTS "--reverse"
-      set FORGIT_GLO_FORMAT "%C(auto)%h%d %s %C(blue)%an %C(green)%C(bold)%cr"
+      set -Ux FORGIT_LOG_FZF_OPTS "--reverse"
+      set -Ux FORGIT_GLO_FORMAT "%C(auto)%h%d %s %C(blue)%an %C(green)%C(bold)%cr"
 
       # set GOBIN "$HOME/go/bin"
       # fish_add_path -pmP $HOME/go/bin
@@ -243,7 +248,7 @@ in {
         src = pkgs.fetchFromGitHub {
           owner = "PatrickF1";
           repo = "fzf.fish";
-          rev = "f9e2e48a54199fe7c6c846556a12003e75ab798e";
+          rev = "8d99f0caa30a626369541f80848ffdbf28e96acc";
           sha256 = "sha256-CqRSkwNqI/vdxPKrShBykh+eHQq9QIiItD6jWdZ/DSM=";
         };
       }
