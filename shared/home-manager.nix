@@ -425,22 +425,18 @@ in {
     ];
     clock24 = true;
     keyMode = "vi";
+    escapeTime = 0; # address vim mode switching delay (http://superuser.com/a/252717/65504)
+    historyLimit = 100000; # scrollback size
+    mouse = true;
 
     extraConfig = ''
       # ----------------------
       # Settings
       # -----------------------
-      # set -g default-shell ~/.nix-profile/bin/fish
-
-      # scrollback size
-      set -g history-limit 100000
 
       # set first window to index 1 (not 0) to map more to the keyboard layout
       set -g base-index 1
       set -g pane-base-index 1
-
-      # Using the mouse to switch panes
-      set -g mouse on
 
       # Enable focus events.
       set -g focus-events on
@@ -456,9 +452,6 @@ in {
       setw -g monitor-activity on
       set -g visual-activity off
 
-      # address vim mode switching delay (http://superuser.com/a/252717/65504)
-      set -s escape-time 0
-
       # ----------------------
       # Styling & Status Bar
       # -----------------------
@@ -467,43 +460,6 @@ in {
       set -g status-position top
       set -g status-interval 5    # set update frequencey (default 15 seconds)
 
-      # Dracula Color Pallette
-      dr_white='#f8f8f2'
-      dr_gray='#44475a'
-      dr_dark_gray='#282a36'
-      dr_light_purple='#bd93f9'
-      dr_dark_purple='#6272a4'
-      dr_cyan='#8be9fd'
-      dr_green='#50fa7b'
-      dr_orange='#ffb86c'
-      dr_red='#ff5555'
-      dr_pink='#ff79c6'
-      dr_yellow='#f1fa8c'
-
-      # pane border styling
-      set-option -g pane-active-border-style "fg=$dr_dark_purple"
-      set-option -g pane-border-style "fg=$dr_gray"
-
-      # message styling
-      set-option -g message-style "bg=$dr_gray,fg=$dr_white"
-
-      # status bar
-      set-option -g status-style "bg=$dr_gray,fg=$dr_white"
-
-      set-option -g status-left-length 100
-      set-option -g status-left "#[bg=$dr_green,fg=$dr_dark_gray]#{?client_prefix,#[bg=$dr_yellow],} ☺ "
-
-      set-option -g status-right-length 100
-      set-option -g status-right ""
-
-      set-option -ga status-right "#[fg=$dr_dark_gray,bg=$dr_orange] #(~/.dotfiles/hosts/common/tmux/kubectl-ctx.sh) "
-      set-option -ga status-right "#[fg=$dr_white,bg=$dr_dark_purple] #(~/.dotfiles/hosts/common/tmux/net-speed.sh) "
-      set-option -ga status-right "#[fg=$dr_dark_gray,bg=$dr_cyan] #(~/.dotfiles/hosts/common/tmux/net-interface.sh)  "
-
-      # window tabs
-      set-window-option -g window-status-current-format "#[fg=$dr_white,bg=$dr_dark_purple] #I #W #{?window_zoomed_flag,🔍 , }"
-      set-window-option -g window-status-format "#[fg=$dr_white]#[bg=$dr_gray] #I #W #{?window_zoomed_flag,🔍 , }"
-
       # ----------------------
       # Key Bindings
       # -----------------------
@@ -511,12 +467,6 @@ in {
       # # Keep your finger on ctrl, or don't, same result
       bind-key C-d detach-client
       bind-key C-p paste-buffer
-
-      # reload tmux config with ctrl + a + o
-      unbind o
-      bind o \
-          source-file ~/.config/tmux/tmux.conf \;\
-              display 'Reloaded tmux config.'
 
       # Ctrl - t or t new window
       unbind t
@@ -560,6 +510,22 @@ in {
 
     plugins = with pkgs; [
       tmuxPlugins.cpu
+      {
+        plugin = tmuxPlugins.catppuccin;
+        extraConfig = ''
+          set -g @catppuccin_flavour 'macchiato'
+
+          set -g @catppuccin_window_default_fill "number"
+          set -g @catppuccin_window_default_text " #W " # use "#W" for application instead of directory
+
+          set -g @catppuccin_window_current_fill "number"
+          set -g @catppuccin_window_current_text " #W "
+
+          set -g @catppuccin_window_left_separator "█"
+          set -g @catppuccin_window_middle_separator "█"
+          set -g @catppuccin_window_right_separator ""
+        '';
+      }
       {
         plugin = tmuxPlugins.resurrect;
         extraConfig = ''
