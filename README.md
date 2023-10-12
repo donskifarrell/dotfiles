@@ -1,25 +1,27 @@
 # v2
 
-TODO: THEME
-
-- theme ROFI catppuccin: https://davatorium.github.io/rofi/current/rofi-theme.5/#examples
-- theme other apps with catppuccin
-
 TODO: ADD
 
+- Screenshots / recorder
 - add swayidle: https://github.com/swaywm/swayidle
 - add cron job to switch wallpapers: https://github.com/cronie-crond/cronie
 - switch to gtklock: https://github.com/jovanlanik/gtklock/wiki
 - swaync widgets: https://github.com/ErikReider/SwayNotificationCenter#available-widgets
   -- audio
   -- player
+- ROFI applets: https://github.com/adi1090x/rofi
 - decide (and customise) nwg-dock: https://github.com/nwg-piotr/nwg-dock-hyprland/tree/master
 - add nixos-search somewhere?
-- add hardware controls for media
+<!-- - add hardware controls for media -->
 - package vscode extenstions:
   -- catppuccin vscode-icons: https://github.com/catppuccin/vscode-icons
   -- wayou.vscode-todo-highlight
 - brillo: what is it and should I add?
+- plymouth theme: https://github.com/adi1090x/plymouth-themes
+  <!-- - theme ROFI catppuccin: https://davatorium.github.io/rofi/current/rofi-theme.5/#examples -->
+  <!-- - theme other apps with catppuccin -->
+- docker/podman or something
+  -- monorepo for all side projects so we can use traefik or similar: https://georgek.github.io/blog/posts/multiple-web-projects-traefik/
 
 TODO: FIX
 
@@ -27,6 +29,16 @@ TODO: FIX
 - fix crashes when monitor turned off: https://github.com/hyprwm/Hyprland/issues/2770
   -- hardware / temp logging
 - better font for GTK, maybe SF PRO
+- file associations
+<!-- - fzf broke ctrl-r -->
+- copy/paste into terminal in vscode
+- ssh-keys not be auto added?
+- XWayland / electron etc
+- calendar waybar
+- trackpad speed
+- scroll speed
+- weird blurry cursors
+- bluetooth audio on google meet not resetting
 
 useful links:
 https://nixos-and-flakes.thiscute.world/nixos-with-flakes/nixos-with-flakes-enabled#adding-custom-cache-mirrors
