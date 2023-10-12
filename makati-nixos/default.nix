@@ -190,6 +190,8 @@ in {
     font-awesome
     noto-fonts
     noto-fonts-emoji
+
+    (nerdfonts.override {fonts = ["JetBrainsMono"];})
   ];
   i18n = {
     defaultLocale = "en_GB.UTF-8";
