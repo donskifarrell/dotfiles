@@ -162,16 +162,6 @@
           makati-base.modules
           ++ [
             ./makati-nixos/desk/hardware-configuration.nix
-            {
-              virtualisation = {
-                virtualbox = {
-                  host.enable = true;
-                  host.enableExtensionPack = true;
-                  guest.enable = true;
-                };
-              };
-              users.extraGroups.vboxusers.members = ["${user}"];
-            }
           ];
       };
 
