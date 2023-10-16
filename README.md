@@ -13,7 +13,7 @@ TODO: ADD
 - decide (and customise) nwg-dock: https://github.com/nwg-piotr/nwg-dock-hyprland/tree/master
 - add nixos-search somewhere?
 <!-- - add hardware controls for media -->
-- package vscode extenstions:
+- vscode extenstions: https://github.com/nix-community/nix-vscode-extensions
   -- catppuccin vscode-icons: https://github.com/catppuccin/vscode-icons
   -- wayou.vscode-todo-highlight
 - brillo: what is it and should I add?

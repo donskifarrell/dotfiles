@@ -47,6 +47,8 @@
       url = "github:NixOS/nixos-hardware";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    gnomeNixpkgs.url = "github:NixOS/nixpkgs/gnome";
   };
 
   outputs = {
@@ -64,6 +66,7 @@
     hyprland,
     nix-formatter-pack,
     nixos-hardware,
+    gnomeNixpkgs,
   } @ inputs: let
     user = "df";
     systems = ["x86_64-linux" "aarch64-darwin"];
@@ -161,6 +164,13 @@
         modules =
           makati-base.modules
           ++ [
+            {
+              nixpkgs.overlays = [
+                (self: super: {
+                  gnome = gnomeNixpkgs.legacyPackages.x86_64-linux.gnome;
+                })
+              ];
+            }
             ./makati-nixos/desk/hardware-configuration.nix
           ];
       };
