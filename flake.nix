@@ -1,23 +1,41 @@
 {
-  description = "Donski Configuration for NixOS and MacOS";
+  description = "God-mode for NixOS and MacOS";
 
   inputs = {
+    # Common
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
-    flake-compat = {
-      url = "github:edolstra/flake-compat";
-      flake = false;
-    };
+    nixpkgs-stable.url = "github:nixos/nixpkgs/nixos-23.05";
+    utils.url = "github:numtide/flake-utils";
     agenix = {
       url = "github:ryantm/agenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    darwin = {
-      url = "github:LnL7/nix-darwin/master";
+    secrets = {
+      url = "git+ssh://git@github.com/donskifarrell/nix-secrets";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.agenix.follows = "agenix";
+      inputs.flake-utils.follows = "utils";
+    };
+    home-manager = {
+      url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    disko = {
-      url = "github:nix-community/disko";
+    nurl.url = "github:nix-community/nurl";
+
+    # NIXOS
+    nixos-hardware = {
+      url = "github:NixOS/nixos-hardware";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    gnomeNixpkgs.url = "github:NixOS/nixpkgs/gnome";
+    hyprland = {
+      url = "github:hyprwm/hyprland";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    # OSX
+    darwin = {
+      url = "github:LnL7/nix-darwin/master";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     nix-homebrew = {
@@ -31,245 +49,219 @@
       url = "github:homebrew/homebrew-cask";
       flake = false;
     };
-    home-manager = {
-      url = "github:nix-community/home-manager";
-      inputs.nixpkgs.follows = "nixpkgs-unstable";
-    };
-    hyprland = {
-      url = "github:hyprwm/hyprland";
-      inputs.nixpkgs.follows = "nixpkgs-unstable";
-    };
-    nix-formatter-pack = {
-      url = "github:Gerschtli/nix-formatter-pack";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    nixos-hardware = {
-      url = "github:NixOS/nixos-hardware";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    gnomeNixpkgs.url = "github:NixOS/nixpkgs/gnome";
   };
 
   outputs = {
+    # Common
     self,
     nixpkgs,
-    nixpkgs-unstable,
-    flake-compat,
+    nixpkgs-stable,
     agenix,
+    secrets,
+    home-manager,
+    nurl,
+    # NIXOS
+    nixos-hardware,
+    gnomeNixpkgs,
+    hyprland,
+    # OSX
     darwin,
-    disko,
     nix-homebrew,
     homebrew-core,
     homebrew-cask,
-    home-manager,
-    hyprland,
-    nix-formatter-pack,
-    nixos-hardware,
-    gnomeNixpkgs,
   } @ inputs: let
-    user = "df";
+    inherit (self) outputs;
+    lib = nixpkgs.lib // home-manager.lib;
     systems = ["x86_64-linux" "aarch64-darwin"];
-    forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f system);
-    devShell = system: let
-      pkgs = nixpkgs.legacyPackages.${system};
-    in {
-      default = with pkgs;
-        mkShell {
-          # Enable experimental features without having to specify the argument
-          NIX_CONFIG = "experimental-features = nix-command flakes";
-          nativeBuildInputs = with pkgs; [fish git age neovim];
-          shellHook = with pkgs; ''
-            export EDITOR=nvim
-          '';
+
+    # TODO: Switch with flake-compat?
+    forEachSystem = f: lib.genAttrs systems (system: f pkgsFor.${system});
+    pkgsFor = lib.genAttrs systems (system:
+      import nixpkgs {
+        inherit system;
+        config = {
+          allowUnfree = true;
+          allowBroken = true;
+          allowInsecure = false;
+          allowUnsupportedSystem = true;
+
+          # Workaround fix: https://github.com/nix-community/home-manager/issues/2942
+          allowUnfreePredicate = pkg: true;
         };
-    };
+      });
+
+    user = "df";
+    # mkNixOSSystem = user: hostname: hardwareModule: extraModules:
+    #   nixpkgs.lib.nixosSystem rec {
+    #     pkgs = mkPkgs "x86_64-linux";
+    #     system = "x86_64-linux";
+    #     modules =
+    #       [
+    #         {_module.args = {inherit inputs;};}
+    #         hardwareModule
+    #         inputs.agenix.nixosModules.default
+    #         home-manager.nixosModules.home-manager
+    #         {
+    #           home-manager.useGlobalPkgs = true;
+    #           home-manager.useUserPackages = true;
+    #         }
+    #         ./hosts
+    #       ]
+    #       ++ extraModules;
+    #   };
   in {
-    devShells = forAllSystems devShell;
+    nixosConfigurations = {
+      # Main desktop
+      makati = lib.nixosSystem {
+        modules = [./hosts/nixos-desktop];
+        specialArgs = {inherit inputs outputs;};
+      };
 
-    # nix fmt
-    formatter = forAllSystems (
-      system:
-        nix-formatter-pack.lib.mkFormatter {
-          pkgs = nixpkgs.legacyPackages.${system};
-          config.tools = {
-            alejandra.enable = true;
-            deadnix.enable = true;
-            nixpkgs-fmt.enable = false;
-            statix.enable = true;
-          };
-        }
-    );
-
-    darwinConfigurations = let
-      user = "df";
-    in {
-      "df-manila-MBP" = darwin.lib.darwinSystem {
-        system = "aarch64-darwin";
-        specialArgs = inputs;
-        modules = [
-          nix-homebrew.darwinModules.nix-homebrew
-          {
-            nix-homebrew = {
-              enable = true;
-              user = "${user}";
-              taps = {
-                "homebrew/homebrew-core" = homebrew-core;
-                "homebrew/homebrew-cask" = homebrew-cask;
-              };
-              mutableTaps = false;
-              autoMigrate = true;
-            };
-          }
-          ./manila-osx
-        ];
+      # Qemu VMs
+      qemu = lib.nixosSystem {
+        modules = [./hosts/nixos-qemu];
+        specialArgs = {inherit inputs outputs;};
       };
     };
 
-    nixosConfigurations = let
-      user = "df";
-      sys = "x86_64-linux";
-      pkgs = nixpkgs.legacyPackages.${sys};
-      lib = nixpkgs.lib;
+    # nixosConfigurations = {
+    #   makati = mkNixOSSystem desktop user "makati" [
+    #     {
+    #       nixpkgs.overlays = [
+    #         (self: super: {
+    #           gnome = gnomeNixpkgs.legacyPackages.x86_64-linux.gnome;
+    #         })
+    #       ];
+    #     }
+    #   ];
 
-      ################################################################################
-      # BASE SYSTEM CONFIG
-      ################################################################################
-      makati-base = {
-        specialArgs =
-          inputs
-          // {
-            user = "df";
-            keys = ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKdNislbiV21PqoaREbPATGeCj018IwKufVcgR4Ft9Fl london"];
-          };
-        modules = [
-          home-manager.nixosModules.home-manager
-          ./makati-nixos
-          {
-            home-manager.useGlobalPkgs = true;
-            home-manager.useUserPackages = true;
-            home-manager.users.${user} = import ./makati-nixos/home-manager.nix;
-          }
-        ];
-      };
-    in {
-      makati = nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        specialArgs =
-          makati-base.specialArgs
-          // {
-            hostname = "makati";
-            vm = false;
-          };
-        modules =
-          makati-base.modules
-          ++ [
-            {
-              nixpkgs.overlays = [
-                (self: super: {
-                  gnome = gnomeNixpkgs.legacyPackages.x86_64-linux.gnome;
-                })
-              ];
-            }
-            ./makati-nixos/desk/hardware-configuration.nix
-          ];
-      };
+    #   # nixos-qemu = mkNixOSSystem user "makati-qemu" [];
+    # };
 
-      makati-qemu = nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        specialArgs =
-          makati-base.specialArgs
-          // {
-            hostname = "makati-qemu";
-            vm = true;
-          };
-        modules =
-          makati-base.modules
-          ++ [
-            ./makati-nixos/vm/qemu-hardware-configuration.nix
-            {
-              # VM specific changes
-              # Bootloader.
-              boot.loader.systemd-boot.enable = true;
-              boot.loader.efi.canTouchEfiVariables = true;
+    # darwinConfigurations = let
+    #   user = "df";
+    # in {
+    #   "df-manila-MBP" = darwin.lib.darwinSystem {
+    #     system = "aarch64-darwin";
+    #     specialArgs = inputs;
+    #     modules = [
+    #       nix-homebrew.darwinModules.nix-homebrew
+    #       {
+    #         nix-homebrew = {
+    #           enable = true;
+    #           user = "${user}";
+    #           taps = {
+    #             "homebrew/homebrew-core" = homebrew-core;
+    #             "homebrew/homebrew-cask" = homebrew-cask;
+    #           };
+    #           mutableTaps = false;
+    #           autoMigrate = true;
+    #         };
+    #       }
+    #       ./manila-osx
+    #     ];
+    #   };
+    # };
 
-              boot.kernelPackages = nixpkgs.lib.mkForce pkgs.linuxPackages_6_1; # To fix an issue with ZFS compatibility
-              virtualisation.vmVariant = {
-                virtualisation = {
-                  forwardPorts = [
-                    {
-                      from = "host";
-                      host.port = 2222;
-                      guest.port = 22;
-                    }
-                  ];
-                  qemu.options = [
-                    "-device virtio-vga-gl"
-                    "-display sdl,gl=on,show-cursor=off"
-                    "-audio pa,model=hda"
-                    "-m 16G"
-                  ];
-                };
-                services.openssh = {
-                  enable = true;
-                  settings.PasswordAuthentication = true;
-                  settings.PermitRootLogin = nixpkgs.lib.mkForce "yes";
-                };
-                # Won't be applied
-                environment.sessionVariables = {
-                  WLR_NO_HARDWARE_CURSORS = "1";
-                  WLR_RENDERER_ALLOW_SOFTWARE = "1";
-                  # HYPRLAND_LOG_WLR = "1";
-                };
-              };
-            }
-          ];
-      };
+    # nixosConfigurations = let
+    #   user = "df";
+    #   sys = "x86_64-linux";
+    #   pkgs = nixpkgs.legacyPackages.${sys};
+    #   lib = nixpkgs.lib;
 
-      makati-vb = nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        specialArgs =
-          makati-base.specialArgs
-          // {
-            hostname = "makati-vb";
-            vm = true;
-          };
-        modules =
-          makati-base.modules
-          ++ [
-            ./makati-nixos/vm/virtualbox-hardware-configuration.nix
-            {
-              # VM specific changes
-              # Bootloader.
+    #   ################################################################################
+    #   # BASE SYSTEM CONFIG
+    #   ################################################################################
+    #   makati-base = {
+    #     specialArgs =
+    #       inputs
+    #       // {
+    #         user = "df";
+    #         keys = ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKdNislbiV21PqoaREbPATGeCj018IwKufVcgR4Ft9Fl london"];
+    #       };
+    #     modules = [
+    #       home-manager.nixosModules.home-manager
+    #       ./makati-nixos
+    #       {
+    #         home-manager.useGlobalPkgs = true;
+    #         home-manager.useUserPackages = true;
+    #         home-manager.users.${user} = import ./makati-nixos/home-manager.nix;
+    #       }
+    #     ];
+    #   };
+    # in {
+    #   makati = nixpkgs.lib.nixosSystem {
+    #     system = "x86_64-linux";
+    #     specialArgs =
+    #       makati-base.specialArgs
+    #       // {
+    #         hostname = "makati";
+    #         vm = false;
+    #       };
+    #     modules =
+    #       makati-base.modules
+    #       ++ [
+    #         {
+    #           nixpkgs.overlays = [
+    #             (self: super: {
+    #               gnome = gnomeNixpkgs.legacyPackages.x86_64-linux.gnome;
+    #             })
+    #           ];
+    #         }
+    #         ./makati-nixos/desk/hardware-configuration.nix
+    #       ];
+    #   };
 
-              boot.loader.systemd-boot.enable = true;
-              boot.loader.efi.canTouchEfiVariables = true;
+    #   nixos-qemu = nixpkgs.lib.nixosSystem {
+    #     system = "x86_64-linux";
+    #     specialArgs =
+    #       makati-base.specialArgs
+    #       // {
+    #         hostname = "makati-qemu";
+    #         vm = true;
+    #       };
+    #     modules =
+    #       makati-base.modules
+    #       ++ [
+    #         ./makati-nixos/vm/qemu-hardware-configuration.nix
+    #         {
+    #           # VM specific changes
+    #           # Bootloader.
+    #           boot.loader.systemd-boot.enable = true;
+    #           boot.loader.efi.canTouchEfiVariables = true;
 
-              boot.kernelPackages = nixpkgs.lib.mkForce pkgs.linuxPackages_6_1; # To fix an issue with ZFS compatibility
-              virtualisation.vmVariant = {
-                virtualisation = {
-                  forwardPorts = [
-                    {
-                      from = "host";
-                      host.port = 21212;
-                      guest.port = 22;
-                    }
-                  ];
-                };
-                services.openssh = {
-                  enable = true;
-                  settings.PasswordAuthentication = true;
-                  settings.PermitRootLogin = nixpkgs.lib.mkForce "yes";
-                };
-                environment.sessionVariables = {
-                  WLR_NO_HARDWARE_CURSORS = "1";
-                  WLR_RENDERER_ALLOW_SOFTWARE = "1";
-                  HYPRLAND_LOG_WLR = "1";
-                };
-              };
-            }
-          ];
-      };
-    };
+    #           boot.kernelPackages = nixpkgs.lib.mkForce pkgs.linuxPackages_6_1; # To fix an issue with ZFS compatibility
+    #           virtualisation.vmVariant = {
+    #             virtualisation = {
+    #               forwardPorts = [
+    #                 {
+    #                   from = "host";
+    #                   host.port = 2222;
+    #                   guest.port = 22;
+    #                 }
+    #               ];
+    #               qemu.options = [
+    #                 "-device virtio-vga-gl"
+    #                 "-display sdl,gl=on,show-cursor=off"
+    #                 "-audio pa,model=hda"
+    #                 "-m 16G"
+    #               ];
+    #             };
+    #             services.openssh = {
+    #               enable = true;
+    #               settings.PasswordAuthentication = true;
+    #               settings.PermitRootLogin = nixpkgs.lib.mkForce "yes";
+    #             };
+    #             # Won't be applied
+    #             environment.sessionVariables = {
+    #               WLR_NO_HARDWARE_CURSORS = "1";
+    #               WLR_RENDERER_ALLOW_SOFTWARE = "1";
+    #               # HYPRLAND_LOG_WLR = "1";
+    #             };
+    #           };
+    #         }
+    #       ];
+    #   };
+    # };
   };
 }
