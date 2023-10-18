@@ -27,6 +27,7 @@ in {
     };
     mutableTaps = false;
     autoMigrate = true;
+    cleanup = "uninstall";
   };
 
   services.nix-daemon.enable = true;

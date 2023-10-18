@@ -46,6 +46,8 @@ https://github.com/iamadamdev/bypass-paywalls-chrome
 
 https://unix.stackexchange.com/questions/272660/how-to-split-etc-nixos-configuration-nix-into-separate-modules
 
+https://github.com/schuelermine/xhmm
+
 GTK settings:
 
 ```
