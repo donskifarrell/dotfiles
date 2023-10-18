@@ -52,7 +52,11 @@ in {
         ./home-manager/vscode.nix
       ];
 
-      home.packages = import ./home-manager/packages.nix;
+      home.packages = let pkgSets = import ./home-manager/packages.nix; in
+        pkgSets.essentials-utils
+        ++ pkgSets.essentials-dev
+        ++ pkgSets.essentials-gui
+        ++ pkgSets.osx
     };
   }
 }

@@ -1,7 +1,7 @@
 {
   pkgs,
   inputs,
-}: let
+}: {
 
 essentials-utils = with pkgs; [
   age
@@ -139,14 +139,6 @@ nixos-hyprland = with pkgs; [
 qemu = with pkgs; [
   
 ];
-
-in {
-
-packages = essentials-utils
-  ++ essentials-dev ++
-  ++ essentials-gui ++
-  ++ lib.mkIf pkgs.stdenv.hostPlatform.isDarwin osx
-  ++ 
 
 }
  
