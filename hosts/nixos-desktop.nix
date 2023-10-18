@@ -114,12 +114,25 @@ in {
     useUserPackages = true;
     users.${user} = { pkgs, …}: {
       imports = [
-        
-      ]
+        ./home-manager
+        ./home-manager/alacritty.nix
+        ./home-manager/fish.nix
+        ./home-manager/git.nix
+        ./home-manager/neovim.nix
+        ./home-manager/ssh.nix
+        ./home-manager/starship.nix
+        ./home-manager/tmux.nix
+        ./home-manager/vscode.nix
+      ];
 
-      # home.packages = [ pkgs.btop ];
+      home.packages = let pkgSets = import ./home-manager/packages.nix; in
+        pkgSets.essentials-utils
+        ++ pkgSets.essentials-dev
+        ++ pkgSets.essentials-gui
+        ++ pkgSets.nixos
+        ++ pkgSets.nixos-gnome
     };
-  };
+  }
 
   environment.systemPackages = let
     themes = pkgs.callPackage ./config/sddm-themes.nix {};
