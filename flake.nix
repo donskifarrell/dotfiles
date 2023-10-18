@@ -89,30 +89,25 @@
           allowUnfreePredicate = pkg: true;
         };
       });
-    # mkNixOSSystem = user: hostname: hardwareModule: extraModules:
-    #   nixpkgs.lib.nixosSystem rec {
-    #     pkgs = mkPkgs "x86_64-linux";
-    #     system = "x86_64-linux";
-    #     modules =
-    #       [
-    #         {_module.args = {inherit inputs;};}
-    #         hardwareModule
-    #         inputs.agenix.nixosModules.default
-    #         home-manager.nixosModules.home-manager
-    #         {
-    #           home-manager.useGlobalPkgs = true;
-    #           home-manager.useUserPackages = true;
-    #         }
-    #         ./hosts
-    #       ]
-    #       ++ extraModules;
-    #   };
   in {
     inherit lib;
+
+    darwinConfigurations = {
+      # OSX MBP
+      manila = darwin.lib.darwinSystem {
+        system = "aarch64-darwin";
+        modules = [./hosts/darwin.nix];
+        specialArgs = {
+          inherit inputs outputs;
+          ssh-keys = ssh-keys;
+        };
+      };
+    };
 
     nixosConfigurations = {
       # Main desktop
       makati = lib.nixosSystem {
+        system = "x86_64-linux";
         modules = [./hosts/nixos-desktop.nix];
         specialArgs = {
           inherit inputs outputs;
@@ -122,6 +117,7 @@
 
       # Qemu VMs
       qemu = lib.nixosSystem {
+        system = "x86_64-linux";
         modules = [./hosts/nixos-qemu.nix];
         specialArgs = {
           inherit inputs outputs;
@@ -129,93 +125,5 @@
         };
       };
     };
-
-    # nixosConfigurations = {
-    #   makati = mkNixOSSystem desktop user "makati" [
-    #     {
-    #       nixpkgs.overlays = [
-    #         (self: super: {
-    #           gnome = gnomeNixpkgs.legacyPackages.x86_64-linux.gnome;
-    #         })
-    #       ];
-    #     }
-    #   ];
-
-    #   # nixos-qemu = mkNixOSSystem user "makati-qemu" [];
-    # };
-
-    # darwinConfigurations = let
-    #   user = "df";
-    # in {
-    #   "df-manila-MBP" = darwin.lib.darwinSystem {
-    #     system = "aarch64-darwin";
-    #     specialArgs = inputs;
-    #     modules = [
-    #       nix-homebrew.darwinModules.nix-homebrew
-    #       {
-    #         nix-homebrew = {
-    #           enable = true;
-    #           user = "${user}";
-    #           taps = {
-    #             "homebrew/homebrew-core" = homebrew-core;
-    #             "homebrew/homebrew-cask" = homebrew-cask;
-    #           };
-    #           mutableTaps = false;
-    #           autoMigrate = true;
-    #         };
-    #       }
-    #       ./manila-osx
-    #     ];
-    #   };
-    # };
-
-    # nixosConfigurations = let
-    #   user = "df";
-    #   sys = "x86_64-linux";
-    #   pkgs = nixpkgs.legacyPackages.${sys};
-    #   lib = nixpkgs.lib;
-
-    #   ################################################################################
-    #   # BASE SYSTEM CONFIG
-    #   ################################################################################
-    #   makati-base = {
-    #     specialArgs =
-    #       inputs
-    #       // {
-    #         user = "df";
-    #         keys = ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKdNislbiV21PqoaREbPATGeCj018IwKufVcgR4Ft9Fl london"];
-    #       };
-    #     modules = [
-    #       home-manager.nixosModules.home-manager
-    #       ./makati-nixos
-    #       {
-    #         home-manager.useGlobalPkgs = true;
-    #         home-manager.useUserPackages = true;
-    #         home-manager.users.${user} = import ./makati-nixos/home-manager.nix;
-    #       }
-    #     ];
-    #   };
-    # in {
-    #   makati = nixpkgs.lib.nixosSystem {
-    #     system = "x86_64-linux";
-    #     specialArgs =
-    #       makati-base.specialArgs
-    #       // {
-    #         hostname = "makati";
-    #         vm = false;
-    #       };
-    #     modules =
-    #       makati-base.modules
-    #       ++ [
-    #         {
-    #           nixpkgs.overlays = [
-    #             (self: super: {
-    #               gnome = gnomeNixpkgs.legacyPackages.x86_64-linux.gnome;
-    #             })
-    #           ];
-    #         }
-    #         ./makati-nixos/desk/hardware-configuration.nix
-    #       ];
-    #   };
   };
 }
