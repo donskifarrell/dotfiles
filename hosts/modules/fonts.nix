@@ -1,5 +1,5 @@
- {...}: {
-   fonts.fonts = with pkgs; [
+{...}: {
+  fonts.fonts = with pkgs; [
     dejavu_fonts
     jetbrains-mono
     font-awesome
@@ -8,4 +8,4 @@
 
     (nerdfonts.override {fonts = ["JetBrainsMono"];})
   ];
- }
+}

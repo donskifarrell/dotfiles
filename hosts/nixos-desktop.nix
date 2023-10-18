@@ -113,7 +113,7 @@ in {
     home-manager.useUserPackages = true;
     home-manager.users.${user} = import [
       ./home-manager
-    ]
+    ];
   };
 
   environment.systemPackages = let

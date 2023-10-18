@@ -7,8 +7,8 @@
   hostname = "manila";
 in {
   imports = [
-     nix-homebrew.darwinModules.nix-homebrew
-     ./modules/nix.nix
+    nix-homebrew.darwinModules.nix-homebrew
+    ./modules/nix.nix
   ];
 
   nix-homebrew = {

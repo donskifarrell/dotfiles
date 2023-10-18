@@ -1,9 +1,7 @@
-{
-  ...
-}: {
+{...}: {
   # Shared shell configuration
   # Smaller configs go here for now
-  
+
   bat.enable = true;
 
   exa.enable = true;

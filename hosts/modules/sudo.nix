@@ -1,7 +1,4 @@
-{
-  pkgs, 
-...
-}: {
+{pkgs, ...}: {
   security = {
     # Don't require password for users in `wheel` group for these commands
     sudo = {

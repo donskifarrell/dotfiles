@@ -1,11 +1,8 @@
-{
-  pkgs, 
-...
-}: {
+{pkgs, ...}: {
   services = {
     pipewire = {
       enable = true;
-      
+
       audio.enable = true;
       alsa.enable = false;
       alsa.support32Bit = false;

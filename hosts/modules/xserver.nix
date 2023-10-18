@@ -1,7 +1,4 @@
-{
-  pkgs, 
-...
-}: {
+{pkgs, ...}: {
   services = {
     xserver = {
       enable = true;

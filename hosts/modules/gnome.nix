@@ -1,7 +1,4 @@
-{
-  pkgs, 
-...
-}: {
+{pkgs, ...}: {
   environment.gnome.excludePackages = with pkgs; [
     gnome.totem
     gnome.epiphany
