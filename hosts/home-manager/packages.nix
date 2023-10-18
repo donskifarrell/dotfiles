@@ -1,186 +1,152 @@
 {
   pkgs,
   inputs,
-}:
-with pkgs; let
-  shared-packages = import ../shared/packages.nix {inherit pkgs;};
-in
-  # COMMONS
-  [
-    # General packages for development and system management
-    alacritty
-    aspell
-    aspellDicts.en
-    bat
-    btop
-    coreutils
-    difftastic
-    killall
-    neofetch
-    openssh
-    wget
-    archiver
-    p7zip
+}: let
 
-    git-filter-repo
+essentials-utils = with pkgs; [
+  age
+  alejandra
+  bash
+  bat
+  btop
+  cht-sh
+  coreutils
+  curl
+  curl
+  difftastic
+  direnv
+  fd
+  ffmpeg
+  fx
+  fzf
+  gawk
+  git-filter-repo
+  iftop
+  jq
+  killall
+  lsof
+  neofetch
+  netperf
+  openssh
+  p7zip
+  ripgrep
+  rlwrap
+  rnix-lsp
+  shfmt
+  tmux
+  tree
+  unixtools.ifconfig
+  unixtools.netstat
+  unrar
+  wget
+];
 
-    # Encryption and security tools
-    _1password
-    age
+essentials-dev = with pkgs; [
+  (google-cloud-sdk.withExtraComponents [google-cloud-sdk.components.gke-gcloud-auth-plugin])
+  android-tools
+  # docker
+  # docker-compose
+  flyctl
+  # go
+  gopls
+  kubectl
+  kubectx
+  mkcert
+  nodejs
+  nodePackages_latest.pnpm
+];
 
-    # Cloud-related tools and SDKs
-    docker
-    docker-compose
-    flyctl
-    go
-    gopls
-    kubectl
-    kubectx
+essentials-gui = with pkgs; [
+  _1password
+  _1password-gui
+  brave
+  chromium
+  firefox
+  gimp
+  libreoffice-still
+  maestral-gui
+  mattermost-desktop
+  obsidian
+  spotify
+  sublime4
+  vivaldi
+  vlc
+  zathura
+];
 
-    # Media-related packages
-    dejavu_fonts
-    ffmpeg
-    fd
-    font-awesome
-    glow
-    hack-font
-    noto-fonts
-    noto-fonts-emoji
-    meslo-lgs-nf
+osx = with pkgs; [
+  # (nerdfonts.override {fonts = ["JetBrainsMono"];})
+  # dejavu_fonts
+  # font-awesome
+  # hack-font
+  # jetbrains-mono
+  # meslo-lgs-nf
+  # noto-fonts
+  # noto-fonts-emoji
+];
 
-    # Node.js development tools
-    fzf
-    nodejs
-    nodePackages_latest.pnpm
+nixos = with pkgs; [
+  appimage-run
+  catppuccin-gtk
+  dconf2nix
+  font-manager
+  fontconfig
+  quickemu
+  samsung-unified-linux-driver
+  xdg-utils
+  aspell
+  aspellDicts.en
+  hunspell
 
-    # Source code management, Git, GitHub tools
+  # GUI
+  opensnitch-ui
+];
 
-    # Text and terminal utilities
-    htop
-    hunspell
-    iftop
-    jetbrains-mono
-    jq
-    ripgrep
-    tree
-    tmux
-    unrar
-    bash
-    gawk
-    fx
+nixos-gnome = with pkgs; [
+  gnome-extension-manager
 
-    # unixtools.netstat # Won't build on OSX. Might need it for linux and tmux bar
+  gnomeExtensions.dash-to-dock
+  gnomeExtensions.gsconnect
+  gnomeExtensions.mpris-indicator-button
+  gnomeExtensions.caffeine
+  gnomeExtensions.vitals
+  gnomeExtensions.just-perfection
+  gnomeExtensions.sound-output-device-chooser
+  gnomeExtensions.blur-my-shell
+  gnomeExtensions.appindicator
+  gnomeExtensions.gtile
+  gnomeExtensions.allow-locked-remote-desktop
+];
 
-    curl
-    alejandra
-    cht-sh
-    rlwrap
-    mkcert
-    shfmt
-    netperf
+nixos-hyprland = with pkgs; [
+  capitaine-cursors
+  flameshot
+  gtklock
+  lm_sensors
+  nwg-dock-hyprland
+  playerctl
+  rofi-wayland
+  simplescreenrecorder
+  swaylock-effects
+  swaynotificationcenter
+  swww
+  wev
+  wl-clipboard
+  wlogout
+  wmctrl
+];
 
-    wmctrl
-    lsof
-    android-tools
-  ]
-  ++ [
-    # Security and authentication
+qemu = with pkgs; [
+  
+];
 
-    # App and package management
-    appimage-run
-    home-manager
+in {
 
-    # Media and design tools
-    gimp
-    vlc
-    fontconfig
-    font-manager
+packages = essentials-utils
+  ++ essentials-dev ++
+  ++ essentials-gui ++
+  ++ lib.mkIf pkgs.stdenv.hostPlatform.isDarwin osx
+  ++ 
 
-    # Printers and drivers
-    samsung-unified-linux-driver # printer driver
-
-    # Messaging and chat applications
-
-    # Testing and development tools
-    direnv
-    rnix-lsp # lsp-mode for nix
-
-    # Screenshot and recording tools
-    flameshot
-    simplescreenrecorder
-
-    # Text and terminal utilities
-    tree
-    unixtools.ifconfig
-    unixtools.netstat
-
-    # File and system utilities
-    ledger-live-desktop
-    xdg-utils
-
-    # Other utilities
-
-    # PDF viewer
-    zathura
-
-    # Music and entertainment
-    spotify
-
-    opensnitch-ui
-    brave
-    chromium
-    vivaldi
-    firefox
-    maestral-gui
-    _1password-gui
-    mattermost-desktop
-    obsidian
-    sublime4
-    vscode
-    hunspell
-    libreoffice-still
-    hyprpicker
-    wl-clipboard
-    wlogout
-    capitaine-cursors
-    swww
-
-    quickemu
-    dconf2nix
-    rofi-wayland
-    nwg-dock-hyprland
-    gtklock
-    swaylock-effects
-    swaynotificationcenter
-    catppuccin-gtk
-    lm_sensors
-    playerctl
-
-    # # It is sometimes useful to fine-tune packages, for example, by applying
-    # # overrides. You can do that directly here, just don't forget the
-    # # parentheses. Maybe you want to install Nerd Fonts with a limited number of
-    # # fonts?
-    # (pkgs.nerdfonts.override { fonts = [ "FantasqueSansMono" ]; })
-    (google-cloud-sdk.withExtraComponents [google-cloud-sdk.components.gke-gcloud-auth-plugin])
-    (nerdfonts.override {fonts = ["JetBrainsMono"];})
-
-    # # You can also create simple shell scripts directly inside your
-    # # configuration. For example, this adds a command 'my-hello' to your
-    # # environment:
-    # (pkgs.writeShellScriptBin "my-hello" ''
-    #   echo "Hello, ${config.home.username}!"
-    # '')
-
-    gnome-extension-manager
-    gnomeExtensions.dash-to-dock
-    gnomeExtensions.gsconnect
-    gnomeExtensions.mpris-indicator-button
-    gnomeExtensions.caffeine
-    gnomeExtensions.vitals
-    gnomeExtensions.just-perfection
-    gnomeExtensions.sound-output-device-chooser
-    gnomeExtensions.blur-my-shell
-    gnomeExtensions.appindicator
-    gnomeExtensions.gtile
-    gnomeExtensions.allow-locked-remote-desktop
-  ]
+}
+ 
