@@ -44,6 +44,8 @@ useful links:
 https://nixos-and-flakes.thiscute.world/nixos-with-flakes/nixos-with-flakes-enabled#adding-custom-cache-mirrors
 https://github.com/iamadamdev/bypass-paywalls-chrome
 
+https://unix.stackexchange.com/questions/272660/how-to-split-etc-nixos-configuration-nix-into-separate-modules
+
 GTK settings:
 
 ```

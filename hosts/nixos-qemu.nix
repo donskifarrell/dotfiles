@@ -9,6 +9,8 @@
   user = "df";
   hostname = "makati-qemu";
 in {
+  _module.args.user = user;
+
   imports = [
     ./hardware/qemu.nix
 

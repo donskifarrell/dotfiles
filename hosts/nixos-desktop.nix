@@ -7,6 +7,8 @@
   user = "df";
   hostname = "makati";
 in {
+  _module.args.user = user;
+
   imports = [
     inputs.hardware.nixosModules.common-cpu-amd
     inputs.hardware.nixosModules.common-gpu-amd

@@ -72,12 +72,7 @@
 
     lib = nixpkgs.lib // home-manager.lib;
     systems = ["x86_64-linux" "aarch64-darwin"];
-    ssh-keys = [
-      {
-        user = "df";
-        keys = ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKdNislbiV21PqoaREbPATGeCj018IwKufVcgR4Ft9Fl london"];
-      }
-    ];
+    ssh-keys = ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKdNislbiV21PqoaREbPATGeCj018IwKufVcgR4Ft9Fl london"];
 
     # TODO: Switch with flake-compat?
     forEachSystem = f: lib.genAttrs systems (system: f pkgsFor.${system});
@@ -94,8 +89,6 @@
           allowUnfreePredicate = pkg: true;
         };
       });
-
-    user = "df";
     # mkNixOSSystem = user: hostname: hardwareModule: extraModules:
     #   nixpkgs.lib.nixosSystem rec {
     #     pkgs = mkPkgs "x86_64-linux";
