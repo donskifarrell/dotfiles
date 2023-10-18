@@ -1,4 +1,8 @@
-{...}: {
+{
+  lib,
+  user,
+  ...
+}: {
   nix = {
     settings = {
       auto-optimise-store = lib.mkDefault true;

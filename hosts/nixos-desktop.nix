@@ -1,6 +1,7 @@
 {
   pkgs,
   inputs,
+  ssh-keys,
   ...
 }: let
   user = "df";
@@ -15,22 +16,19 @@ in {
 
     ./hardware/desktop.nix
 
-    ./nixos/nix.nix
-    ./nixos/nixos-label.nix
-    ./nixos/nixpkgs.nix
+    ./modules/nix.nix
+    ./modules/nixos-label.nix
+    ./modules/nixpkgs.nix
 
-    ./nixos/fonts.nix
-    ./nixos/i18n.nix
-
-    ../common/global
-    ../common/users/misterio
-
-    ../common/optional/ckb-next.nix
-    ../common/optional/greetd.nix
-    ../common/optional/pipewire.nix
-    ../common/optional/quietboot.nix
-    ../common/optional/lol-acfix.nix
-    ../common/optional/starcitizen-fixes.nix
+    ./modules/fonts.nix
+    ./modules/gnome.nix
+    # ./modules/hyprland.nix
+    ./modules/i18n.nix
+    ./modules/sound.nix
+    ./modules/ssh.nix
+    ./modules/sudo.nix
+    ./modules/xdg.nix
+    ./modules/xserver.nix
   ];
 
   system.stateVersion = "23.05"; # Don't change this
@@ -94,11 +92,11 @@ in {
         "libvirtd"
       ];
       shell = pkgs.fish;
-      openssh.authorizedKeys.keys = keys;
+      openssh.authorizedKeys.keys = ssh-keys;
     };
 
     root = {
-      openssh.authorizedKeys.keys = keys;
+      openssh.authorizedKeys.keys = ssh-keys;
     };
   };
 
@@ -119,15 +117,15 @@ in {
   environment.systemPackages = let
     themes = pkgs.callPackage ./config/sddm-themes.nix {};
   in [
-    agenix.packages."${pkgs.system}".default # "x86_64-linux"
     pkgs.gitAndTools.gitFull
     pkgs.inetutils
     pkgs.micro
-    pkgs.archiver
     pkgs.p7zip
     pkgs.curl
-    pkgs.foot
 
+    agenix.packages."${pkgs.system}".default # "x86_64-linux"
+    pkgs.archiver
+    pkgs.foot
     pkgs.wev
     pkgs.wlr-randr
     pkgs.libnotify

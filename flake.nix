@@ -10,12 +10,12 @@
       url = "github:ryantm/agenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    secrets = {
-      url = "git+ssh://git@github.com/donskifarrell/nix-secrets";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.agenix.follows = "agenix";
-      inputs.flake-utils.follows = "utils";
-    };
+    # secrets = {
+    #   url = "git+ssh://git@github.com/donskifarrell/nix-secrets";
+    #   inputs.nixpkgs.follows = "nixpkgs";
+    #   inputs.agenix.follows = "agenix";
+    #   inputs.flake-utils.follows = "utils";
+    # };
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -23,10 +23,7 @@
     nurl.url = "github:nix-community/nurl";
 
     # NIXOS
-    nixos-hardware = {
-      url = "github:NixOS/nixos-hardware";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    nixos-hardware.url = "github:NixOS/nixos-hardware";
     gnomeNixpkgs.url = "github:NixOS/nixpkgs/gnome";
     hyprland = {
       url = "github:hyprwm/hyprland";
@@ -56,8 +53,9 @@
     self,
     nixpkgs,
     nixpkgs-stable,
+    utils,
     agenix,
-    secrets,
+    # secrets,
     home-manager,
     nurl,
     # NIXOS
@@ -71,8 +69,15 @@
     homebrew-cask,
   } @ inputs: let
     inherit (self) outputs;
+
     lib = nixpkgs.lib // home-manager.lib;
     systems = ["x86_64-linux" "aarch64-darwin"];
+    ssh-keys = [
+      {
+        user = "df";
+        keys = ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKdNislbiV21PqoaREbPATGeCj018IwKufVcgR4Ft9Fl london"];
+      }
+    ];
 
     # TODO: Switch with flake-compat?
     forEachSystem = f: lib.genAttrs systems (system: f pkgsFor.${system});
@@ -110,17 +115,25 @@
     #       ++ extraModules;
     #   };
   in {
+    inherit lib;
+
     nixosConfigurations = {
       # Main desktop
       makati = lib.nixosSystem {
-        modules = [./hosts/nixos-desktop];
-        specialArgs = {inherit inputs outputs;};
+        modules = [./hosts/nixos-desktop.nix];
+        specialArgs = {
+          inherit inputs outputs;
+          ssh-keys = ssh-keys;
+        };
       };
 
       # Qemu VMs
       qemu = lib.nixosSystem {
-        modules = [./hosts/nixos-qemu];
-        specialArgs = {inherit inputs outputs;};
+        modules = [./hosts/nixos-qemu.nix];
+        specialArgs = {
+          inherit inputs outputs;
+          ssh-keys = ssh-keys;
+        };
       };
     };
 
@@ -211,57 +224,5 @@
     #         ./makati-nixos/desk/hardware-configuration.nix
     #       ];
     #   };
-
-    #   nixos-qemu = nixpkgs.lib.nixosSystem {
-    #     system = "x86_64-linux";
-    #     specialArgs =
-    #       makati-base.specialArgs
-    #       // {
-    #         hostname = "makati-qemu";
-    #         vm = true;
-    #       };
-    #     modules =
-    #       makati-base.modules
-    #       ++ [
-    #         ./makati-nixos/vm/qemu-hardware-configuration.nix
-    #         {
-    #           # VM specific changes
-    #           # Bootloader.
-    #           boot.loader.systemd-boot.enable = true;
-    #           boot.loader.efi.canTouchEfiVariables = true;
-
-    #           boot.kernelPackages = nixpkgs.lib.mkForce pkgs.linuxPackages_6_1; # To fix an issue with ZFS compatibility
-    #           virtualisation.vmVariant = {
-    #             virtualisation = {
-    #               forwardPorts = [
-    #                 {
-    #                   from = "host";
-    #                   host.port = 2222;
-    #                   guest.port = 22;
-    #                 }
-    #               ];
-    #               qemu.options = [
-    #                 "-device virtio-vga-gl"
-    #                 "-display sdl,gl=on,show-cursor=off"
-    #                 "-audio pa,model=hda"
-    #                 "-m 16G"
-    #               ];
-    #             };
-    #             services.openssh = {
-    #               enable = true;
-    #               settings.PasswordAuthentication = true;
-    #               settings.PermitRootLogin = nixpkgs.lib.mkForce "yes";
-    #             };
-    #             # Won't be applied
-    #             environment.sessionVariables = {
-    #               WLR_NO_HARDWARE_CURSORS = "1";
-    #               WLR_RENDERER_ALLOW_SOFTWARE = "1";
-    #               # HYPRLAND_LOG_WLR = "1";
-    #             };
-    #           };
-    #         }
-    #       ];
-    #   };
-    # };
   };
 }
