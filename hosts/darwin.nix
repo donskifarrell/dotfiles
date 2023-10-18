@@ -1,8 +1,6 @@
 {
   pkgs,
   inputs,
-  homebrew-core,
-  homebrew-cask,
   ...
 }: let
   user = "df";
@@ -10,6 +8,8 @@
 in {
   _module.args.user = user;
   _module.args.hostname = hostname;
+
+  nixpkgs.hostPlatform = "aarch64-darwin";
 
   imports = [
     home-manager.darwinModules.home-manager
@@ -22,14 +22,15 @@ in {
     enable = true;
     user = "${user}";
     taps = {
-      "homebrew/homebrew-core" = homebrew-core;
-      "homebrew/homebrew-cask" = homebrew-cask;
+      "homebrew/homebrew-core" = inputs.homebrew-core;
+      "homebrew/homebrew-cask" = inputs.homebrew-cask;
     };
     mutableTaps = false;
     autoMigrate = true;
   };
 
-  imports = [ <home-manager/nix-darwin> ];
+  services.nix-daemon.enable = true;
+  nix.package = pkgs.nix;
 
   users.users.${user} = {
     name = "${user}";

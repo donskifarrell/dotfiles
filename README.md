@@ -74,6 +74,11 @@ gtk-application-prefer-dark-theme=0
 
 1. curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
 
+2. nix run nix-darwin -- switch --flake ~/.config/nix-darwin
+
+3. darwin-rebuild switch --flake ~/.config/nix-darwin
+
+
 
 
 
