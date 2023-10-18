@@ -15,6 +15,7 @@ in {
     inputs.hardware.nixosModules.common-pc-ssd
 
     agenix.nixosModules.default
+    home-manager.nixosModules.home-manager
 
     ./hardware/desktop.nix
 
@@ -108,12 +109,16 @@ in {
     fish.enable = true;
   };
 
-  home-manager.nixosModules.home-manager = {
-    home-manager.useGlobalPkgs = true;
-    home-manager.useUserPackages = true;
-    home-manager.users.${user} = import [
-      ./home-manager
-    ];
+  home-manager = {
+    useGlobalPkgs = true;
+    useUserPackages = true;
+    users.${user} = { pkgs, …}: {
+      imports = [
+        
+      ]
+
+      # home.packages = [ pkgs.btop ];
+    };
   };
 
   environment.systemPackages = let
