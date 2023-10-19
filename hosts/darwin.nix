@@ -42,6 +42,9 @@ in {
     useGlobalPkgs = true;
     useUserPackages = true;
     users.${user} = {pkgs, ...}: {
+      _module.args.user = user;
+      _module.args.hostname = hostname;
+
       imports = [
         ./home-manager
         ./home-manager/alacritty.nix
@@ -55,7 +58,7 @@ in {
       ];
 
       home.packages = let
-        pkgSets = import ./home-manager/packages.nix;
+        pkgSets = import ./home-manager/packages.nix {inherit pkgs;};
       in
         pkgSets.essentials-utils
         ++ pkgSets.essentials-dev

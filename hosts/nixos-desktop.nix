@@ -25,13 +25,13 @@ in {
 
     ./modules/fonts.nix
     ./modules/gnome.nix
-    # ./modules/hyprland.nix
     ./modules/i18n.nix
     ./modules/sound.nix
     ./modules/ssh.nix
     ./modules/sudo.nix
     ./modules/xdg.nix
     ./modules/xserver.nix
+    # ./modules/hyprland.nix
   ];
 
   system.stateVersion = "23.05"; # Don't change this
@@ -89,10 +89,10 @@ in {
       initialHashedPassword = "";
       description = "${user}@${hostname}";
       extraGroups = [
-        "wheel" # Enable ‘sudo’ for the user.
         "docker"
-        "networkmanager"
         "libvirtd"
+        "networkmanager"
+        "wheel" # Enable ‘sudo’ for the user.
       ];
       shell = pkgs.fish;
       openssh.authorizedKeys.keys = ssh-keys;
@@ -113,6 +113,9 @@ in {
     useGlobalPkgs = true;
     useUserPackages = true;
     users.${user} = {pkgs, ...}: {
+      _module.args.user = user;
+      _module.args.hostname = hostname;
+
       imports = [
         ./home-manager
         ./home-manager/alacritty.nix
@@ -126,7 +129,7 @@ in {
       ];
 
       home.packages = let
-        pkgSets = import ./home-manager/packages.nix;
+        pkgSets = import ./home-manager/packages.nix {inherit pkgs;};
       in
         pkgSets.essentials-utils
         ++ pkgSets.essentials-dev
@@ -136,22 +139,19 @@ in {
     };
   };
 
-  environment.systemPackages = let
-    themes = pkgs.callPackage ./config/sddm-themes.nix {};
-  in [
+  environment.systemPackages = [
+    agenix.packages."${pkgs.system}".default # "x86_64-linux"
+
+    pkgs.archiver
+    pkgs.curl
+    pkgs.foot
     pkgs.gitAndTools.gitFull
     pkgs.inetutils
+    pkgs.libinput
+    pkgs.libnotify
     pkgs.micro
     pkgs.p7zip
-    pkgs.curl
-
-    agenix.packages."${pkgs.system}".default # "x86_64-linux"
-    pkgs.archiver
-    pkgs.foot
     pkgs.wev
     pkgs.wlr-randr
-    pkgs.libnotify
-    pkgs.libinput
-    themes.sddm-catppuccin-frappe
   ];
 }

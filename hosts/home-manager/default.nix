@@ -2,6 +2,8 @@
   # Shared shell configuration
   # Smaller configs go here for now
 
+  home.stateVersion = "23.05";
+
   programs.bat.enable = true;
 
   programs.exa.enable = true;
