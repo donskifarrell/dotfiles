@@ -10,12 +10,12 @@ in {
   _module.args.user = user;
 
   imports = [
-    inputs.hardware.nixosModules.common-cpu-amd
-    inputs.hardware.nixosModules.common-gpu-amd
-    inputs.hardware.nixosModules.common-pc-ssd
+    inputs.nixos-hardware.nixosModules.common-cpu-amd
+    inputs.nixos-hardware.nixosModules.common-gpu-amd
+    inputs.nixos-hardware.nixosModules.common-pc-ssd
 
-    agenix.nixosModules.default
-    home-manager.nixosModules.home-manager
+    inputs.agenix.nixosModules.default
+    inputs.home-manager.nixosModules.home-manager
 
     ./hardware/desktop.nix
 
@@ -140,7 +140,7 @@ in {
   };
 
   environment.systemPackages = [
-    agenix.packages."${pkgs.system}".default # "x86_64-linux"
+    inputs.agenix.packages."${pkgs.system}".default # "x86_64-linux"
 
     pkgs.archiver
     pkgs.curl

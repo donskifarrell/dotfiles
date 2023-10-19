@@ -12,8 +12,8 @@ in {
   nixpkgs.hostPlatform = "aarch64-darwin";
 
   imports = [
-    home-manager.darwinModules.home-manager
-    nix-homebrew.darwinModules.nix-homebrew
+    inputs.home-manager.darwinModules.home-manager
+    inputs.nix-homebrew.darwinModules.nix-homebrew
 
     ./modules/nix.nix
   ];
@@ -39,6 +39,9 @@ in {
   };
 
   home-manager = {
+    # Different location on OSX
+    homeDirectory = pkgs.lib.mkForce "/Users/${config.home.username}";
+
     useGlobalPkgs = true;
     useUserPackages = true;
     users.${user} = {pkgs, ...}: {

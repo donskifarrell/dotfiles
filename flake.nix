@@ -21,6 +21,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     nurl.url = "github:nix-community/nurl";
+    nix-vscode-extensions.url = "github:nix-community/nix-vscode-extensions";
 
     # NIXOS
     nixos-hardware.url = "github:NixOS/nixos-hardware";
@@ -55,6 +56,7 @@
     nixpkgs-stable,
     utils,
     agenix,
+    nix-vscode-extensions,
     # secrets,
     home-manager,
     nurl,
