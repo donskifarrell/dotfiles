@@ -54,6 +54,42 @@
             "editor.formatOnType": false,
             "enableLanguageServer": true
           },
+          "[typescript]": {
+            "editor.defaultFormatter": "esbenp.prettier-vscode"
+          },
+          "[typescriptreact]": {
+            "editor.defaultFormatter": "esbenp.prettier-vscode"
+          },
+          "alejandra.program": "alejandra",
+          "diffEditor.ignoreTrimWhitespace": false,
+          "editor.bracketPairColorization.enabled": true,
+          "editor.fontFamily": "JetBrainsMono Nerd Font, 'Droid Sans Mono', 'monospace', monospace",
+          "editor.fontLigatures": true,
+          "editor.formatOnSave": true,
+          "editor.linkedEditing": true,
+          "editor.tabSize": 2,
+          "editor.unicodeHighlight": {
+            "includeStrings": false
+          },
+          "editor.wordWrap": "on",
+          "explorer.confirmDelete": false,
+          "files": {
+            "associations": {
+              "*.tmpl": "html"
+            },
+            "encoding": "utf8",
+            "eol": "\n",
+            "insertFinalNewline": true,
+            "trimTrailingWhitespace": true
+          },
+          "git.confirmSync": false,
+          "go": {
+            "formatTool": "gofmt",
+            "toolsManagement": {
+              "autoUpdate": true
+            }
+          },
+          "html.format.enable": false,
           "nix": {
             "serverPath": "nil",
             "serverSettings": {
@@ -64,51 +100,15 @@
               }
             }
           },
-          "[typescript]": {
-            "editor.defaultFormatter": "esbenp.prettier-vscode"
-          },
-          "[typescriptreact]": {
-            "editor.defaultFormatter": "esbenp.prettier-vscode"
-          },
-            "editor.wordWrap": "on",
-            "editor.linkedEditing": true,
-            "editor.formatOnSave": true,
-            "editor.bracketPairColorization.enabled": true,
-            "editor.unicodeHighlight": {
-              "includeStrings": false
-            },
-            "editor.tabSize": 2,
-            "editor.fontLigatures": true,
-            "editor.fontFamily": "JetBrainsMono Nerd Font, 'Droid Sans Mono', 'monospace', monospace",
-          "alejandra.program": "alejandra",
-          "diffEditor.ignoreTrimWhitespace": false,
-          "explorer.confirmDelete": false,
-          "files": {
-            "trimTrailingWhitespace": true,
-            "insertFinalNewline": true,
-            "encoding": "utf8",
-            "eol": "\n",
-            "associations": {
-              "*.tmpl": "html"
-            }
-          },
-          "git.confirmSync": false,
-          "go": {
-            "toolsManagement": {
-              "autoUpdate": true
-            },
-            "formatTool": "gofmt"
-          },
-          "html.format.enable": false,
           "redhat.telemetry.enabled": false,
-          "remote.SSH.configFile": "/home/df/.ssh/sshconfig.local",
-          "shellformat.path": "/etc/profiles/per-user/df/bin/shfmt",
           "vetur.format.defaultFormatter.html": "none",
           "workbench": {
-            "iconTheme": "catppuccin-macchiato",
-            "colorTheme": "Catppuccin Macchiato"
-          }
+            "colorTheme": "Catppuccin Macchiato",
+            "iconTheme": "catppuccin-macchiato"
+          },
+          "workbench.iconTheme": "catppuccin-macchiato"
         }
+
       ''
       // {
         "shellformat.path" = lib.mkMerge [
