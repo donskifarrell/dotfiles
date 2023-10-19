@@ -8,6 +8,10 @@
 
       # Workaround fix: https://github.com/nix-community/home-manager/issues/2942
       allowUnfreePredicate = pkg: true;
+
+      permittedInsecurePackages = [
+        "openssl-1.1.1w" # For Sublime4 install: https://github.com/NixOS/nixpkgs/issues/239615
+      ];
     };
 
     overlays =
