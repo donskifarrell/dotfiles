@@ -3,7 +3,7 @@
   lib,
   ...
 }: {
-  git = {
+  programs.git = {
     enable = true;
 
     delta = {

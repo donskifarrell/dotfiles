@@ -5,7 +5,7 @@
   hostname,
   ...
 }: {
-  fish = {
+  programs.fish = {
     enable = true;
 
     shellAbbrs = {

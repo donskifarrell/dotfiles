@@ -4,7 +4,7 @@
   user,
   ...
 }: {
-  vscode = {
+  programs.vscode = {
     enable = true;
     mutableExtensionsDir = true;
 

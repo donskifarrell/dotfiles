@@ -4,7 +4,7 @@
   user,
   ...
 }: {
-  alacritty = {
+  programs.alacritty = {
     enable = true;
 
     settings = {

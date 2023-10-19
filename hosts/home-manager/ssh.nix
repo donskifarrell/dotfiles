@@ -3,7 +3,7 @@
   lib,
   ...
 }: {
-  ssh = {
+  programs.ssh = {
     enable = true;
 
     # includes = ["~/.ssh/sshconfig.local"];

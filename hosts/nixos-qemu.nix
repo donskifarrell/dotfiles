@@ -12,6 +12,8 @@ in {
   _module.args.user = user;
 
   imports = [
+    inputs.home-manager.nixosModules.home-manager
+
     ./hardware/qemu.nix
 
     ./modules/nix.nix
@@ -103,13 +105,28 @@ in {
     fish.enable = true;
   };
 
-  # home-manager.nixosModules.home-manager = {
-  #   home-manager.useGlobalPkgs = true;
-  #   home-manager.useUserPackages = true;
-  #   home-manager.users.${user} = import [
-  #     ./home-manager
-  #   ];
-  # };
+  home-manager = {
+    useGlobalPkgs = true;
+    useUserPackages = true;
+    users.${user} = {pkgs, ...}: {
+      imports = [
+        ./home-manager
+        ./home-manager/fish.nix
+        ./home-manager/git.nix
+        ./home-manager/neovim.nix
+        ./home-manager/ssh.nix
+        ./home-manager/starship.nix
+        ./home-manager/tmux.nix
+      ];
+
+      home.packages = let
+        pkgSets = import ./home-manager/packages.nix;
+      in
+        pkgSets.essentials-utils
+        ++ pkgSets.essentials-dev
+        ++ pkgSets.nixos;
+    };
+  };
 
   environment.systemPackages = with pkgs; [
     gitAndTools.gitFull

@@ -1,19 +1,19 @@
-{...}: {
+{pkgs, ...}: {
   # Shared shell configuration
   # Smaller configs go here for now
 
-  bat.enable = true;
+  programs.bat.enable = true;
 
-  exa.enable = true;
+  programs.exa.enable = true;
 
-  fzf.enable = true;
+  programs.fzf.enable = true;
 
-  zoxide = {
+  programs.zoxide = {
     enable = true;
     enableFishIntegration = true;
   };
 
-  go = {
+  programs.go = {
     enable = true;
     package = pkgs.go;
     goPath = "go";

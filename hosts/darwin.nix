@@ -36,12 +36,12 @@ in {
   users.users.${user} = {
     name = "${user}";
     home = "/User/${user}";
-  }
+  };
 
   home-manager = {
     useGlobalPkgs = true;
     useUserPackages = true;
-    users.${user} = { pkgs, …}: {
+    users.${user} = {pkgs, ...}: {
       imports = [
         ./home-manager
         ./home-manager/alacritty.nix
@@ -54,11 +54,13 @@ in {
         ./home-manager/vscode.nix
       ];
 
-      home.packages = let pkgSets = import ./home-manager/packages.nix; in
+      home.packages = let
+        pkgSets = import ./home-manager/packages.nix;
+      in
         pkgSets.essentials-utils
         ++ pkgSets.essentials-dev
         ++ pkgSets.essentials-gui
-        ++ pkgSets.osx
+        ++ pkgSets.osx;
     };
-  }
+  };
 }

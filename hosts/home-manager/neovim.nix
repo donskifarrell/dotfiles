@@ -4,7 +4,7 @@
   user,
   ...
 }: {
-  neovim = {
+  programs.neovim = {
     enable = true;
 
     # extraConfig = builtins.concatStringsSep "\n" [

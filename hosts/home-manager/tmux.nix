@@ -4,7 +4,7 @@
   user,
   ...
 }: {
-  tmux = {
+  programs.tmux = {
     enable = true;
     shortcut = "a";
     terminal = "screen-256color";

@@ -112,7 +112,7 @@ in {
   home-manager = {
     useGlobalPkgs = true;
     useUserPackages = true;
-    users.${user} = { pkgs, …}: {
+    users.${user} = {pkgs, ...}: {
       imports = [
         ./home-manager
         ./home-manager/alacritty.nix
@@ -125,14 +125,16 @@ in {
         ./home-manager/vscode.nix
       ];
 
-      home.packages = let pkgSets = import ./home-manager/packages.nix; in
+      home.packages = let
+        pkgSets = import ./home-manager/packages.nix;
+      in
         pkgSets.essentials-utils
         ++ pkgSets.essentials-dev
         ++ pkgSets.essentials-gui
         ++ pkgSets.nixos
-        ++ pkgSets.nixos-gnome
+        ++ pkgSets.nixos-gnome;
     };
-  }
+  };
 
   environment.systemPackages = let
     themes = pkgs.callPackage ./config/sddm-themes.nix {};
