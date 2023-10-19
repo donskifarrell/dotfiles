@@ -72,6 +72,7 @@ gtk-application-prefer-dark-theme=0
 ```
 
 # OSX
+1. rename to `manila`
 
 1. curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
 

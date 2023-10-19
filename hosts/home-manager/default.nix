@@ -1,5 +1,5 @@
 {pkgs, ...}: {
-  # Shared shell configuration
+  # Shared home-manager configuration
   # Smaller configs go here for now
 
   home.stateVersion = "23.05";

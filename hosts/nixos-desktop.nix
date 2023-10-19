@@ -28,6 +28,7 @@ in {
     ./modules/nixos-label.nix
     ./modules/nixpkgs.nix
 
+    ./modules
     ./modules/fonts.nix
     ./modules/gnome.nix
     ./modules/i18n.nix

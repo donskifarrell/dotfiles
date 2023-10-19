@@ -18,6 +18,8 @@ in {
     inputs.nix-homebrew.darwinModules.nix-homebrew
 
     ./modules/nix.nix
+
+    ./modules
   ];
 
   nix-homebrew = {
@@ -42,7 +44,7 @@ in {
 
   home-manager = {
     # Different location on OSX
-    homeDirectory = pkgs.lib.mkForce "/Users/${config.home.username}";
+    homeDirectory = pkgs.lib.mkForce "/Users/${user}";
 
     useGlobalPkgs = true;
     useUserPackages = true;

@@ -24,6 +24,7 @@ in {
     ./modules/nixos-label.nix
     ./modules/nixpkgs.nix
 
+    ./modules
     ./modules/i18n.nix
     ./modules/ssh.nix
     ./modules/sudo.nix

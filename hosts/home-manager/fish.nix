@@ -16,8 +16,11 @@
       "..." = "cd ../..";
 
       # TODO: Drop tail makati
-      hm-switch = "home-manager switch --flake $HOME/.dotfiles/makati/#${user}@${hostname}";
+      hm-switch = "home-manager switch --flake $HOME/.dotfiles/makati";
       fnix-shell = "nix-shell --run fish";
+
+      brew = "/opt/homebrew/bin/brew";
+      dprune = "docker system prune --volumes -fa";
 
       k = "kubectl";
       kctx = "kubectx";
@@ -132,8 +135,12 @@
       set -Ux FORGIT_LOG_FZF_OPTS "--reverse"
       set -Ux FORGIT_GLO_FORMAT "%C(auto)%h%d %s %C(blue)%an %C(green)%C(bold)%cr"
 
+      # TODO: Setup GOBIN elswhere, also define $HOME
       # set GOBIN "$HOME/go/bin"
       # fish_add_path -pmP $HOME/go/bin
+
+      # TODO: Add brew to path if darwin
+      # fish_add_path -pmP /opt/homebrew/bin
     '';
 
     plugins = [

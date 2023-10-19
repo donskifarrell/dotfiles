@@ -90,6 +90,9 @@
       merge = {conflictstyle = "diff3";};
       diff = {colorMoved = "default";};
       url = {"git@github.com:" = {insteadOf = "https://github.com/";};};
+      
+      # TODO: What is the linux equivalent of osxkeychain?
+      # (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin {credential = {helper = "osxkeychain";};});
     };
     lfs = {
       enable = true;
