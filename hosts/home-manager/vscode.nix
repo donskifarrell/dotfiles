@@ -108,7 +108,6 @@
           },
           "workbench.iconTheme": "catppuccin-macchiato"
         }
-
       ''
       // {
         "shellformat.path" = lib.mkMerge [
@@ -118,6 +117,10 @@
         "remote.SSH.configFile" = lib.mkMerge [
           (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "/home/${user}/.ssh/sshconfig.local")
           (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/Users/${user}/.ssh/sshconfig.local")
+        ];
+        "window.zoomLevel" = lib.mkMerge [
+          (lib.mkIf pkgs.stdenv.hostPlatform.isLinux 1)
+          (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin 0)
         ];
       };
   };
