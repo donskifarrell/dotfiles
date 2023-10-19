@@ -8,8 +8,11 @@
 }: let
   user = "df";
   hostname = "makati";
+  system = "x86_64-linux";
 in {
   _module.args.user = user;
+  _module.args.hostname = hostname;
+  _module.args.system = system;
 
   imports = [
     inputs.nixos-hardware.nixosModules.common-cpu-amd
@@ -114,9 +117,14 @@ in {
   home-manager = {
     useGlobalPkgs = true;
     useUserPackages = true;
+    extraSpecialArgs = {
+      inherit inputs;
+    };
+
     users.${user} = {pkgs, ...}: {
       _module.args.user = user;
       _module.args.hostname = hostname;
+      _module.args.system = system;
 
       imports = [
         ./home-manager

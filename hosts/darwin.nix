@@ -5,11 +5,13 @@
 }: let
   user = "df";
   hostname = "manila";
+  system = "aarch64-darwin";
 in {
   _module.args.user = user;
   _module.args.hostname = hostname;
+  _module.args.system = system;
 
-  nixpkgs.hostPlatform = "aarch64-darwin";
+  nixpkgs.hostPlatform = system;
 
   imports = [
     inputs.home-manager.darwinModules.home-manager
@@ -44,9 +46,14 @@ in {
 
     useGlobalPkgs = true;
     useUserPackages = true;
+    extraSpecialArgs = {
+      inherit inputs;
+    };
+
     users.${user} = {pkgs, ...}: {
       _module.args.user = user;
       _module.args.hostname = hostname;
+      _module.args.system = system;
 
       imports = [
         ./home-manager
