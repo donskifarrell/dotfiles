@@ -9,8 +9,8 @@
       experimental-features = ["nix-command" "flakes" "repl-flake"];
       warn-dirty = false;
 
-      allowed-users = ["${user}"];
-      trusted-users = ["${user}"];
+      allowed-users = ["root" "${user}"];
+      trusted-users = ["root" "${user}"];
 
       substituters = [
         "https://hyprland.cachix.org"
@@ -25,7 +25,6 @@
 
     gc = {
       automatic = true;
-      dates = "weekly";
       options = "--delete-older-than 1w";
     };
   };

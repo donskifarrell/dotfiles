@@ -74,7 +74,13 @@ gtk-application-prefer-dark-theme=0
 # OSX
 1. rename to `manila`
 
+softwareupdate --install-rosetta --agree-to-license
+
 1. curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
+
+sudo mv /etc/nix/nix.conf /etc/nix/nix.conf.before-nix-darwin
+nix --extra-experimental-features "nix-command flakes auto-allocate-uids" run nix-darwin -- switch --flake ~/.dotfiles/#manila
+sudo mv /etc/nix/nix.conf.before-nix-darwin /etc/nix/nix.conf
 
 2. nix run nix-darwin -- switch --flake ~/.config/nix-darwin
 

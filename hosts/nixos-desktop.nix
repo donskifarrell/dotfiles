@@ -139,12 +139,14 @@ in {
         ./home-manager/vscode.nix
       ];
 
+      home.homeDirectory = pkgs.lib.mkForce "/home/${user}";
+
       home.packages = let
         pkgSets = import ./home-manager/packages.nix {inherit pkgs;};
       in
         pkgSets.essentials-utils
         ++ pkgSets.essentials-dev
-        ++ pkgSets.essentials-gui
+        ++ pkgSets.essentials-x86-gui
         ++ pkgSets.nixos
         ++ pkgSets.nixos-gnome;
     };

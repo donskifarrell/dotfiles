@@ -131,6 +131,8 @@ in {
         ./home-manager/starship.nix
         ./home-manager/tmux.nix
       ];
+      
+      home.homeDirectory = pkgs.lib.mkForce "/home/${user}";
 
       home.packages = let
         pkgSets = import ./home-manager/packages.nix {inherit pkgs;};

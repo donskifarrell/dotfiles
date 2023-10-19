@@ -4,6 +4,8 @@
 
   home.stateVersion = "23.05";
 
+  fonts.fontconfig.enable = true;
+
   programs.bat.enable = true;
 
   programs.exa.enable = true;

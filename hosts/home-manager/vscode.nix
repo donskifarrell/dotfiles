@@ -52,7 +52,9 @@
             "editor.formatOnPaste": true,
             "editor.formatOnSave": true,
             "editor.formatOnType": false,
-            "enableLanguageServer": true,
+            "enableLanguageServer": true
+          },
+          "nix": {
             "serverPath": "nil",
             "serverSettings": {
               "nil": {
@@ -68,18 +70,16 @@
           "[typescriptreact]": {
             "editor.defaultFormatter": "esbenp.prettier-vscode"
           },
-          "editor": {
-            "wordWrap": "on",
-            "linkedEditing": true,
-            "formatOnSave": true,
-            "bracketPairColorization.enabled": true,
-            "unicodeHighlight": {
+            "editor.wordWrap": "on",
+            "editor.linkedEditing": true,
+            "editor.formatOnSave": true,
+            "editor.bracketPairColorization.enabled": true,
+            "editor.unicodeHighlight": {
               "includeStrings": false
             },
-            "tabSize": 2,
-            "fontLigatures": true,
-            "fontFamily": "JetBrainsMono Nerd Font, 'Droid Sans Mono', 'monospace', monospace"
-          },
+            "editor.tabSize": 2,
+            "editor.fontLigatures": true,
+            "editor.fontFamily": "JetBrainsMono Nerd Font, 'Droid Sans Mono', 'monospace', monospace",
           "alejandra.program": "alejandra",
           "diffEditor.ignoreTrimWhitespace": false,
           "explorer.confirmDelete": false,
@@ -104,7 +104,6 @@
           "remote.SSH.configFile": "/home/df/.ssh/sshconfig.local",
           "shellformat.path": "/etc/profiles/per-user/df/bin/shfmt",
           "vetur.format.defaultFormatter.html": "none",
-          "window.zoomLevel": -2,
           "workbench": {
             "iconTheme": "catppuccin-macchiato",
             "colorTheme": "Catppuccin Macchiato"

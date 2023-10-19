@@ -18,21 +18,45 @@ in {
     inputs.nix-homebrew.darwinModules.nix-homebrew
 
     ./modules/nix.nix
+    ./modules/nixpkgs.nix
 
     ./modules
   ];
 
   nix-homebrew = {
     enable = true;
-    user = "${user}";
-    taps = {
-      "homebrew/homebrew-core" = inputs.homebrew-core;
-      "homebrew/homebrew-cask" = inputs.homebrew-cask;
-    };
-    mutableTaps = false;
+    enableRosetta = true;
     autoMigrate = true;
-    cleanup = "uninstall";
+    mutableTaps = true;
+    user = "${user}";
+    # taps = with inputs; {
+    #   "homebrew/homebrew-core" = homebrew-core;
+    #   "homebrew/homebrew-cask" = homebrew-cask;
+    # };
   };
+  homebrew = {
+    enable = true;
+
+    onActivation = {
+      cleanup = "uninstall";
+      autoUpdate = true;
+      upgrade = false;
+    };
+
+    global.autoUpdate = false;
+
+    masApps = {
+    };
+
+    brews = [
+    ];
+
+    caskArgs.no_quarantine = true;
+
+    casks = [
+    ];
+  };
+
 
   services.nix-daemon.enable = true;
   nix.package = pkgs.nix;
@@ -43,9 +67,6 @@ in {
   };
 
   home-manager = {
-    # Different location on OSX
-    homeDirectory = pkgs.lib.mkForce "/Users/${user}";
-
     useGlobalPkgs = true;
     useUserPackages = true;
     extraSpecialArgs = {
@@ -69,12 +90,14 @@ in {
         ./home-manager/vscode.nix
       ];
 
+      # Different location on OSX
+      home.homeDirectory = pkgs.lib.mkForce "/Users/${user}";
+
       home.packages = let
         pkgSets = import ./home-manager/packages.nix {inherit pkgs;};
       in
         pkgSets.essentials-utils
         ++ pkgSets.essentials-dev
-        ++ pkgSets.essentials-gui
         ++ pkgSets.osx;
     };
   };

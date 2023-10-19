@@ -51,7 +51,7 @@
     statix
   ];
 
-  essentials-gui = with pkgs; [
+  essentials-x86-gui = with pkgs; [
     _1password
     _1password-gui
     brave
