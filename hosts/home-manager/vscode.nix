@@ -4,6 +4,7 @@
   lib,
   user,
   system,
+  homeDir,
   ...
 }: {
   programs.vscode = let
@@ -101,6 +102,7 @@
             }
           },
           "redhat.telemetry.enabled": false,
+          "remote.SSH.configFile": "${homeDir}/.ssh/sshconfig.local",
           "vetur.format.defaultFormatter.html": "none",
           "workbench": {
             "colorTheme": "Catppuccin Macchiato",
@@ -113,10 +115,6 @@
         "shellformat.path" = lib.mkMerge [
           (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "/etc/profiles/per-user/${user}/bin/shfmt")
           (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/Users/${user}/.nix-profile/bin/shfmt")
-        ];
-        "remote.SSH.configFile" = lib.mkMerge [
-          (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "/home/${user}/.ssh/sshconfig.local")
-          (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/Users/${user}/.ssh/sshconfig.local")
         ];
         "window.zoomLevel" = lib.mkMerge [
           (lib.mkIf pkgs.stdenv.hostPlatform.isLinux 1)

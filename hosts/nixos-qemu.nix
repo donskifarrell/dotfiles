@@ -121,6 +121,8 @@ in {
       _module.args.user = user;
       _module.args.hostname = hostname;
       _module.args.system = system;
+      _module.args.homeDir = "/home/${user}";
+      _module.args.configDir = "/home/${user}/.config";
 
       imports = [
         ./home-manager
@@ -131,7 +133,7 @@ in {
         ./home-manager/starship.nix
         ./home-manager/tmux.nix
       ];
-      
+
       home.homeDirectory = pkgs.lib.mkForce "/home/${user}";
 
       home.packages = let

@@ -75,6 +75,12 @@ in {
     gvfs.enable = true; # Mount, trash, and other functionalities
     tumbler.enable = true; # Thumbnail support for images
     dbus.enable = true;
+
+    # TODO: what is this option?
+    # udiskie.enable = true; # Auto mount devices
+
+    # TODO: media keys
+    # playerctld.enable = true;
   };
 
   hardware = {
@@ -126,6 +132,8 @@ in {
       _module.args.user = user;
       _module.args.hostname = hostname;
       _module.args.system = system;
+      _module.args.homeDir = "/home/${user}";
+      _module.args.configDir = "/home/${user}/.config";
 
       imports = [
         ./home-manager

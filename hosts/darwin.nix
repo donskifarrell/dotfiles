@@ -57,7 +57,6 @@ in {
     ];
   };
 
-
   services.nix-daemon.enable = true;
   nix.package = pkgs.nix;
 
@@ -77,6 +76,8 @@ in {
       _module.args.user = user;
       _module.args.hostname = hostname;
       _module.args.system = system;
+      _module.args.homeDir = "/Users/${user}";
+      _module.args.configDir = "/Users/${user}/.config";
 
       imports = [
         ./home-manager

@@ -3,8 +3,17 @@
   lib,
   user,
   hostname,
+  homeDir,
+  configDir,
   ...
 }: {
+  home = {
+    file."fish-catppuccin-macchiato" = {
+      source = "${homeDir}/.dotfiles/hosts/config/theme/fish-catppuccin-macchiato.theme";
+      target = "${configDir}/fish/themes/fish-catppuccin-macchiato.theme";
+    };
+  };
+
   programs.fish = {
     enable = true;
 

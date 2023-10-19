@@ -1,6 +1,8 @@
 {
   pkgs,
   lib,
+  homeDir,
+  configDir,
   ...
 }: {
   nixpkgs = {
@@ -14,14 +16,9 @@
   };
 
   home = {
-    sessionVariables = {
-      XDG_CONFIG_HOME = "${XDG_CONFIG_HOME}";
-    };
-
     file."waybar" = {
-      # TODO: Fix directory
-      source = "/home/${user}/.dotfiles/makati-nixos/config/waybar";
-      target = "${XDG_CONFIG_HOME}/waybar";
+      source = "${homeDir}/.dotfiles/hosts/config/waybar";
+      target = "${configDir}/waybar";
     };
   };
 
