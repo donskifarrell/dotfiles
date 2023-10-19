@@ -8,7 +8,7 @@
 
   programs.bat.enable = true;
 
-  programs.exa.enable = true;
+  programs.eza.enable = true;
 
   programs.fzf.enable = true;
 

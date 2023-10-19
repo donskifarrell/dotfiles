@@ -9,7 +9,7 @@
     enable = true;
 
     shellAbbrs = {
-      tree = "exa --all --tree --long --color=automatic --level=2";
+      tree = "eza --all --tree --long --color=automatic --level=2";
       h = "cd ~";
       "-" = "cd -";
       ".." = "cd ..";
@@ -43,9 +43,9 @@
       tn = "tmux new-session"; # Creates a new session
       tl = "tmux list-sessions"; # Lists all ongoing sessions
 
-      ls = "exa --git --color=automatic";
-      ll = "exa --all --long --git --color=automatic";
-      la = "exa --all --binary --group --header --long --git --color=automatic";
+      ls = "eza --git --color=automatic";
+      ll = "eza --all --long --git --color=automatic";
+      la = "eza --all --binary --group --header --long --git --color=automatic";
       l = "la";
 
       # See forgit - https://github.com/wfxr/forgit
