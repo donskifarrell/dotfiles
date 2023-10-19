@@ -1,5 +1,7 @@
 {
   pkgs,
+  lib,
+  nixpkgs,
   inputs,
   ssh-keys,
   ...

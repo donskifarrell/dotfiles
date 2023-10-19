@@ -1,7 +1,12 @@
-{pkgs, nixpkgs, ...}: {
+{
+  pkgs,
+  nixpkgs,
+  inputs,
+  ...
+}: {
   nixpkgs.overlays = [
     (self: super: {
-      gnome = gnomeNixpkgs.legacyPackages.x86_64-linux.gnome;
+      gnome = inputs.gnomeNixpkgs.legacyPackages.x86_64-linux.gnome;
     })
   ];
 
