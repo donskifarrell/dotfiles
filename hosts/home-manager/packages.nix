@@ -48,6 +48,7 @@
     nodejs
     nodePackages_latest.pnpm
     shfmt
+    statix
   ];
 
   essentials-gui = with pkgs; [

@@ -34,7 +34,7 @@ in {
     ./modules/sound.nix
     ./modules/ssh.nix
     ./modules/sudo.nix
-    ./modules/xdg.nix
+    # ./modules/xdg.nix
     ./modules/xserver.nix
     # ./modules/hyprland.nix
   ];

@@ -20,30 +20,6 @@
   nixpkgs.config.allowUnfreePredicate = pkg: true;
   fonts.fontconfig.enable = true;
 
-  home = {
-    # Different location on OSX
-    homeDirectory = pkgs.lib.mkForce "/Users/${config.home.username}";
-
-    packages = with pkgs; [
-      ffmpeg
-      go
-      gopls
-      (google-cloud-sdk.withExtraComponents [google-cloud-sdk.components.gke-gcloud-auth-plugin])
-      kubectl
-      kubectx
-      (nerdfonts.override {fonts = ["JetBrainsMono"];})
-      git-filter-repo
-      nodejs
-      nodePackages_latest.pnpm
-    ];
-  };
-
-  programs.go = {
-    enable = true;
-    package = pkgs.go;
-    goPath = "go";
-  };
-
   programs.vscode = {
     enable = true;
     mutableExtensionsDir = true;
