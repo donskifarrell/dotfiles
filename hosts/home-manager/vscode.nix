@@ -1,82 +1,125 @@
 {
   pkgs,
+  inputs,
   lib,
   user,
+  system,
   ...
 }: {
-  programs.vscode = {
+  programs.vscode = let
+    vscode-marketplace = inputs.nix-vscode-extensions.extensions.${system}.vscode-marketplace;
+  in {
     enable = true;
     mutableExtensionsDir = true;
 
-    extensions = with pkgs.vscode-extensions; [
-      golang.go
-      kamadorueda.alejandra
-      bbenoist.nix
+    extensions = with vscode-marketplace; [
+      bradlc.vscode-tailwindcss
+      catppuccin.catppuccin-vsc
+      catppuccin.catppuccin-vsc-icons
+      dbaeumer.vscode-eslint
+      donjayamanne.githistory
+      esbenp.prettier-vscode
       formulahendry.auto-close-tag
       formulahendry.auto-rename-tag
-      tamasfe.even-better-toml
-      dbaeumer.vscode-eslint
-      hashicorp.terraform
-      esbenp.prettier-vscode
-      ms-vscode-remote.remote-ssh
       foxundermoon.shell-format
-      bradlc.vscode-tailwindcss
+      golang.go
+      hashicorp.terraform
+      jgclark.vscode-todo-highlight
+      jnoortheen.nix-ide
+      jock.svg
+      kamadorueda.alejandra
+      ms-vscode-remote.remote-ssh
       redhat.vscode-yaml
       streetsidesoftware.code-spell-checker
-      donjayamanne.githistory
-      jock.svg
-      catppuccin.catppuccin-vsc
-
-      # Not on nixpkgs yet:
-      # wayou.vscode-todo-highlight
-      # Catppuccin.catppuccin-vsc-icons
-      # vscode-icons-team.vscode-icons
-      # waderyan.gitblame
+      tamasfe.even-better-toml
+      waderyan.gitblame
     ];
 
-    userSettings = {
-      "window.zoomLevel" = -2;
-      "alejandra.program" = "alejandra";
-      "diffEditor.ignoreTrimWhitespace" = false;
-      "editor.wordWrap" = "on";
-      "editor.linkedEditing" = true;
-      "editor.formatOnSave" = true;
-      "editor.bracketPairColorization.enabled" = true;
-      "editor.unicodeHighlight.includeStrings" = false;
-      "editor.tabSize" = 2;
-      "editor.fontLigatures" = true;
-      "editor.fontFamily" = "JetBrainsMono Nerd Font, 'Droid Sans Mono', 'monospace', monospace";
-      "explorer.confirmDelete" = false;
-      "files.trimTrailingWhitespace" = true;
-      "files.insertFinalNewline" = true;
-      "files.encoding" = "utf8";
-      "files.eol" = "\n";
-      "git.confirmSync" = false;
-      "go.toolsManagement.autoUpdate" = true;
-      "go.formatTool" = "gofmt";
-      "html.format.enable" = false;
-      "[html]"."editor.defaultFormatter" = "esbenp.prettier-vscode";
-      "[json]"."editor.defaultFormatter" = "vscode.json-language-features";
-      "redhat.telemetry.enabled" = false;
-      "vetur.format.defaultFormatter.html" = "none";
-      "workbench.iconTheme" = "catppuccin-macchiato";
-      "workbench.colorTheme" = "Catppuccin Macchiato";
-      "[nix]"."editor.defaultFormatter" = "kamadorueda.alejandra";
-      "[nix]"."editor.formatOnPaste" = true;
-      "[nix]"."editor.formatOnSave" = true;
-      "[nix]"."editor.formatOnType" = false;
-      "[typescript]"."editor.defaultFormatter" = "esbenp.prettier-vscode";
-      "[typescriptreact]"."editor.defaultFormatter" = "esbenp.prettier-vscode";
-      "shellformat.path" = lib.mkMerge [
-        (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "/etc/profiles/per-user/${user}/bin/shfmt")
-        (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/Users/${user}/.nix-profile/bin/shfmt")
-      ];
-      "remote.SSH.configFile" = lib.mkMerge [
-        (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "/home/${user}/.ssh/sshconfig.local")
-        (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/Users/${user}/.ssh/sshconfig.local")
-      ];
-      "[dockerfile]"."editor.defaultFormatter" = "ms-azuretools.vscode-docker";
-      "files"."associations"."*.tmpl" = "html";
-    };
+    userSettings =
+      builtins.fromJSON ''
+        {
+          "[dockerfile]": {
+            "editor.defaultFormatter": "ms-azuretools.vscode-docker"
+          },
+          "[html]": {
+            "editor.defaultFormatter": "esbenp.prettier-vscode"
+          },
+          "[json]": {
+            "editor.defaultFormatter": "vscode.json-language-features"
+          },
+          "[nix]": {
+            "editor.defaultFormatter": "kamadorueda.alejandra",
+            "editor.formatOnPaste": true,
+            "editor.formatOnSave": true,
+            "editor.formatOnType": false,
+            "enableLanguageServer": true,
+            "serverPath": "nil",
+            "serverSettings": {
+              "nil": {
+                "formatting": {
+                  "command": ["alejandra"]
+                }
+              }
+            }
+          },
+          "[typescript]": {
+            "editor.defaultFormatter": "esbenp.prettier-vscode"
+          },
+          "[typescriptreact]": {
+            "editor.defaultFormatter": "esbenp.prettier-vscode"
+          },
+          "editor": {
+            "wordWrap": "on",
+            "linkedEditing": true,
+            "formatOnSave": true,
+            "bracketPairColorization.enabled": true,
+            "unicodeHighlight": {
+              "includeStrings": false
+            },
+            "tabSize": 2,
+            "fontLigatures": true,
+            "fontFamily": "JetBrainsMono Nerd Font, 'Droid Sans Mono', 'monospace', monospace"
+          },
+          "alejandra.program": "alejandra",
+          "diffEditor.ignoreTrimWhitespace": false,
+          "explorer.confirmDelete": false,
+          "files": {
+            "trimTrailingWhitespace": true,
+            "insertFinalNewline": true,
+            "encoding": "utf8",
+            "eol": "\n",
+            "associations": {
+              "*.tmpl": "html"
+            }
+          },
+          "git.confirmSync": false,
+          "go": {
+            "toolsManagement": {
+              "autoUpdate": true
+            },
+            "formatTool": "gofmt"
+          },
+          "html.format.enable": false,
+          "redhat.telemetry.enabled": false,
+          "remote.SSH.configFile": "/home/df/.ssh/sshconfig.local",
+          "shellformat.path": "/etc/profiles/per-user/df/bin/shfmt",
+          "vetur.format.defaultFormatter.html": "none",
+          "window.zoomLevel": -2,
+          "workbench": {
+            "iconTheme": "catppuccin-macchiato",
+            "colorTheme": "Catppuccin Macchiato"
+          }
+        }
+      ''
+      // {
+        "shellformat.path" = lib.mkMerge [
+          (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "/etc/profiles/per-user/${user}/bin/shfmt")
+          (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/Users/${user}/.nix-profile/bin/shfmt")
+        ];
+        "remote.SSH.configFile" = lib.mkMerge [
+          (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "/home/${user}/.ssh/sshconfig.local")
+          (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/Users/${user}/.ssh/sshconfig.local")
+        ];
+      };
   };
 }

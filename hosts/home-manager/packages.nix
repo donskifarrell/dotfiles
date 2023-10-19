@@ -1,22 +1,18 @@
 {pkgs, ...}: {
   essentials-utils = with pkgs; [
     age
-    alejandra
     bash
     bat
     btop
     cht-sh
     coreutils
     curl
-    curl
     difftastic
-    direnv
     fd
     ffmpeg
     fx
     fzf
     gawk
-    git-filter-repo
     iftop
     jq
     killall
@@ -27,8 +23,6 @@
     p7zip
     ripgrep
     rlwrap
-    rnix-lsp
-    shfmt
     tmux
     tree
     unixtools.ifconfig
@@ -39,17 +33,21 @@
 
   essentials-dev = with pkgs; [
     (google-cloud-sdk.withExtraComponents [google-cloud-sdk.components.gke-gcloud-auth-plugin])
-    android-tools
     # docker
     # docker-compose
+    alejandra
+    android-tools
+    direnv
     flyctl
-    # go
+    git-filter-repo
     gopls
     kubectl
     kubectx
     mkcert
+    nil
     nodejs
     nodePackages_latest.pnpm
+    shfmt
   ];
 
   essentials-gui = with pkgs; [

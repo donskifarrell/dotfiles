@@ -12,10 +12,10 @@ TODO: ADD
 - ROFI applets: https://github.com/adi1090x/rofi
 - decide (and customise) nwg-dock: https://github.com/nwg-piotr/nwg-dock-hyprland/tree/master
 - add nixos-search somewhere?
-<!-- - add hardware controls for media -->
-- vscode extenstions: https://github.com/nix-community/nix-vscode-extensions
-  -- catppuccin vscode-icons: https://github.com/catppuccin/vscode-icons
-  -- wayou.vscode-todo-highlight
+  <!-- - add hardware controls for media -->
+  <!-- - vscode extenstions: https://github.com/nix-community/nix-vscode-extensions
+    -- catppuccin vscode-icons: https://github.com/catppuccin/vscode-icons
+    -- wayou.vscode-todo-highlight -->
 - brillo: what is it and should I add?
 - plymouth theme: https://github.com/adi1090x/plymouth-themes
   <!-- - theme ROFI catppuccin: https://davatorium.github.io/rofi/current/rofi-theme.5/#examples -->
@@ -71,7 +71,6 @@ gtk-application-prefer-dark-theme=0
 
 ```
 
-
 # OSX
 
 1. curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
@@ -79,12 +78,6 @@ gtk-application-prefer-dark-theme=0
 2. nix run nix-darwin -- switch --flake ~/.config/nix-darwin
 
 3. darwin-rebuild switch --flake ~/.config/nix-darwin
-
-
-
-
-
-
 
 # NixOS & home-manager
 
