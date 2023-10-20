@@ -130,6 +130,8 @@
     aspell
     aspellDicts.en
     hunspell
+    capitaine-cursors
+    rofi-wayland
   ];
 
   nixos-gnome = with pkgs; [
@@ -149,13 +151,11 @@
   ];
 
   nixos-hyprland = with pkgs; [
-    capitaine-cursors
     flameshot
     gtklock
     lm_sensors
     nwg-dock-hyprland
     playerctl
-    rofi-wayland
     simplescreenrecorder
     swaylock-effects
     swaynotificationcenter
