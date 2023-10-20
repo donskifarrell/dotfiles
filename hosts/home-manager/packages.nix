@@ -132,6 +132,8 @@
     hunspell
     capitaine-cursors
     rofi-wayland
+    qt6.qtwayland
+    qt6.qt5compat
   ];
 
   nixos-gnome = with pkgs; [
