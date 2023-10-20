@@ -138,13 +138,18 @@ in {
       imports = [
         ./home-manager
         ./home-manager/alacritty.nix
+        ./home-manager/electron.nix
         ./home-manager/fish.nix
         ./home-manager/git.nix
+        ./home-manager/gtk.nix
+        # ./home-manager/hyprland.nix
         ./home-manager/neovim.nix
+        ./home-manager/rofi.nix
         ./home-manager/ssh.nix
         ./home-manager/starship.nix
         ./home-manager/tmux.nix
         ./home-manager/vscode.nix
+        # ./home-manager/waybar.nix
       ];
 
       home.homeDirectory = pkgs.lib.mkForce "/home/${user}";
@@ -154,6 +159,7 @@ in {
       in
         pkgSets.essentials-utils
         ++ pkgSets.essentials-dev
+        ++ pkgSets.essentials-gui
         ++ pkgSets.essentials-x86-gui
         ++ pkgSets.nixos
         ++ pkgSets.nixos-gnome;

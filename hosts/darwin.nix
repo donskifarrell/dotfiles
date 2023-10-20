@@ -34,7 +34,9 @@ in {
     #   "homebrew/homebrew-cask" = homebrew-cask;
     # };
   };
-  homebrew = {
+  homebrew = let
+    pkgSets = import ./home-manager/packages.nix {inherit pkgs;};
+  in {
     enable = true;
 
     onActivation = {
@@ -46,15 +48,13 @@ in {
     global.autoUpdate = false;
 
     masApps = {
+      # "An AppStore App" = 1234;
     };
 
-    brews = [
-    ];
+    brews = pkgSets.osx-brews;
 
     caskArgs.no_quarantine = true;
-
-    casks = [
-    ];
+    casks = pkgSets.osx-casks;
   };
 
   services.nix-daemon.enable = true;
@@ -99,6 +99,7 @@ in {
       in
         pkgSets.essentials-utils
         ++ pkgSets.essentials-dev
+        ++ pkgSets.essentials-gui
         ++ pkgSets.osx;
     };
   };

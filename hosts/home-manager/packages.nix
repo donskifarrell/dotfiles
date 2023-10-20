@@ -51,33 +51,71 @@
     statix
   ];
 
-  essentials-x86-gui = with pkgs; [
+  essentials-gui = with pkgs; [
     _1password
     _1password-gui
+    gimp
+    spotify
+    zathura
+  ];
+
+  essentials-x86-gui = with pkgs; [
     brave
     chromium
     firefox
-    gimp
     libreoffice-still
     maestral-gui
     mattermost-desktop
     obsidian
-    spotify
+    opensnitch-ui
     sublime4
     vivaldi
     vlc
-    zathura
+  ];
+
+  osx-brews = with pkgs; [
+    "flyctl" # always ahead of nixpkgs
+    "scrcpy" # always ahead of nixpkgs
+  ];
+
+  osx-casks = with pkgs; [
+    "android-studio"
+    "appcleaner"
+    "balenaetcher"
+    "brave-browser"
+    "db-browser-for-sqlite"
+    "firefox"
+    "google-chrome"
+    "itsycal"
+    "keepingyouawake"
+    "libreoffice"
+    "little-snitch"
+    "maestral"
+    "mattermost"
+    "obsidian"
+    "omnidisksweeper"
+    "openmtp"
+    "pgadmin4"
+    "postman"
+    "raycast"
+    "rectangle"
+    "skype"
+    "sublime-text"
+    "the-unarchiver"
+    "utm"
+    "vivaldi"
+    "vlc"
   ];
 
   osx = with pkgs; [
-    # (nerdfonts.override {fonts = ["JetBrainsMono"];})
-    # dejavu_fonts
-    # font-awesome
-    # hack-font
-    # jetbrains-mono
-    # meslo-lgs-nf
-    # noto-fonts
-    # noto-fonts-emoji
+    (nerdfonts.override {fonts = ["JetBrainsMono"];})
+    dejavu_fonts
+    font-awesome
+    hack-font
+    jetbrains-mono
+    meslo-lgs-nf
+    noto-fonts
+    noto-fonts-emoji
   ];
 
   nixos = with pkgs; [
@@ -92,9 +130,6 @@
     aspell
     aspellDicts.en
     hunspell
-
-    # GUI
-    opensnitch-ui
   ];
 
   nixos-gnome = with pkgs; [
