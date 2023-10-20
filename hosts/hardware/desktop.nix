@@ -4,8 +4,8 @@
 {
   config,
   lib,
-  nixpkgs,
   modulesPath,
+  nixpkgs,
   ...
 }: {
   imports = [

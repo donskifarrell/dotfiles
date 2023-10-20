@@ -1,9 +1,9 @@
 {
-  pkgs,
-  lib,
-  user,
-  hostname,
   config,
+  hostname,
+  lib,
+  pkgs,
+  user,
   ...
 }: {
   home = {

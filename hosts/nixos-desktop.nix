@@ -1,8 +1,8 @@
 {
-  pkgs,
+  inputs,
   lib,
   nixpkgs,
-  inputs,
+  pkgs,
   ssh-keys,
   ...
 }: let

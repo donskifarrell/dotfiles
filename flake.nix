@@ -51,24 +51,24 @@
 
   outputs = {
     # Common
-    self,
-    nixpkgs,
-    nixpkgs-stable,
-    utils,
     agenix,
     nix-vscode-extensions,
+    nixpkgs-stable,
+    nixpkgs,
+    self,
+    utils,
     # secrets,
     home-manager,
     nurl,
     # NIXOS
-    nixos-hardware,
     gnomeNixpkgs,
     hyprland,
+    nixos-hardware,
     # OSX
     darwin,
-    nix-homebrew,
-    homebrew-core,
     homebrew-cask,
+    homebrew-core,
+    nix-homebrew,
   } @ inputs: let
     inherit (self) outputs;
 

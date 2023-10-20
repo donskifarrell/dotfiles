@@ -3,8 +3,8 @@
 # to /etc/nixos/configuration.nix instead.
 {
   lib,
-  nixpkgs,
   modulesPath,
+  nixpkgs,
   ...
 }: {
   imports = [

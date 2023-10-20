@@ -1,7 +1,7 @@
 {
-  pkgs,
-  nixpkgs,
   inputs,
+  nixpkgs,
+  pkgs,
   ...
 }: {
   nixpkgs.overlays = [

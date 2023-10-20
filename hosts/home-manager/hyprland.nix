@@ -1,7 +1,7 @@
 {
-  pkgs,
-  lib,
   config,
+  lib,
+  pkgs,
   ...
 }: let
   hyprland-flake = builtins.getFlake "github:hyprwm/Hyprland";
