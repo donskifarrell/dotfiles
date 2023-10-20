@@ -10,7 +10,7 @@
 
     settings = {
       env = {TERM = "alacritty";};
-      import = "${config.home.homeDirectory}/.dotfiles/shared/config/theme/alacritty-catppuccin-macchiato.yml";
+      import = ["${config.home.homeDirectory}/.dotfiles/hosts/config/theme/alacritty-catppuccin-macchiato.yml"];
       window = {
         decorations = "full";
         startup_mode = "Windowed";

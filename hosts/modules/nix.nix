@@ -25,7 +25,7 @@
 
     gc = {
       automatic = true;
-      options = "--delete-older-than 1w";
+      options = "--delete-older-than 7d";
     };
   };
 }
