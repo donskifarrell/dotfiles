@@ -1,7 +1,6 @@
 {
+  config,
   pkgs,
-  homeDir,
-  configDir,
   ...
 }: {
   # Shared home-manager configuration
@@ -18,10 +17,10 @@
       MANPAGER = "sh -c 'col -bx | ${pkgs.bat}/bin/bat -l man -p'";
       MANROFFOPT = "-c";
 
-      XDG_CACHE_DIR = "${homeDir}/.cache";
-      XDG_CACHE_HOME = "${homeDir}/.cache";
-      XDG_CONFIG_HOME = "${configDir}";
-      XDG_DATA_HOME = "${homeDir}/.local/share";
+      XDG_CACHE_DIR = "${config.home.homeDirectory}/.cache";
+      XDG_CACHE_HOME = "${config.home.homeDirectory}/.cache";
+      XDG_CONFIG_HOME = "${config.home.homeDirectory}/.config";
+      XDG_DATA_HOME = "${config.home.homeDirectory}/.local/share";
     };
   };
 

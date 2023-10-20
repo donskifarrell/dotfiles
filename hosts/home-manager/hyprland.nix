@@ -1,27 +1,28 @@
 {
   pkgs,
   lib,
-  homeDir,
-  configDir,
+  config,
   ...
 }: let
   hyprland-flake = builtins.getFlake "github:hyprwm/Hyprland";
 in {
-  home = {
+  home = let
+    configDir = "${config.home.homeDirectory}/.config";
+  in {
     file."wlogout" = {
-      source = "${homeDir}/.dotfiles/hosts/config/wlogout";
+      source = "${config.home.homeDirectory}/.dotfiles/hosts/config/wlogout";
       target = "${configDir}/wlogout";
     };
     file."swaync" = {
-      source = "${homeDir}/.dotfiles/hosts/config/swaync";
+      source = "${config.home.homeDirectory}/.dotfiles/hosts/config/swaync";
       target = "${configDir}/swaync";
     };
     file."sway-lock" = {
-      source = "${homeDir}/.dotfiles/hosts/config/sway-lock";
+      source = "${config.home.homeDirectory}/.dotfiles/hosts/config/sway-lock";
       target = "${configDir}/sway-lock";
     };
     file."electron25-flags.conf" = {
-      source = "${homeDir}/.dotfiles/hosts/config/electron25-flags.conf";
+      source = "${config.home.homeDirectory}/.dotfiles/hosts/config/electron25-flags.conf";
       target = "${configDir}/electron25-flags.conf";
     };
   };

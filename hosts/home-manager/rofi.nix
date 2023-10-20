@@ -1,14 +1,13 @@
 {
   pkgs,
   lib,
-  homeDir,
-  configDir,
+  config,
   ...
 }: {
   home = {
     file."rofi" = {
-      source = "${homeDir}/.dotfiles/hosts/config/rofi";
-      target = "${configDir}/rofi";
+      source = "${config.home.homeDirectory}/.dotfiles/hosts/config/rofi";
+      target = "${config.home.homeDirectory}/.config/rofi";
     };
   };
 }

@@ -1,8 +1,8 @@
 {
-  pkgs,
+  config,
   lib,
+  pkgs,
   user,
-  homeDir,
   ...
 }: {
   programs.alacritty = {
@@ -10,7 +10,7 @@
 
     settings = {
       env = {TERM = "alacritty";};
-      import = "${homeDir}/.dotfiles/shared/config/theme/alacritty-catppuccin-macchiato.yml";
+      import = "${config.home.homeDirectory}/.dotfiles/shared/config/theme/alacritty-catppuccin-macchiato.yml";
       window = {
         decorations = "full";
         startup_mode = "Windowed";

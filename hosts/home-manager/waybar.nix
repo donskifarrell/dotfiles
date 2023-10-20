@@ -1,8 +1,7 @@
 {
   pkgs,
   lib,
-  homeDir,
-  configDir,
+  config,
   ...
 }: {
   nixpkgs = {
@@ -17,8 +16,8 @@
 
   home = {
     file."waybar" = {
-      source = "${homeDir}/.dotfiles/hosts/config/waybar";
-      target = "${configDir}/waybar";
+      source = "${config.home.homeDirectory}/.dotfiles/hosts/config/waybar";
+      target = "${config.home.homeDirectory}/.config/waybar";
     };
   };
 

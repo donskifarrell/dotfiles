@@ -3,14 +3,13 @@
   lib,
   user,
   hostname,
-  homeDir,
-  configDir,
+  config,
   ...
 }: {
   home = {
     file."fish-catppuccin-macchiato" = {
-      source = "${homeDir}/.dotfiles/hosts/config/theme/fish-catppuccin-macchiato.theme";
-      target = "${configDir}/fish/themes/fish-catppuccin-macchiato.theme";
+      source = "${config.home.homeDirectory}/.dotfiles/hosts/config/theme/fish-catppuccin-macchiato.theme";
+      target = "${config.home.homeDirectory}/.config/fish/themes/fish-catppuccin-macchiato.theme";
     };
   };
 

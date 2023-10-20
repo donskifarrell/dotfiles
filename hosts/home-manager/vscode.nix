@@ -1,10 +1,10 @@
 {
-  pkgs,
+  config,
   inputs,
   lib,
-  user,
+  pkgs,
   system,
-  homeDir,
+  user,
   ...
 }: {
   programs.vscode = let
@@ -102,7 +102,7 @@
             }
           },
           "redhat.telemetry.enabled": false,
-          "remote.SSH.configFile": "${homeDir}/.ssh/sshconfig.local",
+          "remote.SSH.configFile": "${config.home.homeDirectory}/.ssh/sshconfig.local",
           "vetur.format.defaultFormatter.html": "none",
           "workbench": {
             "colorTheme": "Catppuccin Macchiato",
