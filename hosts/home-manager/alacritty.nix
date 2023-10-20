@@ -84,6 +84,51 @@
           mods = "Control|Shift";
           action = "Copy";
         }
+
+        (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin [
+          {
+            key = "K";
+            mods = "Command";
+            mode = "~Vi|~Search";
+            chars = "f";
+          }
+          {
+            key = "K";
+            mods = "Command";
+            mode = "~Vi|~Search";
+            action = "ClearHistory";
+          }
+          {
+            key = "Key0";
+            mods = "Command";
+            action = "ResetFontSize";
+          }
+          {
+            key = "Equals";
+            mods = "Command";
+            action = "IncreaseFontSize";
+          }
+          {
+            key = "Plus";
+            mods = "Command";
+            action = "IncreaseFontSize";
+          }
+          {
+            key = "Minus";
+            mods = "Command";
+            action = "DecreaseFontSize";
+          }
+          {
+            key = "V";
+            mods = "Command";
+            action = "Paste";
+          }
+          {
+            key = "C";
+            mods = "Command";
+            action = "Copy";
+          }
+        ])
       ];
     };
   };

@@ -95,6 +95,13 @@
       unbind M-Right
       bind -n S-Left previous-window
       bind -n S-Right next-window
+
+      # OSX Specific Settings
+      ${
+        if pkgs.stdenv.hostPlatform.isDarwin
+        then "set -s copy-command 'pbcopy'"
+        else ""
+      }
     '';
 
     plugins = with pkgs; [
