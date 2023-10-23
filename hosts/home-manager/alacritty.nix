@@ -73,19 +73,21 @@
           }
         ];
       };
-      key_bindings = [
-        {
-          key = "V";
-          mods = "Control";
-          action = "Paste";
-        }
-        {
-          key = "C";
-          mods = "Control|Shift";
-          action = "Copy";
-        }
+      key_bindings = let
+        base_key_bindings = [
+          {
+            key = "V";
+            mods = "Control";
+            action = "Paste";
+          }
+          {
+            key = "C";
+            mods = "Control|Shift";
+            action = "Copy";
+          }
+        ];
 
-        (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin [
+        osx_key_bindings = [
           {
             key = "K";
             mods = "Command";
@@ -128,8 +130,14 @@
             mods = "Command";
             action = "Copy";
           }
-        ])
-      ];
+        ];
+      in
+        base_key_bindings
+        ++ (
+          if pkgs.stdenv.hostPlatform.isDarwin
+          then osx_key_bindings
+          else []
+        );
     };
   };
 }
