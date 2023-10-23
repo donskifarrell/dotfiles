@@ -62,7 +62,7 @@ in {
 
   users.users.${user} = {
     name = "${user}";
-    home = "/User/${user}";
+    home = "/Users/${user}";
   };
 
   home-manager = {

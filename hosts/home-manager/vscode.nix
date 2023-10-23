@@ -103,6 +103,7 @@
           },
           "redhat.telemetry.enabled": false,
           "remote.SSH.configFile": "${config.home.homeDirectory}/.ssh/sshconfig.local",
+          "shellformat.path": "/etc/profiles/per-user/${user}/bin/shfmt",
           "vetur.format.defaultFormatter.html": "none",
           "workbench": {
             "colorTheme": "Catppuccin Macchiato",
@@ -112,10 +113,6 @@
         }
       ''
       // {
-        "shellformat.path" = lib.mkMerge [
-          (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "/etc/profiles/per-user/${user}/bin/shfmt")
-          (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/Users/${user}/.nix-profile/bin/shfmt")
-        ];
         "window.zoomLevel" = lib.mkMerge [
           (lib.mkIf pkgs.stdenv.hostPlatform.isLinux 1)
           (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin 0)

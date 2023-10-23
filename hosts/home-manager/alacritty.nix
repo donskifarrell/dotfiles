@@ -47,10 +47,7 @@
       draw_bold_text_with_bright_colors = false;
       live_config_reload = true;
       shell = {
-        program = lib.mkMerge [
-          (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "/etc/profiles/per-user/${user}/bin/fish")
-          (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/Users/${user}/.nix-profile/bin/fish")
-        ];
+        program = "/etc/profiles/per-user/${user}/bin/fish";
         args = ["--login"];
       };
       hints = {

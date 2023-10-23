@@ -8,10 +8,7 @@
     enable = true;
     shortcut = "a";
     terminal = "screen-256color";
-    shell = lib.mkMerge [
-      (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "/etc/profiles/per-user/${user}/bin/fish")
-      (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/Users/${user}/.nix-profile/bin/fish")
-    ];
+    shell = "/etc/profiles/per-user/${user}/bin/fish";
     clock24 = true;
     keyMode = "vi";
     escapeTime = 0; # address vim mode switching delay (http://superuser.com/a/252717/65504)
