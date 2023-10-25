@@ -3,7 +3,6 @@
     age
     bash
     bat
-    btop
     cht-sh
     coreutils
     curl

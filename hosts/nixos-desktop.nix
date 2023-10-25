@@ -136,6 +136,7 @@ in {
       imports = [
         ./home-manager
         ./home-manager/alacritty.nix
+        ./home-manager/btop.nix
         ./home-manager/electron.nix
         ./home-manager/fish.nix
         ./home-manager/git.nix

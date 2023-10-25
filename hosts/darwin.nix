@@ -80,6 +80,7 @@ in {
       imports = [
         ./home-manager
         ./home-manager/alacritty.nix
+        ./home-manager/btop.nix
         ./home-manager/fish.nix
         ./home-manager/git.nix
         ./home-manager/neovim.nix
