@@ -1,4 +1,66 @@
-# v2
+# My Dots
+
+I've essentially got 3 machines:
+
+| Hostname | Users | System         | What is it?         |
+| -------- | ----- | -------------- | ------------------- |
+| makati   | df    | x86_64-linux   | Desktop workstation |
+| manila   | df    | aarch64-darwin | M1 Macbook Pro      |
+| qemu     | df    | x86_64-linux   | VM                  |
+
+These dotfiles try to keep things easy and composable. Everything is driven from the base `flake.nix` using standard tooling.
+
+In `./hosts` you'll find the main configurations for each hostname above. Each config file will have system customisations as needed but the bulk of customisation is simply adding or omitting the relevant import module file.
+
+Similarly for `home-manager`, each hostname config may have the odd customisation, but most of the selection is simply importing the relevant home-manager module.
+
+For user packages, I put everything into `./hosts/home-manager/packages.nix` so it's easier to see what each system has at once.
+
+## OSX Fresh Install
+
+There are always some small manual tweak to do, but essentially a fresh install goes like:
+
+```
+# Basic utils
+xcode-select --install
+
+# If you are on Apple Silicon and want Rosetta2
+# softwareupdate --install-rosetta
+
+# Install standard Nix
+sh <(curl -L https://nixos.org/nix/install)
+
+# Make sure we are on the correct system config (rosetta processes will fake the arch as i386/x86_64)
+uname -p # outputs: arm on M1, unkown on nixos
+uname -m # outputs: arm64 on M1, x86_64 on nixos
+
+# Check hostname is correct, if not, goto System Preferences and change it there
+scutil --get LocalHostName
+
+# Get dotfiles from this repo to the path ~/.dotfiles
+# I generally don't have keys setup yet, so I pull just the files then switch it later (guessing at the steps:)
+cd ~
+wget -O .dotfiles.zip https://github.com/donskifarrell/dotfiles/archive/refs/heads/main.zip
+unzip .dotfiles.zip
+
+# We need to bootstrap the nix-darwin installer. I use flakes, so we need to use experimental flake commands
+# Note: --impure flag is due to some configs like boot timestamp that I need to resolve still.
+nix run --extra-experimental-features nix-command --extra-experimental-features flakes nix-darwin -- switch --flake ~/.dotfiles/#manila --impure
+
+# Once that installs, we can use the simpler command in the future (Alias it somewhere)
+/run/current-system/sw/bin/darwin-rebuild switch --flake ~/.dotfiles/#manila --impure
+
+```
+
+## NIXOS Fresh Install
+
+The nixos install is more involved, as it's an entire system.
+
+The easiest way is to use the GUI installer from an ISO: https://nixos.org/download.html#nixos-iso
+
+```
+TODO
+```
 
 TODO: ADD
 
@@ -71,239 +133,26 @@ gtk-application-prefer-dark-theme=0
 
 ```
 
-# OSX
-1. rename to `manila`
-
-softwareupdate --install-rosetta --agree-to-license
-
-1. curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
-
-sudo mv /etc/nix/nix.conf /etc/nix/nix.conf.before-nix-darwin
-nix --extra-experimental-features "nix-command flakes auto-allocate-uids" run nix-darwin -- switch --flake ~/.dotfiles/#manila
-sudo mv /etc/nix/nix.conf.before-nix-darwin /etc/nix/nix.conf
-
-2. nix run nix-darwin -- switch --flake ~/.config/nix-darwin
-
-3. darwin-rebuild switch --flake ~/.config/nix-darwin
-
-# NixOS & home-manager
-
-Configuration for VMs and OSX. For configuration of Asus ROG Rapture GT-AX6000, look [here](./scripts//asus-gt-ax6000/README.md)
-
-## Usage
-
-- Run `sudo nixos-rebuild switch --flake .#hostname` to apply your system
-  configuration.
-- Run `home-manager switch --flake .#username@hostname` to apply your home
-  configuration.
-
 ## TODO
 
-- Stop scripts if args are bad
-- Integrate lorri https://github.com/nix-community/lorri
-- Create an iso image with base installed
+Various common tools
 
-## Machines
-
-| Hostname | Users  | System                 | What For?                  |
-| -------- | ------ | ---------------------- | -------------------------- |
-| makati   | donski | aarch64-darwin         | daily driver               |
-| belfast  | df     | ?/cloud vm             | media and doc backups, vpn |
-| london   | df     | aarch64-linux (OSX VM) | fun stuff. unstable        |
-| dublin   | df     | ?/vm                   | linux workstation          |
-
-All machines use [home-manager](https://github.com/nix-community/home-manager), and aside from `makati`, everything is [NixOS](https://nixos.org/) based.
-
-```
-# Dump of what to install, maybe
-
-df@Belfast - stable VM in the cloud for backups
-
-- syncthing
-- paperlessng?
-- wireguard
-  Takes care of:
-  -- Email backup
-  -- Docs storage
-  -- Photo/Video storage
-  -- Misc Files storage
-
-df@London - fun shit?
-
-- k8s cluster in the cloud for all the random sites I want to run?
-
-df@Dublin - Linux workstation
-
-- small base VM image for local or cloud
-- stable
-  fail2ban
-- KDE? Sway? etc
-
-pihole?
-
-```
-
-# NixOS Setup
-
-For now, let's assume we're using a VM.
-Boot the VM with the NixOS ISO image to get to a live env.
-
-Useful blog post: https://calcagno.blog/m1dev/
-
-## ISO
-
-Review the UEFI installation page: https://nixos.wiki/wiki/NixOS_on_ARM/UEFI
-
-> In short, unstable ISO images can be found here: https://hydra.nixos.org/job/nixos/trunk-combined/nixos.iso_minimal_new_kernel.aarch64-linux
-
-Once at login, set the `nixos` and `root` password. These are throwaway just to enable SSH.
-
-#### REMOTE
-
-```
-# Fix root and nixos for SSH
-passwd nixos
-
-sudo -i
-passwd root
-
-# Get machine ip address
-ifconfig
-
-# create /home/nixos/.dotfiles
-mkdir -p .dotfiles
-```
-
-Next, copy the script files over.
-
-#### LOCAL
-
-```
-# On local
-
-# When SSH'ing into box you will need to clear the fingerprint after install
-ssh-keygen -R <machine-ip>
-
-GLOBIGNORE='.git' scp -o IdentitiesOnly=yes -r ~/.dotfiles/* nixos@<machine-ip>:/home/nixos/.dotfiles
-```
-
-SSH in, and run scripts
-
-#### LOCAL
-
-```
-# On local
-ssh -o IdentitiesOnly=yes nixos@<machine-ip>
-```
-
-#### REMOTE
-
-```
-# On remote machine SSH session
-# /boot doesn't always work, so might need manual commands
-cd /home/nixos/.dotfiles
-sudo sh ./scripts/vm-disk-setup.sh
-
-nix-shell
-sudo sh ./scripts/vm-nixos-setup.sh -h <TARGET_HOSTNAME>
-
-# If you want, push the changes to a repo. Password token is needed.
-git add "./hosts/<TARGET_HOSTNAME>/hardware-configuration.nix"
-# If first time running the flake:
-# git add flake.lock
-git commit -am "Committing new hardware-config"
-git push
-
-# Or copy them back to remote. From LOCAL:
-scp -r nixos@<machine-ip>:/home/nixos/.dotfiles/hosts/<TARGET_HOSTNAME>/hardware-configuration.nix <LOCAL_PATH>/.dotfiles/hosts/<TARGET_HOSTNAME>/
-# scp -r nixos@<machine-ip>:/home/nixos/.dotfiles/flake.lock <LOCAL_PATH>/.dotfiles/
-
-# Reboot and remove .iso disk
-sudo reboot
-
-# After reboot and <USER> login (password: passwd-change-me-on-login)
-passwd <USER>
-```
-
-#### LOCAL
-
-```
-# When SSH'ing into box you will need to clear the fingerprint after install
-ssh-keygen -R <machine-ip>
-ssh-add ~/.ssh/path/to/key
-scp -r ~/.dotfiles <USER>@<machine-ip>:/home/<USER>
-
-# Optionally on remote machine, pull files from repo
-git clone https://github.com/donskifarrell/dotfiles.git .dotfiles
-```
-
-#### REMOTE (on newly installed OS)
-
-```
-cd /home/<USER>/.dotfiles
-nix-shell
-sh ./scripts/vm-nixos-first-boot.sh -h <TARGET_HOSTNAME> -u <USER>
-sudo reboot
-```
-
-TODO: Setup github fetch so dotfiles are synced
-
-# OSX Setup
-
-Only tested on M1 Macbook Pro.
-
-## Backup
-
-Apps that I should manually backup:
-
-```
-- Brave/Vivaldi/Firefox
--- just zip their profile folders
-- Check Brewfile is updated
-- Little Snitch ruleset
--- Can be exported
-- fish-shell history
-- .local folder (mainly git configs)
-- .ssh folder
--- use shell function
-- .kube and .gcloud
--- just zip folders and replace
-```
-
-## Install
-
-Run through these steps for a mostly automated installation
-
-```
-# Install the XCode developer tools first (running `git --version` triggers it)
-xcode-select --install
-
-# Make sure we are on the correct system config (rosetta processes will fake the arch as i386/x86_64)
-uname -p
-uname -m
-
-# Run official installer and follow steps
-sh <(curl -L https://nixos.org/nix/install)
-
-# Run setup script
-cd ~/.dotfiles
-sh scripts/osx-hm-setup.sh
-
-# Install home-manager
-nix-shell '<home-manager>' -A install
-
-# Install home-manager config
-home-manager switch --flake .#username@hostname
-
-# Copy over local configs. In fish shell
-restore_local_config ~/.dotfiles/secrets/<age file>
-
-# Copy over SSH keys. In fish shell
-restore_ssh ~/.dotfiles/secrets/<age file>
-
-# Setup
-sh scripts/osx-set-defaults.sh
-```
+- Look at nix-darwin options: https://daiderd.com/nix-darwin/manual/index.html
+- Integrate Aegnix: https://github.com/ryantm/agenix
+- Integrate Lorri?: https://github.com/nix-community/lorri
+- Create an iso image with base config already installed
+- Install tooling:
+  - Wireguard, or Tailscale
+  - Syncthing
+  - Docker, or Podman
+  - Direnv
+- How do I sync easily:
+  - Brave: has a sync chain - way to "nix" it?
+  - Vivaldi: has a sync feature - way to "nix" it?
+  - Firefox: ?
+  - LittleSnitch (OSX) ruleset: Can be copied, or symlinked to Dropbox?
+  - fish-shell history
+  - .local git configs, and other things
 
 Applications on OSX that still need manual install via App Store:
 
@@ -313,104 +162,14 @@ Applications on OSX that still need manual install via App Store:
 - WireGuard
 - Prey (OSX has some trouble installing)
 
-Some VSCode extensions need to be manually added:
-
-- wayou.vscode-todo-highlight
-- vscode-icons-team.vscode-icons
-- waderyan.gitblame
-
 Browser extension that needs to be installed manually:
 
 - Paywall bypass https://github.com/iamadamdev/bypass-paywalls-chrome
   -- unzip to a folder: ~/.bypass-paywalls-chrome so it's out of the way (don't delete folder)
 
-# What's next?
+# NixOS & home-manager
 
-## User password and secrets
-
-If you don't want to set your password imperatively, you can also use
-`passwordFile` for safely and declaratively setting a password from a file
-outside the nix store.
-
-There's also [more advanced options for secret
-management](https://nixos.wiki/wiki/Comparison_of_secret_managing_schemes),
-including some that can include them (encrypted) into your config repo and/or
-nix store, be sure to check them out if you're interested.
-
-## Try opt-in persistance
-
-You might have noticed that there's impurity in your NixOS system, in the form
-of configuration files and other cruft your system generates when running. What
-if you change them in a whim to get something working and forget about it?
-Boom, your system is not fully reproducible anymore.
-
-You can instead fully delete your `/` and `/home` on every boot! Nix is okay
-with a empty root on boot (all you need is `/boot` and `/nix`), and will
-happily reapply your configurations.
-
-There's two main approaches to this: mount a `tmpfs` (RAM disk) to `/`, or
-(using a filesystem such as btrfs or zfs) mount a blank snapshot and reset it
-on boot.
-
-For stuff that can't be managed through nix (such as games downloaded from
-steam, or logs), use [impermanence](https://github.com/nix-community/impermanence)
-for mounting stuff you to keep to a separate partition/volume (such as
-`/nix/persist` or `/persist`). This makes everything vanish by default, and you
-can keep track of what you specifically asked to be kept.
-
-Here's some awesome blog posts about it:
-
-- [Erase your darlings](https://grahamc.com/blog/erase-your-darlings)
-- [Encrypted BTRFS with Opt-In State on
-  NixOS](https://mt-caret.github.io/blog/posts/2020-06-29-optin-state.html)
-- [NixOS: tmpfs as root](https://elis.nu/blog/2020/05/nixos-tmpfs-as-root/) and
-  [tmpfs as home](https://elis.nu/blog/2020/06/nixos-tmpfs-as-home/)
-
-## Adding custom packages
-
-Something you want to use that's not in nixpkgs yet? You can easily build and
-iterate on a derivation (package) from this very repository.
-
-Create a folder with the desired name inside `pkgs`, and add a `default.nix`
-file containing a derivation. Be sure to also `callPackage` them on
-`pkgs/default.nix`.
-
-You'll be able to refer to that package from anywhere on your
-home-manager/nixos configurations, build them with `nix build .#package-name`,
-or bring them into your shell with `nix shell .#package-name`.
-
-See [the manual](https://nixos.org/manual/nixpkgs/stable/) for some tips on how
-to package stuff.
-
-## Adding overlays
-
-Found some outdated package on nixpkgs you need the latest version of? Perhaps
-you want to apply a patch to fix a behaviour you don't like? Nix makes it easy
-and manageable with overlays!
-
-Use the `overlay/default.nix` file for this.
-
-If you're creating patches, you can keep them on the `overlay` folder as well.
-
-See [the wiki article](https://nixos.wiki/wiki/Overlays) to see how it all
-works.
-
-## Adding your own modules
-
-Got some configurations you want to create an abstraction of? Modules are the
-answer. These awesome files can expose _options_ and implement _configurations_
-based on how the options are set.
-
-Create a file for them on either `modules/nixos` or `modules/home-manager`. Be
-sure to also add them to the listing at `modules/nixos/default.nix` or
-`modules/home-manager/default.nix`.
-
-See [the wiki article](https://nixos.wiki/wiki/Module) to learn more about
-them.
-
-## Nix Starter Config (Full version)
-
-This repo was based heavily off this starter: https://github.com/Misterio77/nix-starter-config
+Configuration for VMs and OSX. For configuration of Asus ROG Rapture GT-AX6000, look [here](./scripts//asus-gt-ax6000/README.md)
 
 ## Useful Repos
 
@@ -431,3 +190,7 @@ https://discourse.nixos.org/t/fixing-your-install-after-osx-upgrade/19339
 http://ghedam.at/15978/an-introduction-to-nix-shell
 
 > How to use different dev envs
+
+```
+
+```

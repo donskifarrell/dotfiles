@@ -62,6 +62,7 @@
             "editor.defaultFormatter": "esbenp.prettier-vscode"
           },
           "alejandra.program": "alejandra",
+          "cSpell.language": "en-GB",
           "diffEditor.ignoreTrimWhitespace": false,
           "editor.bracketPairColorization.enabled": true,
           "editor.fontFamily": "JetBrainsMono Nerd Font, 'Droid Sans Mono', 'monospace', monospace",
