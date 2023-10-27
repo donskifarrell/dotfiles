@@ -62,6 +62,7 @@
     brave
     chromium
     firefox
+    hw-probe
     libreoffice-still
     maestral-gui
     mattermost-desktop

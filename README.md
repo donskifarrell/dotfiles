@@ -16,6 +16,10 @@ Similarly for `home-manager`, each hostname config may have the odd customisatio
 
 For user packages, I put everything into `./hosts/home-manager/packages.nix` so it's easier to see what each system has at once.
 
+A general good resource is https://github.com/nix-community/awesome-nix and https://mynixos.com/
+
+For configuration of Asus ROG Rapture GT-AX6000, look [here](./bin/asus-gt-ax6000/README.md)
+
 ## OSX Fresh Install
 
 There are always some small manual tweak to do, but essentially a fresh install goes like:
@@ -56,103 +60,47 @@ nix run --extra-experimental-features nix-command --extra-experimental-features 
 
 The nixos install is more involved, as it's an entire system.
 
-The easiest way is to use the GUI installer from an ISO: https://nixos.org/download.html#nixos-iso
-
 ```
-TODO
-```
+# The easiest way is to use the GUI installer from an ISO: https://nixos.org/download.html#nixos-iso
 
-TODO: ADD
+# TODO: Missing steps like getting the latest repo pulled
+# Make sure dotfiles are placed in ~/.dotfiles
 
-- Screenshots / recorder
-- add swayidle: https://github.com/swaywm/swayidle
-- add cron job to switch wallpapers: https://github.com/cronie-crond/cronie
-- switch to gtklock: https://github.com/jovanlanik/gtklock/wiki
-- swaync widgets: https://github.com/ErikReider/SwayNotificationCenter#available-widgets
-  -- audio
-  -- player
-- ROFI applets: https://github.com/adi1090x/rofi
-- decide (and customise) nwg-dock: https://github.com/nwg-piotr/nwg-dock-hyprland/tree/master
-- add nixos-search somewhere?
-  <!-- - add hardware controls for media -->
-  <!-- - vscode extenstions: https://github.com/nix-community/nix-vscode-extensions
-    -- catppuccin vscode-icons: https://github.com/catppuccin/vscode-icons
-    -- wayou.vscode-todo-highlight -->
-- brillo: what is it and should I add?
-- plymouth theme: https://github.com/adi1090x/plymouth-themes
-  <!-- - theme ROFI catppuccin: https://davatorium.github.io/rofi/current/rofi-theme.5/#examples -->
-  <!-- - theme other apps with catppuccin -->
-- docker/podman or something
-  -- monorepo for all side projects so we can use traefik or similar: https://georgek.github.io/blog/posts/multiple-web-projects-traefik/
+# Once we have the dotfiles in the correct location
+sudo nixos-rebuild --flake ~/.dotfiles/#makati switch --impure
 
-TODO: FIX
-
-- create windowrule to open btop in floating window
-- fix crashes when monitor turned off: https://github.com/hyprwm/Hyprland/issues/2770
-  -- hardware / temp logging
-- better font for GTK, maybe SF PRO
-- file associations
-<!-- - fzf broke ctrl-r -->
-- copy/paste into terminal in vscode
-- ssh-keys not be auto added?
-- XWayland / electron etc
-- calendar waybar
-- trackpad speed
-- scroll speed
-- weird blurry cursors
-- bluetooth audio on google meet not resetting
-
-useful links:
-https://nixos-and-flakes.thiscute.world/nixos-with-flakes/nixos-with-flakes-enabled#adding-custom-cache-mirrors
-https://github.com/iamadamdev/bypass-paywalls-chrome
-
-https://unix.stackexchange.com/questions/272660/how-to-split-etc-nixos-configuration-nix-into-separate-modules
-
-https://github.com/schuelermine/xhmm
-
-GTK settings:
-
-```
-[Settings]
-gtk-theme-name=Adwaita
-gtk-icon-theme-name=Adwaita
-gtk-font-name=Cantarell 11
-gtk-cursor-theme-name=capitaine-cursors
-gtk-cursor-theme-size=24
-gtk-toolbar-style=GTK_TOOLBAR_ICONS
-gtk-toolbar-icon-size=GTK_ICON_SIZE_LARGE_TOOLBAR
-gtk-button-images=0
-gtk-menu-images=0
-gtk-enable-event-sounds=1
-gtk-enable-input-feedback-sounds=0
-gtk-xft-antialias=1
-gtk-xft-hinting=1
-gtk-xft-hintstyle=hintslight
-gtk-xft-rgba=rgb
-gtk-application-prefer-dark-theme=0
-
+# Nixos manual warns 23.11 may break boot mounts, so it's wise to re-run:
+# sudo nixos-rebuild --flake ~/.dotfiles/#makati boot --impure
 ```
 
 ## TODO
 
-Various common tools
+### - Common
 
-- Look at nix-darwin options: https://daiderd.com/nix-darwin/manual/index.html
-- Integrate Aegnix: https://github.com/ryantm/agenix
-- Integrate Lorri?: https://github.com/nix-community/lorri
-- Create an iso image with base config already installed
+- Integrate Aegnix for secrets: https://github.com/ryantm/agenix
+- Integrate Lorri?: https://github.com/nix-community/lorri or https://github.com/nix-community/nix-direnv
 - Install tooling:
   - Wireguard, or Tailscale
   - Syncthing
   - Docker, or Podman
   - Direnv
+  - OpenSnitch
+  - VMs: https://github.com/Mic92/nixos-shell
 - How do I sync easily:
   - Brave: has a sync chain - way to "nix" it?
   - Vivaldi: has a sync feature - way to "nix" it?
   - Firefox: ?
-  - LittleSnitch (OSX) ruleset: Can be copied, or symlinked to Dropbox?
   - fish-shell history
   - .local git configs, and other things
+- Allow stable/unstable nixpkgs
+- Common scripts (backup, restore etc)
+- Cleanup VSCode config
+
+### - OSX
+
+- Look at nix-darwin options: https://daiderd.com/nix-darwin/manual/index.html
+- How do I sync easily:
+  - LittleSnitch (OSX) ruleset: Can be copied, or symlinked to Dropbox?
 
 Applications on OSX that still need manual install via App Store:
 
@@ -167,11 +115,43 @@ Browser extension that needs to be installed manually:
 - Paywall bypass https://github.com/iamadamdev/bypass-paywalls-chrome
   -- unzip to a folder: ~/.bypass-paywalls-chrome so it's out of the way (don't delete folder)
 
-# NixOS & home-manager
+### - Nixos
 
-Configuration for VMs and OSX. For configuration of Asus ROG Rapture GT-AX6000, look [here](./scripts//asus-gt-ax6000/README.md)
+- Integrate Flatpak / AppImage on Linux
+- Create an iso image with base config already installed
+- Install tooling:
+  - Wireguard, or Tailscale
+  - Syncthing
+  - Docker, or Podman
+    -- monorepo for all side projects so we can use traefik or similar: https://georgek.github.io/blog/posts/multiple-web-projects-traefik/
+  - Direnv
+  - OpenSnitch
+- For dev VMs, use https://github.com/nix-community/nixos-vscode-server
+- Switch to pop_os! DE?
+- Add cron job to switch wallpapers: https://github.com/cronie-crond/cronie
+- ROFI applets: https://github.com/adi1090x/rofi
+- Add plymouth theme: https://github.com/adi1090x/plymouth-themes
+- better font for GTK, maybe SF PRO
+- file associations
+<!-- - fzf broke ctrl-r -->
+- copy/paste into terminal in vscode
+- ssh-keys not be auto added?
+- XWayland / electron etc
+- trackpad speed
+- scroll speed
+- bluetooth audio on google meet not resetting
 
-## Useful Repos
+## Misc Links
+
+https://nixos-and-flakes.thiscute.world/nixos-with-flakes/nixos-with-flakes-enabled#adding-custom-cache-mirrors
+
+https://github.com/iamadamdev/bypass-paywalls-chrome
+
+https://unix.stackexchange.com/questions/272660/how-to-split-etc-nixos-configuration-nix-into-separate-modules
+
+https://github.com/schuelermine/xhmm
+
+https://github.com/nix-community/nixpkgs-wayland#packages
 
 https://github.com/malob/nixpkgs
 
@@ -183,14 +163,8 @@ https://github.com/Misterio77/nix-config
 
 https://gist.github.com/ptrfrncsmrph/2d1646fbb035bd76cf8c691c0d5cf47f#file-flake-nix-L72
 
-> Setup nix, nix-darwin and home-manager from scratch on an M1 Macbook Pro
-
 https://discourse.nixos.org/t/fixing-your-install-after-osx-upgrade/19339
 
 http://ghedam.at/15978/an-introduction-to-nix-shell
 
-> How to use different dev envs
-
-```
-
-```
+https://jeffhandley.com/2021-01-09/family-email-setup
