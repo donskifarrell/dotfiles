@@ -24,8 +24,17 @@
   services = {
     xserver = {
       enable = true;
+
+      displayManager = {
+        gdm = {
+          enable = true;
+          wayland = true;
+        };
+      };
+
       desktopManager.gnome.enable = true;
     };
+
     gnome = {
       sushi.enable = true;
       gnome-keyring.enable = true;
