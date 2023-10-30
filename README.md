@@ -140,6 +140,7 @@ Browser extension that needs to be installed manually:
 - trackpad speed
 - scroll speed
 - bluetooth audio on google meet not resetting
+- wayland support in apps: https://nixos.wiki/wiki/Wayland
 
 ## Misc Links
 

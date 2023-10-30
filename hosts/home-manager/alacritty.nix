@@ -48,7 +48,7 @@
       live_config_reload = true;
       shell = {
         program = lib.mkMerge [
-          (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "/etc/profiles/per-user/${user}/bin/fish")
+          (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "${config.home.homeDirectory}/.nix-profile/bin/fish")
           (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/Users/${user}/.nix-profile/bin/fish")
         ];
         args = ["--login"];

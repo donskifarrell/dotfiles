@@ -114,7 +114,7 @@
       ''
       // {
         "shellformat.path" = lib.mkMerge [
-          (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "/etc/profiles/per-user/${user}/bin/shfmt")
+          (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "${config.home.homeDirectory}/.nix-profile/bin/shfmt")
           (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/Users/${user}/.nix-profile/bin/shfmt")
         ];
         "window.zoomLevel" = lib.mkMerge [

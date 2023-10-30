@@ -1,4 +1,5 @@
 {
+  config,
   lib,
   pkgs,
   user,
@@ -9,7 +10,7 @@
     shortcut = "a";
     terminal = "screen-256color";
     shell = lib.mkMerge [
-      (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "/etc/profiles/per-user/${user}/bin/fish")
+      (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "${config.home.homeDirectory}/.nix-profile/bin/fish")
       (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/Users/${user}/.nix-profile/bin/fish")
     ];
     clock24 = true;

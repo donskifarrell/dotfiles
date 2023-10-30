@@ -125,7 +125,7 @@ in {
 
   home-manager = {
     useGlobalPkgs = true;
-    useUserPackages = true;
+    # useUserPackages = true; # If enabled, then home-manager apps aren't linked properly to /Users/X/.nix-profile/..
     extraSpecialArgs = {
       inherit inputs;
     };

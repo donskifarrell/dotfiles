@@ -2,9 +2,11 @@
   description = "God-mode for NixOS and MacOS";
 
   inputs = {
+    # Nikpkgs
+    nixpkgs.url = "github:NixOS/nixpkgs/gnome";
+    stable-pkgs.url = "github:nixos/nixpkgs/nixos-23.05";
+
     # Common
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    nixpkgs-stable.url = "github:nixos/nixpkgs/nixos-23.05";
     utils.url = "github:numtide/flake-utils";
     agenix = {
       url = "github:ryantm/agenix";
@@ -50,17 +52,18 @@
   };
 
   outputs = {
+    # Nikpkgs
+    nixpkgs,
+    stable-pkgs,
     # Common
     agenix,
     nix-vscode-extensions,
-    nixpkgs-stable,
-    nixpkgs,
     self,
     utils,
-    # secrets,
+    # secrets, # TODO: Add secrets repo
     home-manager,
     nurl,
-    # NIXOS
+    # NixOS
     gnomeNixpkgs,
     hyprland,
     nixos-hardware,
