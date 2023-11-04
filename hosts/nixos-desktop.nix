@@ -9,10 +9,17 @@
   user = "df";
   hostname = "makati";
   system = "x86_64-linux";
+  homeDir =
+    if pkgs.stdenv.isLinux
+    then "/home/${user}"
+    else if pkgs.stdenv.isDarwin
+    then "/Users/${user}"
+    else throw "Unsupported platform";
 in {
   _module.args.user = user;
   _module.args.hostname = hostname;
   _module.args.system = system;
+  _module.args.homeDir = homeDir;
 
   imports = [
     inputs.nixos-hardware.nixosModules.common-cpu-amd
@@ -29,6 +36,7 @@ in {
     ./modules/nixpkgs.nix
 
     ./modules
+    ./modules/agenix.nix
     ./modules/fonts.nix
     ./modules/gnome.nix
     ./modules/i18n.nix

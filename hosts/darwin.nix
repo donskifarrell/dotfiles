@@ -6,10 +6,17 @@
   user = "df";
   hostname = "manila";
   system = "aarch64-darwin";
+  homeDir =
+    if pkgs.stdenv.isLinux
+    then "/home/${user}"
+    else if pkgs.stdenv.isDarwin
+    then "/Users/${user}"
+    else throw "Unsupported platform";
 in {
   _module.args.user = user;
   _module.args.hostname = hostname;
   _module.args.system = system;
+  _module.args.homeDir = homeDir;
 
   nixpkgs.hostPlatform = system;
 
@@ -21,6 +28,7 @@ in {
     ./modules/nixpkgs.nix
 
     ./modules
+    ./modules/agenix.nix
   ];
 
   nix-homebrew = {
