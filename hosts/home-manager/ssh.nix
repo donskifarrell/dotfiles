@@ -6,12 +6,11 @@
   programs.ssh = {
     enable = true;
 
-    # includes = ["~/.ssh/sshconfig.local"];
+    includes = ["~/.ssh/sshconfig.local"];
 
     extraConfig = lib.mkMerge [
       ''
-        Host *
-         AddKeysToAgent yes
+        AddKeysToAgent yes
       ''
       (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin
         ''
