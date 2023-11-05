@@ -58,7 +58,7 @@
 
     includes = [
       {
-        path = "~/.local/git/.gitconfig.local";
+        path = "~/.config/git/.gitconfig.local";
       }
       {
         path = "~/.local/git/.gitconfig.brankas";
