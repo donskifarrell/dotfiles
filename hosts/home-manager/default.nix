@@ -26,20 +26,22 @@
 
   fonts.fontconfig.enable = true;
 
-  programs.bat.enable = true;
+  programs = {
+    bat.enable = true;
 
-  programs.eza.enable = true;
+    eza.enable = true;
 
-  programs.fzf.enable = true;
+    fzf.enable = true;
 
-  programs.zoxide = {
-    enable = true;
-    enableFishIntegration = true;
-  };
+    zoxide = {
+      enable = true;
+      enableFishIntegration = true;
+    };
 
-  programs.go = {
-    enable = true;
-    package = pkgs.go;
-    goPath = "go";
+    go = {
+      enable = true;
+      package = pkgs.go;
+      goPath = "go";
+    };
   };
 }

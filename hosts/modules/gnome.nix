@@ -1,15 +1,8 @@
 {
   inputs,
-  nixpkgs,
   pkgs,
   ...
 }: {
-  nixpkgs.overlays = [
-    (self: super: {
-      gnome = inputs.gnomeNixpkgs.legacyPackages.x86_64-linux.gnome;
-    })
-  ];
-
   environment.gnome.excludePackages = with pkgs; [
     gnome.totem
     gnome.epiphany

@@ -11,9 +11,9 @@
   # TODO: Not always the case for VMs
   system = "x86_64-linux";
 in {
-  _module.args.user = user;
-  _module.args.hostname = hostname;
-  _module.args.system = system;
+  _module.args = {
+    inherit user hostname system;
+  };
 
   imports = [
     inputs.home-manager.nixosModules.home-manager
@@ -118,9 +118,9 @@ in {
     };
 
     users.${user} = {pkgs, ...}: {
-      _module.args.user = user;
-      _module.args.hostname = hostname;
-      _module.args.system = system;
+      _module.args = {
+        inherit user hostname system;
+      };
 
       imports = [
         ./home-manager

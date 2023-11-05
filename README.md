@@ -105,10 +105,10 @@ git clone git@github.com:donskifarrell/dotfiles.git ~/.dotfiles
   - Vivaldi: has a sync feature - way to "nix" it?
   - Firefox: ?
   - fish-shell history
-  - .local git configs, and other things
+  - ~~.local git configs, and other things~~
 - Allow stable/unstable nixpkgs
 - Common scripts (backup, restore etc)
-- Cleanup VSCode config
+- Cleanup VSCode config - use symlink so it's easily editable
 
 ### - OSX
 
@@ -149,6 +149,7 @@ Browser extension that needs to be installed manually:
 - trackpad speed
 - scroll speed
 - bluetooth audio on google meet not resetting
+- media keys
 - wayland support in apps: https://nixos.wiki/wiki/Wayland
 
 ## Misc Links

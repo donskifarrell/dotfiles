@@ -12,12 +12,6 @@
       url = "github:ryantm/agenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    # secrets = {
-    #   url = "git+ssh://git@github.com/donskifarrell/nix-secrets";
-    #   inputs.nixpkgs.follows = "nixpkgs";
-    #   inputs.agenix.follows = "agenix";
-    #   inputs.flake-utils.follows = "utils";
-    # };
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -103,8 +97,7 @@
         system = "aarch64-darwin";
         modules = [./hosts/darwin.nix];
         specialArgs = {
-          inherit inputs outputs;
-          ssh-keys = ssh-keys;
+          inherit inputs outputs ssh-keys;
         };
       };
     };
@@ -115,8 +108,7 @@
         system = "x86_64-linux";
         modules = [./hosts/nixos-desktop.nix];
         specialArgs = {
-          inherit inputs outputs;
-          ssh-keys = ssh-keys;
+          inherit inputs outputs ssh-keys;
         };
       };
 
@@ -125,8 +117,7 @@
         system = "x86_64-linux";
         modules = [./hosts/nixos-qemu.nix];
         specialArgs = {
-          inherit inputs outputs;
-          ssh-keys = ssh-keys;
+          inherit inputs outputs ssh-keys;
         };
       };
     };

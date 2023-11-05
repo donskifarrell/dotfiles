@@ -9,21 +9,23 @@ in {
   home = let
     configDir = "${config.home.homeDirectory}/.config";
   in {
-    file."wlogout" = {
-      source = "${config.home.homeDirectory}/.dotfiles/hosts/config/wlogout";
-      target = "${configDir}/wlogout";
-    };
-    file."swaync" = {
-      source = "${config.home.homeDirectory}/.dotfiles/hosts/config/swaync";
-      target = "${configDir}/swaync";
-    };
-    file."sway-lock" = {
-      source = "${config.home.homeDirectory}/.dotfiles/hosts/config/sway-lock";
-      target = "${configDir}/sway-lock";
-    };
-    file."electron25-flags.conf" = {
-      source = "${config.home.homeDirectory}/.dotfiles/hosts/config/electron25-flags.conf";
-      target = "${configDir}/electron25-flags.conf";
+    file = {
+      "wlogout" = {
+        source = "${config.home.homeDirectory}/.dotfiles/hosts/config/wlogout";
+        target = "${configDir}/wlogout";
+      };
+      "swaync" = {
+        source = "${config.home.homeDirectory}/.dotfiles/hosts/config/swaync";
+        target = "${configDir}/swaync";
+      };
+      "sway-lock" = {
+        source = "${config.home.homeDirectory}/.dotfiles/hosts/config/sway-lock";
+        target = "${configDir}/sway-lock";
+      };
+      "electron25-flags.conf" = {
+        source = "${config.home.homeDirectory}/.dotfiles/hosts/config/electron25-flags.conf";
+        target = "${configDir}/electron25-flags.conf";
+      };
     };
   };
 

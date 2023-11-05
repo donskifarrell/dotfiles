@@ -16,10 +16,9 @@
     then "/Users/${user}"
     else throw "Unsupported platform";
 in {
-  _module.args.user = user;
-  _module.args.hostname = hostname;
-  _module.args.system = system;
-  _module.args.homeDir = homeDir;
+  _module.args = {
+    inherit user hostname system homeDir;
+  };
 
   imports = [
     inputs.nixos-hardware.nixosModules.common-cpu-amd
@@ -139,9 +138,9 @@ in {
     };
 
     users.${user} = {pkgs, ...}: {
-      _module.args.user = user;
-      _module.args.hostname = hostname;
-      _module.args.system = system;
+      _module.args = {
+        inherit user hostname system;
+      };
 
       imports = [
         ./home-manager
