@@ -60,22 +60,6 @@
       {
         path = "~/.config/git/.gitconfig.local";
       }
-      {
-        path = "~/.local/git/.gitconfig.brankas";
-        condition = "gitdir/i:brankas/";
-      }
-      {
-        path = "~/.local/git/.gitconfig.brankas";
-        condition = "gitdir/i:brank.as/";
-      }
-      {
-        path = "~/.local/git/.gitconfig.brankas";
-        condition = "gitdir/i:testing/";
-      }
-      {
-        path = "~/.local/git/.gitconfig.polygonstar";
-        condition = "gitdir/i:polygonstar/";
-      }
     ];
 
     extraConfig = {
