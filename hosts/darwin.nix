@@ -21,6 +21,7 @@ in {
   nixpkgs.hostPlatform = system;
 
   imports = [
+    inputs.agenix.nixosModules.default
     inputs.home-manager.darwinModules.home-manager
     inputs.nix-homebrew.darwinModules.nix-homebrew
 
@@ -107,7 +108,10 @@ in {
         pkgSets.essentials-utils
         ++ pkgSets.essentials-dev
         ++ pkgSets.essentials-gui
-        ++ pkgSets.osx;
+        ++ pkgSets.osx
+        ++ [
+          inputs.agenix.packages."${pkgs.system}".default
+        ];
     };
   };
 }

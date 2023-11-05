@@ -2,11 +2,12 @@
 
 I've essentially got 3 machines:
 
-| Hostname | Users | System         | What is it?         |
-| -------- | ----- | -------------- | ------------------- |
-| makati   | df    | x86_64-linux   | Desktop workstation |
-| manila   | df    | aarch64-darwin | M1 Macbook Pro      |
-| qemu     | df    | x86_64-linux   | VM                  |
+| Hostname | Users | System         | What is it?             |
+| -------- | ----- | -------------- | ----------------------- |
+| makati   | df    | x86_64-linux   | Desktop workstation     |
+| manila   | df    | aarch64-darwin | M1 Macbook Pro          |
+| qemu     | df    | x86_64-linux   | VM (multiple)           |
+| belfast  | N/A   | x86_64-linux   | Ubuntu(?) VPS - Not Nix |
 
 These dotfiles try to keep things easy and composable. Everything is driven from the base `flake.nix` using standard tooling.
 
@@ -41,8 +42,10 @@ uname -m # outputs: arm64 on M1, x86_64 on nixos
 # Check hostname is correct, if not, goto System Preferences and change it there
 scutil --get LocalHostName
 
-# Get dotfiles from this repo to the path ~/.dotfiles
-# I generally don't have keys setup yet, so I pull just the files then switch it later (guessing at the steps:)
+# Get the df@secrets.nix key and put in the .ssh folder
+# `mkdir ~/.ssh` might be needed
+
+# Manually download the dotfiles from this repo to the path ~/.dotfiles. We'll replace later
 cd ~
 wget -O .dotfiles.zip https://github.com/donskifarrell/dotfiles/archive/refs/heads/main.zip
 unzip .dotfiles.zip
@@ -54,6 +57,9 @@ nix run --extra-experimental-features nix-command --extra-experimental-features 
 # Once that installs, we can use the simpler command in the future (Alias it somewhere)
 /run/current-system/sw/bin/darwin-rebuild switch --flake ~/.dotfiles/#manila --impure
 
+# Now you can delete the dotfiles and do a proper git clone
+rm -rf ~/.dotfiles
+git clone git@github.com:donskifarrell/dotfiles.git ~/.dotfiles
 ```
 
 ## NIXOS Fresh Install
@@ -63,28 +69,36 @@ The nixos install is more involved, as it's an entire system.
 ```
 # The easiest way is to use the GUI installer from an ISO: https://nixos.org/download.html#nixos-iso
 
-# TODO: Missing steps like getting the latest repo pulled
-# Make sure dotfiles are placed in ~/.dotfiles
+# Get the df@secrets.nix key and put in the .ssh folder
+# `mkdir ~/.ssh` might be needed
+
+# Manually download the dotfiles from this repo to the path ~/.dotfiles. We'll replace later
+cd ~
+wget -O .dotfiles.zip https://github.com/donskifarrell/dotfiles/archive/refs/heads/main.zip
+unzip .dotfiles.zip
 
 # Once we have the dotfiles in the correct location
 sudo nixos-rebuild --flake ~/.dotfiles/#makati switch --impure
 
 # Nixos manual warns 23.11 may break boot mounts, so it's wise to re-run:
 # sudo nixos-rebuild --flake ~/.dotfiles/#makati boot --impure
+
+# Now you can delete the dotfiles and do a proper git clone
+rm -rf ~/.dotfiles
+git clone git@github.com:donskifarrell/dotfiles.git ~/.dotfiles
 ```
 
 ## TODO
 
 ### - Common
 
-- Integrate Aegnix for secrets: https://github.com/ryantm/agenix
+- ~~Integrate Aegnix for secrets: https://github.com/ryantm/agenix~~
 - Integrate Lorri?: https://github.com/nix-community/lorri or https://github.com/nix-community/nix-direnv
 - Install tooling:
   - Wireguard, or Tailscale
   - Syncthing
   - Docker, or Podman
   - Direnv
-  - OpenSnitch
   - VMs: https://github.com/Mic92/nixos-shell
 - How do I sync easily:
   - Brave: has a sync chain - way to "nix" it?
@@ -120,11 +134,6 @@ Browser extension that needs to be installed manually:
 - Integrate Flatpak / AppImage on Linux
 - Create an iso image with base config already installed
 - Install tooling:
-  - Wireguard, or Tailscale
-  - Syncthing
-  - Docker, or Podman
-    -- monorepo for all side projects so we can use traefik or similar: https://georgek.github.io/blog/posts/multiple-web-projects-traefik/
-  - Direnv
   - OpenSnitch
 - For dev VMs, use https://github.com/nix-community/nixos-vscode-server
 - Switch to pop_os! DE?
@@ -133,9 +142,9 @@ Browser extension that needs to be installed manually:
 - Add plymouth theme: https://github.com/adi1090x/plymouth-themes
 - better font for GTK, maybe SF PRO
 - file associations
-<!-- - fzf broke ctrl-r -->
+- ~~fzf broke ctrl-r~~
 - copy/paste into terminal in vscode
-- ssh-keys not be auto added?
+- ssh-keys are not added to ssh-agent?
 - XWayland / electron etc
 - trackpad speed
 - scroll speed
