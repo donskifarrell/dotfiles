@@ -131,6 +131,7 @@ Browser extension that needs to be installed manually:
 
 ### - Nixos
 
+- DConf settings
 - Integrate Flatpak / AppImage on Linux
 - Create an iso image with base config already installed
 - Install tooling:
