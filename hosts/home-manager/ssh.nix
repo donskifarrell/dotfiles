@@ -10,6 +10,7 @@
 
     extraConfig = lib.mkMerge [
       ''
+        IgnoreUnknown UseKeychain
         AddKeysToAgent yes
       ''
       (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin

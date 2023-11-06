@@ -1,6 +1,6 @@
 # My Dots
 
-I've essentially got 3 machines:
+I've got 4 machines:
 
 | Hostname | Users | System         | What is it?             |
 | -------- | ----- | -------------- | ----------------------- |
