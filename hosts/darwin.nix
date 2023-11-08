@@ -68,6 +68,8 @@ in {
   services.nix-daemon.enable = true;
   nix.package = pkgs.nix;
 
+  environment.shells = [pkgs.fish];
+
   users.users.${user} = {
     name = "${user}";
     home = "/Users/${user}";
