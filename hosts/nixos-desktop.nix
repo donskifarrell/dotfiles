@@ -57,13 +57,25 @@ in {
     };
   };
 
-  networking = {
+  networking = let
+    wg_port = "51820"; # UDP port used by Wireguard VPS server
+  in {
     hostName = "${hostname}";
     networkmanager.enable = true;
     wireless.enable = false;
     firewall = {
       # 3389: RDP from OSX
       allowedTCPPorts = [3389];
+
+      # wireguard trips rpfilter up
+      extraCommands = ''
+        ip46tables -t mangle -I nixos-fw-rpfilter -p udp -m udp --sport ${wg_port} -j RETURN
+        ip46tables -t mangle -I nixos-fw-rpfilter -p udp -m udp --dport ${wg_port} -j RETURN
+      '';
+      extraStopCommands = ''
+        ip46tables -t mangle -D nixos-fw-rpfilter -p udp -m udp --sport ${wg_port} -j RETURN || true
+        ip46tables -t mangle -D nixos-fw-rpfilter -p udp -m udp --dport ${wg_port} -j RETURN || true
+      '';
     };
   };
 

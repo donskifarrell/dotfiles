@@ -48,6 +48,7 @@
     nodePackages_latest.pnpm
     shfmt
     statix
+    wireguard-tools
   ];
 
   essentials-gui = with pkgs; [

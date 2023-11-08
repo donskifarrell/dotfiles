@@ -39,6 +39,8 @@ in {
 
   # Wireguard
   "./wg/belfast-asus-appletv.age".publicKeys = [df];
+  "./wg/belfast-oneplus9.age".publicKeys = [df];
+  "./wg/belfast-makati.age".publicKeys = [df];
   "./wg/belfast-manila.age".publicKeys = [df];
 
   # Work
