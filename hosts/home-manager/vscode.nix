@@ -52,8 +52,18 @@
             "editor.defaultFormatter": "kamadorueda.alejandra",
             "editor.formatOnPaste": true,
             "editor.formatOnSave": true,
-            "editor.formatOnType": false,
-            "enableLanguageServer": true
+            "editor.formatOnType": false
+          },
+          "nix.enableLanguageServer": true,
+          "nix.serverPath": "nil",
+          "nix.serverSettings": {
+            "nil": {
+              "formatting": {
+                "command": [
+                  "alejandra"
+                ]
+              }
+            }
           },
           "[typescript]": {
             "editor.defaultFormatter": "esbenp.prettier-vscode"
@@ -61,6 +71,8 @@
           "[typescriptreact]": {
             "editor.defaultFormatter": "esbenp.prettier-vscode"
           },
+          "go.formatTool": "gofmt",
+          "go.toolsManagement.autoUpdate": true,
           "alejandra.program": "alejandra",
           "cSpell.language": "en-GB",
           "diffEditor.ignoreTrimWhitespace": false,
@@ -70,46 +82,22 @@
           "editor.formatOnSave": true,
           "editor.linkedEditing": true,
           "editor.tabSize": 2,
-          "editor.unicodeHighlight": {
-            "includeStrings": false
-          },
           "editor.wordWrap": "on",
+          "editor.unicodeHighlight.includeStrings": "true",
           "explorer.confirmDelete": false,
-          "files": {
-            "associations": {
-              "*.tmpl": "html"
-            },
-            "encoding": "utf8",
-            "eol": "\n",
-            "insertFinalNewline": true,
-            "trimTrailingWhitespace": true
+          "files.trimFinalNewlines": true,
+          "files.trimTrailingWhitespace": true,
+          "files.eol": "\n",
+          "files.encoding": "utf8",
+          "files.associations": {
+            "*.tmpl": "html"
           },
           "git.confirmSync": false,
-          "go": {
-            "formatTool": "gofmt",
-            "toolsManagement": {
-              "autoUpdate": true
-            }
-          },
           "html.format.enable": false,
-          "nix": {
-            "serverPath": "nil",
-            "serverSettings": {
-              "nil": {
-                "formatting": {
-                  "command": ["alejandra"]
-                }
-              }
-            }
-          },
           "redhat.telemetry.enabled": false,
           "remote.SSH.configFile": "${config.home.homeDirectory}/.ssh/sshconfig.local",
-          "vetur.format.defaultFormatter.html": "none",
-          "workbench": {
-            "colorTheme": "Catppuccin Macchiato",
-            "iconTheme": "catppuccin-macchiato"
-          },
-          "workbench.iconTheme": "catppuccin-macchiato"
+          "workbench.iconTheme": "catppuccin-macchiato",
+          "workbench.colorTheme": "Catppuccin Macchiato"
         }
       ''
       // {

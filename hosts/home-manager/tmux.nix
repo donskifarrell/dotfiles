@@ -1,18 +1,13 @@
 {
   config,
-  lib,
   pkgs,
-  user,
   ...
 }: {
   programs.tmux = {
     enable = true;
     shortcut = "a";
     terminal = "screen-256color";
-    shell = lib.mkMerge [
-      (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "${config.home.homeDirectory}/.nix-profile/bin/fish")
-      (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/Users/${user}/.nix-profile/bin/fish")
-    ];
+    shell = "${config.home.homeDirectory}/.nix-profile/bin/fish";
     clock24 = true;
     keyMode = "vi";
     escapeTime = 0; # address vim mode switching delay (http://superuser.com/a/252717/65504)
