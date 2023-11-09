@@ -74,12 +74,12 @@
     vlc
   ];
 
-  osx-brews = with pkgs; [
+  osx-brews = [
     "flyctl" # always ahead of nixpkgs
     "scrcpy" # always ahead of nixpkgs
   ];
 
-  osx-casks = with pkgs; [
+  osx-casks = [
     "android-studio"
     "appcleaner"
     "balenaetcher"

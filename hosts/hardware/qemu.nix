@@ -4,7 +4,6 @@
 {
   lib,
   modulesPath,
-  nixpkgs,
   ...
 }: {
   imports = [

@@ -1,8 +1,4 @@
-{
-  lib,
-  pkgs,
-  ...
-}: {
+{pkgs, ...}: {
   gtk = let
     gtkExtra = {
       gtk-application-prefer-dark-theme = 1;

@@ -1,9 +1,4 @@
-{
-  config,
-  lib,
-  pkgs,
-  ...
-}: {
+{config, ...}: {
   home = {
     file."btop-catppuccin-macchiato" = {
       source = "${config.home.homeDirectory}/.dotfiles/hosts/config/theme/btop-catppuccin-macchiato.theme";

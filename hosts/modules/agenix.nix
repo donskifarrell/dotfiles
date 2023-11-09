@@ -1,6 +1,5 @@
 {
   homeDir,
-  pkgs,
   user,
   ...
 }: let

@@ -1,9 +1,4 @@
-{
-  config,
-  lib,
-  pkgs,
-  ...
-}: {
+{config, ...}: {
   home = {
     file."rofi" = {
       source = "${config.home.homeDirectory}/.dotfiles/hosts/config/rofi";
