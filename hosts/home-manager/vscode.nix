@@ -25,10 +25,12 @@
       foxundermoon.shell-format
       golang.go
       hashicorp.terraform
+      jetpack-io.devbox
       jgclark.vscode-todo-highlight
       jnoortheen.nix-ide
       jock.svg
       kamadorueda.alejandra
+      mkhl.direnv
       ms-vscode-remote.remote-ssh
       redhat.vscode-yaml
       streetsidesoftware.code-spell-checker

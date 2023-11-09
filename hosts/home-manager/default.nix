@@ -29,6 +29,8 @@
   programs = {
     bat.enable = true;
 
+    direnv.enable = true;
+
     eza.enable = true;
 
     fzf.enable = true;
