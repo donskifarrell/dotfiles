@@ -49,6 +49,7 @@
     shfmt
     statix
     wireguard-tools
+    devbox
   ];
 
   essentials-gui = with pkgs; [
@@ -77,6 +78,7 @@
   osx-brews = [
     "flyctl" # always ahead of nixpkgs
     "scrcpy" # always ahead of nixpkgs
+    "mas"
   ];
 
   osx-casks = [

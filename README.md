@@ -93,9 +93,10 @@ git clone git@github.com:donskifarrell/dotfiles.git ~/.dotfiles
 ### - Common
 
 - ~~Integrate Aegnix for secrets: https://github.com/ryantm/agenix~~
-- Integrate Lorri?: https://github.com/nix-community/lorri or https://github.com/nix-community/nix-direnv
+- ~~Integrate Lorri?: https://github.com/nix-community/lorri or https://github.com/nix-community/nix-direnv~~
+  - ~~Went with Devbox https://www.jetpack.io/devbox/docs~~
 - Install tooling:
-  - Wireguard, or Tailscale
+  - ~~Wireguard, or Tailscale~~
   - Syncthing
   - Docker, or Podman
   - Direnv
@@ -113,16 +114,10 @@ git clone git@github.com:donskifarrell/dotfiles.git ~/.dotfiles
 ### - OSX
 
 - Look at nix-darwin options: https://daiderd.com/nix-darwin/manual/index.html
-- How do I sync easily:
-  - LittleSnitch (OSX) ruleset: Can be copied, or symlinked to Dropbox?
 
-Applications on OSX that still need manual install via App Store:
+Applications on OSX that still need a manual install:
 
-- Coin Tick - Menu Bar Crypto
-- ColorSlurp
-- Unsplash Wallpapers
-- WireGuard
-- Prey (OSX has some trouble installing)
+- Prey (OSX has some trouble installing) https://preyproject.com/download
 
 Browser extension that needs to be installed manually:
 

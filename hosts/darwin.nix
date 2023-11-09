@@ -56,7 +56,10 @@ in {
     global.autoUpdate = false;
 
     masApps = {
-      # "An AppStore App" = 1234;
+      "Coin Tick - Menu Bar Crypto" = 1141688067;
+      "ColorSlurp" = 1287239339;
+      "Unsplash Wallpapers" = 1284863847;
+      "WireGuard" = 1451685025;
     };
 
     brews = pkgSets.osx-brews;

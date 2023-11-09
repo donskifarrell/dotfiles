@@ -114,9 +114,19 @@ in {
         path = "${homeDir}/.ssh/wg/belfast-asus-appletv.conf";
         owner = "${user}";
       };
+      "belfast-makati" = {
+        file = ../../shhhh/wg/belfast-makati.age;
+        path = "${homeDir}/.ssh/wg/belfast-makati.conf";
+        owner = "${user}";
+      };
       "belfast-manila" = {
         file = ../../shhhh/wg/belfast-manila.age;
         path = "${homeDir}/.ssh/wg/belfast-manila.conf";
+        owner = "${user}";
+      };
+      "belfast-oneplus9" = {
+        file = ../../shhhh/wg/belfast-oneplus9.age;
+        path = "${homeDir}/.ssh/wg/belfast-oneplus9.conf";
         owner = "${user}";
       };
     };
