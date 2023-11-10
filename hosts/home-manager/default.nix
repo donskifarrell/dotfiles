@@ -44,6 +44,9 @@
       enable = true;
       package = pkgs.go;
       goPath = "go";
+      extraGoPaths = [
+        "dev"
+      ];
     };
   };
 }

@@ -92,24 +92,11 @@ git clone git@github.com:donskifarrell/dotfiles.git ~/.dotfiles
 
 ### - Common
 
-- ~~Integrate Aegnix for secrets: https://github.com/ryantm/agenix~~
-- ~~Integrate Lorri?: https://github.com/nix-community/lorri or https://github.com/nix-community/nix-direnv~~
-  - ~~Went with Devbox https://www.jetpack.io/devbox/docs~~
 - Install tooling:
-  - ~~Wireguard, or Tailscale~~
   - Syncthing
   - Docker, or Podman
-  - Direnv
-  - VMs: https://github.com/Mic92/nixos-shell
-- How do I sync easily:
-  - Brave: has a sync chain - way to "nix" it?
-  - Vivaldi: has a sync feature - way to "nix" it?
-  - Firefox: ?
-  - fish-shell history
-  - ~~.local git configs, and other things~~
+  - VMs: https://github.com/Mic92/nixos-shell or virt-manager
 - Allow stable/unstable nixpkgs
-- Common scripts (backup, restore etc)
-- Cleanup VSCode config - use symlink so it's easily editable
 
 ### - OSX
 

@@ -36,6 +36,7 @@
     # docker-compose
     alejandra
     android-tools
+    devbox
     direnv
     flyctl
     git-filter-repo
@@ -46,10 +47,11 @@
     nil
     nodejs
     nodePackages_latest.pnpm
+    nss_latest
     shfmt
     statix
+    virt-manager
     wireguard-tools
-    devbox
   ];
 
   essentials-gui = with pkgs; [

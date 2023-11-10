@@ -23,7 +23,7 @@
 
       # TODO: Drop tail makati
       os-switch = lib.mkMerge [
-        (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "sudo nixos-rebuild switch --flake $HOME/.dotfiles/#makati")
+        (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "sudo nixos-rebuild --flake ~/.dotfiles/#makati switch --impure")
         (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/run/current-system/sw/bin/darwin-rebuild switch --flake ~/.dotfiles/#manila --impure")
       ];
       hm-switch = "home-manager switch --flake $HOME/.dotfiles/#makati";

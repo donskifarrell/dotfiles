@@ -1,3 +1,6 @@
+#
+#### DON'T FORGET TO UPDATE agenix.nix!
+#
 let
   df = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKMs4ZWWDVhhGphzt5qWlFJwdekbT8GZ642uKB6nig3k df@secrets.nix";
   users = [df];

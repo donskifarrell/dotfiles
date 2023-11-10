@@ -28,7 +28,7 @@
         vicmd_symbol = "[➜](bold green)";
       };
       nix_shell = {
-        format = "[$symbol$state( \($name\) )]($style)";
+        format = "[$symbol]($style)";
         symbol = "";
       };
       palette = "catppuccin-macchiato";

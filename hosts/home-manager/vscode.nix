@@ -30,6 +30,7 @@
       jnoortheen.nix-ide
       jock.svg
       kamadorueda.alejandra
+      matthewpi.caddyfile-support
       mkhl.direnv
       ms-vscode-remote.remote-ssh
       redhat.vscode-yaml
