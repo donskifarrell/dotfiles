@@ -87,7 +87,6 @@
           "editor.tabSize": 2,
           "editor.wordWrap": "on",
           "editor.unicodeHighlight.includeStrings": true,
-          "editor.defaultFormatter": "esbenp.prettier-vscode",
           "explorer.confirmDelete": false,
           "files.trimFinalNewlines": true,
           "files.trimTrailingWhitespace": true,
