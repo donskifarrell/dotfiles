@@ -86,7 +86,8 @@
           "editor.linkedEditing": true,
           "editor.tabSize": 2,
           "editor.wordWrap": "on",
-          "editor.unicodeHighlight.includeStrings": "true",
+          "editor.unicodeHighlight.includeStrings": true,
+          "editor.defaultFormatter": "esbenp.prettier-vscode",
           "explorer.confirmDelete": false,
           "files.trimFinalNewlines": true,
           "files.trimTrailingWhitespace": true,
@@ -98,16 +99,14 @@
           "git.confirmSync": false,
           "html.format.enable": false,
           "redhat.telemetry.enabled": false,
-          "remote.SSH.configFile": "${config.home.homeDirectory}/.ssh/sshconfig.local",
           "workbench.iconTheme": "catppuccin-macchiato",
-          "workbench.colorTheme": "Catppuccin Macchiato"
+          "workbench.colorTheme": "Catppuccin Macchiato",
+          "caddyfile.executable": "${config.home.homeDirectory}/dev/mono/.devbox/virtenv/.wrappers/bin/caddy",
+          "remote.SSH.configFile": "${config.home.homeDirectory}/.ssh/sshconfig.local",
+          "shellformat.path": "${config.home.homeDirectory}/.nix-profile/bin/shfmt"
         }
       ''
       // {
-        "shellformat.path" = lib.mkMerge [
-          (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "${config.home.homeDirectory}/.nix-profile/bin/shfmt")
-          (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/Users/${user}/.nix-profile/bin/shfmt")
-        ];
         "window.zoomLevel" = lib.mkMerge [
           (lib.mkIf pkgs.stdenv.hostPlatform.isLinux 1)
           (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin 0)

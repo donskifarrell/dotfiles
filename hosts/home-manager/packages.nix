@@ -48,6 +48,8 @@
     nodejs
     nodePackages_latest.pnpm
     nss_latest
+    nssTools
+    p11-kit
     shfmt
     statix
     virt-manager
