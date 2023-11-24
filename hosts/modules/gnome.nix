@@ -1,14 +1,14 @@
 {pkgs, ...}: {
-  environment.gnome.excludePackages = with pkgs; [
-    gnome.totem
-    gnome.epiphany
-    gnome.gnome-calendar
-    gnome.gnome-clocks
-    gnome.gnome-contacts
-    gnome.gnome-maps
-    gnome.gnome-weather
-    gnome.gnome-clocks
-  ];
+  # environment.gnome.excludePackages = with pkgs; [
+  #   gnome.totem
+  #   gnome.epiphany
+  #   gnome.gnome-calendar
+  #   gnome.gnome-clocks
+  #   gnome.gnome-contacts
+  #   gnome.gnome-maps
+  #   gnome.gnome-weather
+  #   gnome.gnome-clocks
+  # ];
 
   services = {
     xserver = {

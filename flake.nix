@@ -4,7 +4,7 @@
   inputs = {
     # Nikpkgs
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    stable-pkgs.url = "github:nixos/nixpkgs/nixos-23.05";
+    stable-pkgs.url = "github:nixos/nixpkgs/nixos-23.11";
 
     # Common
     utils.url = "github:numtide/flake-utils";
