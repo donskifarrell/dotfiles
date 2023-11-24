@@ -36,11 +36,13 @@
     # docker-compose
     alejandra
     android-tools
+    cargo
     devbox
     direnv
     flyctl
     git-filter-repo
     gopls
+    just
     kubectl
     kubectx
     mkcert
@@ -75,8 +77,11 @@
     obsidian
     opensnitch-ui
     sublime4
+    ulauncher
     vivaldi
     vlc
+    wl-clipboard
+    wl-clipboard-x11
   ];
 
   osx-brews = [

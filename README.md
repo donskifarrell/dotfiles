@@ -62,6 +62,20 @@ rm -rf ~/.dotfiles
 git clone git@github.com:donskifarrell/dotfiles.git ~/.dotfiles
 ```
 
+Post-install, there are still some additional steps:
+(
+
+1. Applications on OSX that still need a manual install:
+
+   - Prey (OSX has some trouble installing) https://preyproject.com/download
+
+2. Browser extension that needs to be installed manually:
+
+   - Paywall bypass https://github.com/iamadamdev/bypass-paywalls-chrome
+     - unzip to a folder: ~/.bypass-paywalls-chrome so it's out of the way (don't delete folder?)
+
+3. Review nix-darwin options: https://daiderd.com/nix-darwin/manual/index.html
+
 ## NIXOS Fresh Install
 
 The nixos install is more involved, as it's an entire system.
@@ -94,22 +108,9 @@ git clone git@github.com:donskifarrell/dotfiles.git ~/.dotfiles
 
 - Install tooling:
   - Syncthing
-  - Docker, or Podman
-  - VMs: https://github.com/Mic92/nixos-shell or virt-manager
+  - Podman (with alias for docker)
+  - ~~VMs: https://github.com/Mic92/nixos-shell or virt-manager~~
 - Allow stable/unstable nixpkgs
-
-### - OSX
-
-- Look at nix-darwin options: https://daiderd.com/nix-darwin/manual/index.html
-
-Applications on OSX that still need a manual install:
-
-- Prey (OSX has some trouble installing) https://preyproject.com/download
-
-Browser extension that needs to be installed manually:
-
-- Paywall bypass https://github.com/iamadamdev/bypass-paywalls-chrome
-  -- unzip to a folder: ~/.bypass-paywalls-chrome so it's out of the way (don't delete folder)
 
 ### - Nixos
 
@@ -119,21 +120,15 @@ Browser extension that needs to be installed manually:
 - Install tooling:
   - OpenSnitch
 - For dev VMs, use https://github.com/nix-community/nixos-vscode-server
-- Switch to pop_os! DE?
 - Add cron job to switch wallpapers: https://github.com/cronie-crond/cronie
 - ROFI applets: https://github.com/adi1090x/rofi
 - Add plymouth theme: https://github.com/adi1090x/plymouth-themes
 - better font for GTK, maybe SF PRO
-- file associations
-- ~~fzf broke ctrl-r~~
-- copy/paste into terminal in vscode
-- ssh-keys are not added to ssh-agent?
-- XWayland / electron etc
 - trackpad speed
 - scroll speed
 - bluetooth audio on google meet not resetting
 - media keys
-- wayland support in apps: https://nixos.wiki/wiki/Wayland
+- XWayland / electron etc, wayland support in apps: https://nixos.wiki/wiki/Wayland
 
 ## Misc Links
 

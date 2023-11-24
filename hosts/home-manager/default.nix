@@ -22,6 +22,8 @@
       XDG_CONFIG_HOME = "${config.home.homeDirectory}/.config";
       XDG_DATA_HOME = "${config.home.homeDirectory}/.local/share";
     };
+
+    sessionPath = ["${config.home.homeDirectory}/go/bin"];
   };
 
   fonts.fontconfig.enable = true;
@@ -44,6 +46,7 @@
       enable = true;
       package = pkgs.go;
       goPath = "go";
+      goBin = "go/bin";
       extraGoPaths = [
         "dev"
       ];

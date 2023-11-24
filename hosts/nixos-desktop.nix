@@ -118,6 +118,8 @@ in {
     # playerctld.enable = true;
   };
 
+  virtualisation.libvirtd.enable = true;
+
   hardware = {
     bluetooth.enable = true;
     bluetooth.powerOnBoot = true;
@@ -191,7 +193,7 @@ in {
       home.homeDirectory = pkgs.lib.mkForce "/home/${user}";
 
       home.packages = let
-        pkgSets = import ./home-manager/packages.nix {inherit pkgs;};
+        pkgSets = import ./home-manager/packages.nix {inherit pkgs inputs;};
       in
         pkgSets.essentials-utils
         ++ pkgSets.essentials-dev

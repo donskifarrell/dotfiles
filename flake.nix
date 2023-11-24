@@ -3,7 +3,7 @@
 
   inputs = {
     # Nikpkgs
-    nixpkgs.url = "github:NixOS/nixpkgs/gnome";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     stable-pkgs.url = "github:nixos/nixpkgs/nixos-23.05";
 
     # Common
@@ -21,11 +21,6 @@
 
     # NIXOS
     nixos-hardware.url = "github:NixOS/nixos-hardware";
-    gnomeNixpkgs.url = "github:NixOS/nixpkgs/gnome";
-    hyprland = {
-      url = "github:hyprwm/hyprland";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
 
     # OSX
     darwin = {
@@ -54,12 +49,10 @@
     nix-vscode-extensions,
     self,
     utils,
-    # secrets, # TODO: Add secrets repo
+    # secrets,
     home-manager,
     nurl,
     # NixOS
-    gnomeNixpkgs,
-    hyprland,
     nixos-hardware,
     # OSX
     darwin,
@@ -70,24 +63,7 @@
     inherit (self) outputs;
 
     lib = nixpkgs.lib // home-manager.lib;
-    systems = ["x86_64-linux" "aarch64-darwin"];
     ssh-keys = ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKdNislbiV21PqoaREbPATGeCj018IwKufVcgR4Ft9Fl london"];
-
-    # TODO: Switch with flake-compat?
-    forEachSystem = f: lib.genAttrs systems (system: f pkgsFor.${system});
-    pkgsFor = lib.genAttrs systems (system:
-      import nixpkgs {
-        inherit system;
-        config = {
-          allowUnfree = true;
-          allowBroken = true;
-          allowInsecure = false;
-          allowUnsupportedSystem = true;
-
-          # Workaround fix: https://github.com/nix-community/home-manager/issues/2942
-          allowUnfreePredicate = pkg: true;
-        };
-      });
   in {
     inherit lib;
 
