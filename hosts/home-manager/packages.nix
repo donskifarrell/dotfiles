@@ -77,6 +77,7 @@
     obsidian
     opensnitch-ui
     sublime4
+    telegram-desktop
     ulauncher
     vivaldi
     vlc
