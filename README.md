@@ -119,6 +119,7 @@ git clone git@github.com:donskifarrell/dotfiles.git ~/.dotfiles
 - Create an iso image with base config already installed
 - Install tooling:
   - OpenSnitch
+  - 1password extension
 - For dev VMs, use https://github.com/nix-community/nixos-vscode-server
 - Add cron job to switch wallpapers: https://github.com/cronie-crond/cronie
 - ROFI applets: https://github.com/adi1090x/rofi
@@ -129,6 +130,13 @@ git clone git@github.com:donskifarrell/dotfiles.git ~/.dotfiles
 - bluetooth audio on google meet not resetting
 - media keys
 - XWayland / electron etc, wayland support in apps: https://nixos.wiki/wiki/Wayland
+- BIOS tweak (XMP; V.T on CPU)
+- Encrypt disk
+- Font rendering
+- Rectangle alt - qtile, forge
+- startup apps
+- Enforce BT settings - A2DP sink/LDAC for headset
+- ULauncher focus (Wayland portal/layout issue)
 
 ## Misc Links
 

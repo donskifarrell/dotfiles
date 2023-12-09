@@ -162,6 +162,7 @@
     gnomeExtensions.blur-my-shell
     gnomeExtensions.appindicator
     # gnomeExtensions.gtile
+    # gnomeExtensions.gnome-rectangle # https://github.com/acristoffers/gnome-rectangle
     gnomeExtensions.allow-locked-remote-desktop
   ];
 

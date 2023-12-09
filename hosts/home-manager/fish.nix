@@ -44,7 +44,7 @@
       duf = "du -sh * | sort -hr";
       less = "less -r";
       cat = "bat";
-      top = "sudo htop";
+      top = "sudo btop";
       vim = "nvim";
       vi = "nvim";
 
