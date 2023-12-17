@@ -3,6 +3,7 @@
     age
     bash
     bat
+    bore-cli
     cht-sh
     coreutils
     curl
@@ -18,6 +19,7 @@
     lsof
     neofetch
     netperf
+    ngrok
     openssh
     p7zip
     ripgrep
@@ -28,6 +30,7 @@
     unixtools.netstat
     unrar
     wget
+    zlib
   ];
 
   essentials-dev = with pkgs; [
@@ -64,6 +67,7 @@
     gimp
     spotify
     zathura
+    pgadmin4
   ];
 
   essentials-x86-gui = with pkgs; [
