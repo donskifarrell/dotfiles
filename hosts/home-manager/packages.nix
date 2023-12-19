@@ -14,6 +14,7 @@
     fzf
     gawk
     iftop
+    imagemagick
     jq
     killall
     lsof
@@ -22,6 +23,7 @@
     ngrok
     openssh
     p7zip
+    pngcrush
     ripgrep
     rlwrap
     tmux
