@@ -58,9 +58,11 @@
         enabled = [
           {
             # TODO: DO NOT RUN THROUGH A FORMATTER!
-            regex = ''
-              (ipfs:|ipns:|magnet:|mailto:|gemini:|gopher:|https:|http:|news:|file:|git:|ssh:|ftp:)[^\u0000-\u001F\u007F-\u009F<>"\\s{-}\\^⟨⟩`]+'';
-            command = "open";
+            regex = ''(ipfs:|ipns:|magnet:|mailto:|gemini:|gopher:|https:|http:|news:|file:|git:|ssh:|ftp:)[^\u0000-\u001F\u007F-\u009F<>"\\s{-}\\^⟨⟩`]+'';
+            command = lib.mkMerge [
+              (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "${config.home.homeDirectory}/.nix-profile/bin/xdg-open")
+              (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "open")
+            ];
             post_processing = true;
             mouse = {
               enabled = true;

@@ -100,9 +100,53 @@
           "redhat.telemetry.enabled": false,
           "workbench.iconTheme": "catppuccin-macchiato",
           "workbench.colorTheme": "Catppuccin Macchiato",
+          "todohighlight.keywords": [
+            {
+              "text": "TODO:",
+              "color": "#fff",
+              "backgroundColor": "#ffbd2a",
+              "overviewRulerColor": "rgba(255,189,42,0.8)"
+            },
+            {
+              "text": "TODO",
+              "color": "#fff",
+              "backgroundColor": "#ffbd2a",
+              "overviewRulerColor": "rgba(255,189,42,0.8)"
+            },
+            {
+              "text": "[TODO]",
+              "color": "#fff",
+              "backgroundColor": "#ffbd2a",
+              "overviewRulerColor": "rgba(255,189,42,0.8)"
+            },
+            {
+              "text": "FIXME:",
+              "color": "#fff",
+              "backgroundColor": "#f06292",
+              "overviewRulerColor": "rgba(240,98,146,0.8)"
+            }
+          ],
+          "todohighlight.include": [
+            "**/*.js",
+            "**/*.jsx",
+            "**/*.ts",
+            "**/*.tsx",
+            "**/*.html",
+            "**/*.css",
+            "**/*.scss",
+            "**/*.php",
+            "**/*.rb",
+            "**/*.txt",
+            "**/*.mdown",
+            "**/*.md",
+            "**/*.go",
+            "**/*.tmpl",
+            "**/*.sql"
+          ],
           "caddyfile.executable": "${config.home.homeDirectory}/dev/mono/.devbox/virtenv/.wrappers/bin/caddy",
           "remote.SSH.configFile": "${config.home.homeDirectory}/.ssh/sshconfig.local",
-          "shellformat.path": "${config.home.homeDirectory}/.nix-profile/bin/shfmt"
+          "shellformat.path": "${config.home.homeDirectory}/.nix-profile/bin/shfmt",
+          "Prettier-SQL.SQLFlavourOverride": "postgresql"
         }
       ''
       // {
