@@ -11,6 +11,7 @@
 
       permittedInsecurePackages = [
         "openssl-1.1.1w" # For Sublime4 install: https://github.com/NixOS/nixpkgs/issues/239615
+        "electron-25.9.0"
       ];
     };
 
