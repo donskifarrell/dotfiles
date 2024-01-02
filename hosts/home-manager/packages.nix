@@ -8,6 +8,7 @@
     coreutils
     curl
     difftastic
+    drill
     fd
     ffmpeg
     fx
@@ -28,6 +29,7 @@
     rlwrap
     tmux
     tree
+    trippy
     unixtools.ifconfig
     unixtools.netstat
     unrar
@@ -67,9 +69,9 @@
     _1password
     _1password-gui
     gimp
+    pgadmin4
     spotify
     zathura
-    pgadmin4
   ];
 
   essentials-x86-gui = with pkgs; [
@@ -97,6 +99,7 @@
     "mas"
   ];
 
+  # https://github.com/macos-fuse-t/fuse-t
   osx-casks = [
     "android-studio"
     "appcleaner"
