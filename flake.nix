@@ -18,6 +18,7 @@
     };
     nurl.url = "github:nix-community/nurl";
     nix-vscode-extensions.url = "github:nix-community/nix-vscode-extensions";
+    nix-flatpak.url = "github:gmodena/nix-flatpak/?ref=v0.2.0";
 
     # NIXOS
     nixos-hardware.url = "github:NixOS/nixos-hardware";
@@ -49,6 +50,7 @@
     nix-vscode-extensions,
     self,
     utils,
+    nix-flatpak,
     # secrets,
     home-manager,
     nurl,
@@ -71,7 +73,9 @@
       # OSX MBP
       manila = darwin.lib.darwinSystem {
         system = "aarch64-darwin";
-        modules = [./hosts/darwin.nix];
+        modules = [
+          ./hosts/darwin.nix
+        ];
         specialArgs = {
           inherit inputs outputs ssh-keys;
         };
@@ -82,7 +86,10 @@
       # Main desktop
       makati = lib.nixosSystem {
         system = "x86_64-linux";
-        modules = [./hosts/nixos-desktop.nix];
+        modules = [
+          nix-flatpak.nixosModules.nix-flatpak
+          ./hosts/nixos-desktop.nix
+        ];
         specialArgs = {
           inherit inputs outputs ssh-keys;
         };
@@ -91,7 +98,10 @@
       # Qemu VMs
       qemu = lib.nixosSystem {
         system = "x86_64-linux";
-        modules = [./hosts/nixos-qemu.nix];
+        modules = [
+          nix-flatpak.nixosModules.nix-flatpak
+          ./hosts/nixos-qemu.nix
+        ];
         specialArgs = {
           inherit inputs outputs ssh-keys;
         };

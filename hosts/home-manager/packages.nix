@@ -93,6 +93,11 @@
     wl-clipboard-x11
   ];
 
+  # https://flathub.org
+  nixos-flatpak = [
+    "com.slack.Slack"
+  ];
+
   osx-brews = [
     "flyctl" # always ahead of nixpkgs
     "scrcpy" # always ahead of nixpkgs

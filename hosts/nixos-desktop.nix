@@ -111,6 +111,15 @@ in {
     tumbler.enable = true; # Thumbnail support for images
     dbus.enable = true;
 
+    flatpak = {
+      enable = true;
+
+      packages = let
+        pkgSets = import ./home-manager/packages.nix {inherit pkgs inputs;};
+      in
+        pkgSets.nixos-flatpak;
+    };
+
     # TODO: what is this option?
     # udiskie.enable = true; # Auto mount devices
 
