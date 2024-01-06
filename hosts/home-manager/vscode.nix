@@ -14,6 +14,7 @@
     mutableExtensionsDir = true;
 
     extensions = with vscode-marketplace; [
+      astro-build.astro-vscode
       bradlc.vscode-tailwindcss
       catppuccin.catppuccin-vsc
       catppuccin.catppuccin-vsc-icons
