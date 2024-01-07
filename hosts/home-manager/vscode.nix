@@ -24,6 +24,7 @@
       formulahendry.auto-close-tag
       formulahendry.auto-rename-tag
       foxundermoon.shell-format
+      github.vscode-github-actions
       golang.go
       hashicorp.terraform
       jetpack-io.devbox
