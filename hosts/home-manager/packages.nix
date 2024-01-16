@@ -20,7 +20,6 @@
     killall
     lsof
     neofetch
-    netperf
     ngrok
     openssh
     p7zip
@@ -69,9 +68,7 @@
     _1password
     _1password-gui
     gimp
-    pgadmin4
     spotify
-    zathura
   ];
 
   essentials-x86-gui = with pkgs; [
@@ -82,8 +79,10 @@
     libreoffice-still
     maestral-gui
     mattermost-desktop
+    netperf
     obsidian
     opensnitch-ui
+    pgadmin4
     sublime4
     telegram-desktop
     ulauncher
@@ -91,6 +90,7 @@
     vlc
     wl-clipboard
     wl-clipboard-x11
+    zathura
   ];
 
   # https://flathub.org
@@ -126,6 +126,7 @@
     "postman"
     "raycast"
     "rectangle"
+    "slack"
     "skype"
     "sublime-text"
     "the-unarchiver"
@@ -141,8 +142,6 @@
     hack-font
     jetbrains-mono
     meslo-lgs-nf
-    noto-fonts
-    noto-fonts-emoji
   ];
 
   nixos = with pkgs; [
