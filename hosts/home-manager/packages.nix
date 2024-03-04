@@ -96,6 +96,7 @@
   # https://flathub.org
   nixos-flatpak = [
     "com.slack.Slack"
+    "com.belmoussaoui.Authenticator"
   ];
 
   osx-brews = [
@@ -160,6 +161,7 @@
     rofi-wayland
     qt6.qtwayland
     qt6.qt5compat
+    wirelesstools
   ];
 
   nixos-gnome = with pkgs; [
