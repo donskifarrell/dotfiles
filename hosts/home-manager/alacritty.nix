@@ -10,7 +10,7 @@
 
     settings = {
       env = {TERM = "alacritty";};
-      import = ["${config.home.homeDirectory}/.dotfiles/hosts/config/theme/alacritty-catppuccin-macchiato.yml"];
+      import = ["${config.home.homeDirectory}/.dotfiles/hosts/config/theme/alacritty-catppuccin-macchiato.toml"];
       window = {
         decorations = "full";
         startup_mode = "Windowed";
@@ -44,7 +44,9 @@
         ];
         builtin_box_drawing = true;
       };
-      draw_bold_text_with_bright_colors = false;
+      colors = {
+        draw_bold_text_with_bright_colors = false;
+      };
       live_config_reload = true;
       shell = {
         program = lib.mkMerge [
@@ -75,7 +77,7 @@
           }
         ];
       };
-      key_bindings = let
+      keyboard.bindings = let
         base_key_bindings = [
           {
             key = "V";
