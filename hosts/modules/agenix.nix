@@ -59,6 +59,7 @@
         file = ../../shhhh/${file.dir}/${file.name}.age;
         path = "${homeDir}/.ssh/${file.dir}/${file.name}";
         owner = "${user}";
+        mode = "600";
       };
     }
     # Corresponding Public Key
@@ -67,6 +68,7 @@
         file = ../../shhhh/${file.dir}/${file.name}.pub.age;
         path = "${homeDir}/.ssh/${file.dir}/${file.name}.pub";
         owner = "${user}";
+        mode = "644";
       };
     };
 in {
