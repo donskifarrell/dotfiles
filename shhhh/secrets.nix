@@ -12,11 +12,11 @@ let
 in {
   # Configs
   "./sshconfig.local.age".publicKeys = [df];
-  "./git/.gitconfig.bnk.age".publicKeys = [df];
-  "./git/.gitconfig.ff.age".publicKeys = [df];
-  "./git/.gitconfig.local.age".publicKeys = [df];
-  "./git/.gitconfig.pgstar.age".publicKeys = [df];
-  "./git/.gitconfig.uf.age".publicKeys = [df];
+  "./git/gitconfig.bnk.age".publicKeys = [df];
+  "./git/gitconfig.ff.age".publicKeys = [df];
+  "./git/gitconfig.local.age".publicKeys = [df];
+  "./git/gitconfig.pgstar.age".publicKeys = [df];
+  "./git/gitconfig.uf.age".publicKeys = [df];
 
   # FF
   "./ff/ff-gh.age".publicKeys = [df];

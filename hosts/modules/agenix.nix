@@ -83,29 +83,29 @@ in {
         owner = "${user}";
       };
       # Git
-      ".gitconfig.bnk" = {
-        file = ../../shhhh/git/.gitconfig.bnk.age;
-        path = "${homeDir}/.config/git/.gitconfig.bnk";
+      "gitconfig.bnk" = {
+        file = ../../shhhh/git/gitconfig.bnk.age;
+        path = "${homeDir}/.config/git/gitconfig.bnk";
         owner = "${user}";
       };
-      ".gitconfig.ff" = {
-        file = ../../shhhh/git/.gitconfig.ff.age;
-        path = "${homeDir}/.config/git/.gitconfig.ff";
+      "gitconfig.ff" = {
+        file = ../../shhhh/git/gitconfig.ff.age;
+        path = "${homeDir}/.config/git/gitconfig.ff";
         owner = "${user}";
       };
-      ".gitconfig.local" = {
-        file = ../../shhhh/git/.gitconfig.local.age;
-        path = "${homeDir}/.config/git/.gitconfig.local";
+      "gitconfig.local" = {
+        file = ../../shhhh/git/gitconfig.local.age;
+        path = "${homeDir}/.config/git/gitconfig.local";
         owner = "${user}";
       };
-      ".gitconfig.pgstar" = {
-        file = ../../shhhh/git/.gitconfig.pgstar.age;
-        path = "${homeDir}/.config/git/.gitconfig.pgstar";
+      "gitconfig.pgstar" = {
+        file = ../../shhhh/git/gitconfig.pgstar.age;
+        path = "${homeDir}/.config/git/gitconfig.pgstar";
         owner = "${user}";
       };
-      ".gitconfig.uf" = {
-        file = ../../shhhh/git/.gitconfig.uf.age;
-        path = "${homeDir}/.config/git/.gitconfig.uf";
+      "gitconfig.uf" = {
+        file = ../../shhhh/git/gitconfig.uf.age;
+        path = "${homeDir}/.config/git/gitconfig.uf";
         owner = "${user}";
       };
       # Wireguard
