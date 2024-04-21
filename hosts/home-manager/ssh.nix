@@ -6,8 +6,6 @@
   programs.ssh = {
     enable = true;
 
-    addKeysToAgent = "confirm";
-
     includes = ["~/.ssh/sshconfig.local"];
 
     extraConfig = lib.mkMerge [
