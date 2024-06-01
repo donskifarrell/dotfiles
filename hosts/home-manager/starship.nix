@@ -27,6 +27,12 @@
         error_symbol = "[❯](bold red)";
         vicmd_symbol = "[➜](bold green)";
       };
+      container = {
+        disabled = false;
+        format = "[$symbol \[$name\]]($style) ";
+        style = "bold red dimmed";
+        symbol = "⬢";
+      };
       nix_shell = {
         format = "[$symbol]($style)";
         symbol = "";

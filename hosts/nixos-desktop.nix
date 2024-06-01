@@ -128,6 +128,7 @@ in {
   };
 
   virtualisation.libvirtd.enable = true;
+  virtualisation.podman.enable = true;
 
   hardware = {
     bluetooth.enable = true;

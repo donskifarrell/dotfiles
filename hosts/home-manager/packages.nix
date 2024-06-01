@@ -45,6 +45,8 @@
     cargo
     devbox
     direnv
+    distrobox
+    exiftool
     flyctl
     git-filter-repo
     gopls
@@ -60,7 +62,9 @@
     p11-kit
     shfmt
     statix
+    unzip
     virt-manager
+    virtiofsd
     wireguard-tools
   ];
 
@@ -91,6 +95,7 @@
     wl-clipboard
     wl-clipboard-x11
     zathura
+    skypeforlinux
   ];
 
   # https://flathub.org
