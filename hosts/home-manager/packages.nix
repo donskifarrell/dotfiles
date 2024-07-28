@@ -49,6 +49,7 @@
     exiftool
     flyctl
     git-filter-repo
+    glogg
     gopls
     just
     kubectl
@@ -60,12 +61,20 @@
     nss_latest
     nssTools
     p11-kit
+    qrencode
     shfmt
     statix
     unzip
+    upx
     virt-manager
     virtiofsd
     wireguard-tools
+
+    # linux kernel
+    gcc
+    gnumake
+    flex
+    bison
   ];
 
   essentials-gui = with pkgs; [
@@ -95,6 +104,7 @@
     wl-clipboard
     wl-clipboard-x11
     zathura
+    scrcpy
     skypeforlinux
   ];
 
