@@ -32,7 +32,7 @@ in {
   ];
 
   system.stateVersion = "23.05"; # Don't change this
-  time.timeZone = "Asia/Singapore";
+  time.timeZone = "Europe/Dublin";
 
   # VM specific changes
   # Bootloader.

@@ -17,6 +17,10 @@ in {
     inherit user hostname system homeDir;
   };
 
+  ids.uids.nixbld = 300;
+
+  system.stateVersion = 5;
+
   nixpkgs.hostPlatform = system;
 
   imports = [

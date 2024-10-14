@@ -81,7 +81,7 @@
     _1password
     _1password-gui
     gimp
-    spotify
+    # spotify
   ];
 
   essentials-x86-gui = with pkgs; [
@@ -106,6 +106,7 @@
     zathura
     scrcpy
     skypeforlinux
+    steam
   ];
 
   # https://flathub.org
@@ -118,6 +119,8 @@
     "flyctl" # always ahead of nixpkgs
     "scrcpy" # always ahead of nixpkgs
     "mas"
+    "swift-protobuf" # iOS builds bnk
+    "grpc-swift" # iOS builds bnk
   ];
 
   # https://github.com/macos-fuse-t/fuse-t
@@ -143,6 +146,7 @@
     "raycast"
     "rectangle"
     "slack"
+    "steam"
     "skype"
     "sublime-text"
     "the-unarchiver"
@@ -158,6 +162,7 @@
     hack-font
     jetbrains-mono
     meslo-lgs-nf
+    cocoapods # iOS builds bnk
   ];
 
   nixos = with pkgs; [
