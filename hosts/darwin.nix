@@ -73,7 +73,7 @@ in {
   };
 
   services.nix-daemon.enable = true;
-  nix.package = pkgs.nix;
+  # nix.package = pkgs.nix;
 
   environment.shells = [pkgs.fish];
   # TODO: Is this needed?

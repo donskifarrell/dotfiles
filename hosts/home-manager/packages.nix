@@ -67,7 +67,7 @@
     unzip
     upx
     virt-manager
-    virtiofsd
+    # virtiofsd # not on OSX
     wireguard-tools
 
     # linux kernel
@@ -107,6 +107,9 @@
     scrcpy
     skypeforlinux
     steam
+
+    # Quick drop to keep dep in a list for x86
+    virtiofsd
   ];
 
   # https://flathub.org
