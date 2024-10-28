@@ -35,6 +35,7 @@ in {
     ./modules
     ./modules/agenix.nix
     ./modules/fonts.nix
+    ./modules/avahi.nix
     ./modules/gnome.nix
     ./modules/i18n.nix
     ./modules/sound.nix
@@ -139,7 +140,6 @@ in {
     opengl = {
       enable = true;
       extraPackages = with pkgs; [amdvlk];
-      driSupport = true;
     };
   };
 

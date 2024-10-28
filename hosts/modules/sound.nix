@@ -14,6 +14,4 @@
       #media-session.enable = true;
     };
   };
-
-  sound.enable = true;
 }
