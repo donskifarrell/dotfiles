@@ -211,6 +211,13 @@ in {
         ++ pkgSets.essentials-x86-gui
         ++ pkgSets.nixos
         ++ pkgSets.nixos-gnome;
+
+      home = {
+        file."gnome-scratchpad" = {
+          source = "/home/${user}/.dotfiles/hosts/config/gnome-scratchpad";
+          target = "/home/${user}/.config/gnome-scratchpad";
+        };
+      };
     };
   };
 
