@@ -18,12 +18,15 @@
       systemd-boot.configurationLimit = 42;
       systemd-boot.consoleMode = "auto";
       efi.canTouchEfiVariables = true;
+
+      systemd-boot.memtest86.enable = true;
     };
   };
 
   boot.initrd.availableKernelModules = ["xhci_pci" "ahci" "nvme" "usbhid" "sd_mod"];
   boot.initrd.kernelModules = [];
   boot.kernelModules = ["kvm-amd" "uinput"];
+  boot.kernelParams = ["loglevel=7" "initcall_debug"];
   boot.extraModulePackages = [];
 
   fileSystems."/" = {

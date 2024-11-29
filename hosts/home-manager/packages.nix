@@ -34,6 +34,8 @@
     unrar
     wget
     zlib
+    lm_sensors
+    sysstat
   ];
 
   essentials-dev = with pkgs; [
@@ -99,7 +101,21 @@
     sublime4
     telegram-desktop
     ulauncher
-    vivaldi
+    # (vivaldi.overrideAttrs (oldAttrs: {
+    #   buildPhase =
+    #     builtins.replaceStrings
+    #     ["for f in libGLESv2.so libqt5_shim.so ; do"]
+    #     ["for f in libGLESv2.so libqt5_shim.so libqt6_shim.so ; do"]
+    #     oldAttrs.buildPhase;
+    # }))
+    # .override
+    # {
+    #   qt5 = qt6;
+    #   commandLineArgs = ["--ozone-platform=wayland"];
+    #   # The following two are just my preference, feel free to leave them out
+    #   proprietaryCodecs = true;
+    #   enableWidevine = true;
+    # }
     vlc
     wl-clipboard
     wl-clipboard-x11
@@ -110,6 +126,9 @@
 
     # Quick drop to keep dep in a list for x86
     virtiofsd
+    s-tui
+    caffeine-ng
+    furmark
   ];
 
   # https://flathub.org

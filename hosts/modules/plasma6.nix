@@ -11,6 +11,8 @@
   # ];
 
   services = {
+    desktopManager.plasma6.enable = true;
+
     xserver = {
       enable = true;
 
@@ -21,13 +23,12 @@
         };
       };
 
-      desktopManager.gnome.enable = true;
-      desktopManager.gnome.debug = true;
+      # desktopManager.plasma6.debug = true;
     };
 
-    gnome = {
-      sushi.enable = true;
-      gnome-keyring.enable = true;
-    };
+    # gnome = {
+    #   sushi.enable = true;
+    #   gnome-keyring.enable = true;
+    # };
   };
 }
