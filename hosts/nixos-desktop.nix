@@ -61,24 +61,24 @@ in {
 
   hardware.ledger.enable = true;
 
-  nixpkgs.overlays = [
-    (final: prev: {
-      mutter = prev.mutter.overrideAttrs (oldAttrs: {
-        patches =
-          (oldAttrs.patches or [])
-          ++ [
-            # Avoid crashed by defaulting to high priority thread instead
-            # of realtime for the KMS thread
-            # https://www.phoronix.com/news/GNOME-High-Priority-KMS-Thread
-            # https://gitlab.gnome.org/GNOME/mutter/-/merge_requests/4124
-            (pkgs.fetchpatch2 {
-              url = "https://gitlab.gnome.org/GNOME/mutter/-/merge_requests/4124.patch";
-              hash = "sha256-h1gjyZx23NQ3VDwcGRy6hLkfgLdukao7NzH+48C/NE4=";
-            })
-          ];
-      });
-    })
-  ];
+  # nixpkgs.overlays = [
+  #   (final: prev: {
+  #     mutter = prev.mutter.overrideAttrs (oldAttrs: {
+  #       patches =
+  #         (oldAttrs.patches or [])
+  #         ++ [
+  #           # Avoid crashed by defaulting to high priority thread instead
+  #           # of realtime for the KMS thread
+  #           # https://www.phoronix.com/news/GNOME-High-Priority-KMS-Thread
+  #           # https://gitlab.gnome.org/GNOME/mutter/-/merge_requests/4124
+  #           (pkgs.fetchpatch2 {
+  #             url = "https://gitlab.gnome.org/GNOME/mutter/-/merge_requests/4124.patch";
+  #             hash = "sha256-h1gjyZx23NQ3VDwcGRy6hLkfgLdukao7NzH+48C/NE4=";
+  #           })
+  #         ];
+  #     });
+  #   })
+  # ];
 
   system.stateVersion = "23.05"; # Don't change this
   time.timeZone = "Europe/Dublin";

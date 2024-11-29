@@ -77,6 +77,8 @@
     gnumake
     flex
     bison
+
+    kdePackages.isoimagewriter
   ];
 
   essentials-gui = with pkgs; [
