@@ -21,12 +21,12 @@
       ".." = "cd ..";
       "..." = "cd ../..";
 
-      # TODO: Drop tail makati
+      # TODO: Drop tail abhaile
       os-switch = lib.mkMerge [
-        (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "sudo nixos-rebuild --flake ~/.dotfiles/#makati switch --impure")
-        (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/run/current-system/sw/bin/darwin-rebuild switch --flake ~/.dotfiles/#manila --impure")
+        (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "sudo nixos-rebuild --flake ~/.dotfiles/#abhaile switch --impure")
+        (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "/run/current-system/sw/bin/darwin-rebuild switch --flake ~/.dotfiles/#iompar --impure")
       ];
-      hm-switch = "home-manager switch --flake $HOME/.dotfiles/#makati";
+      hm-switch = "home-manager switch --flake $HOME/.dotfiles/#abhaile";
       fnix-shell = "nix-shell --run fish";
 
       brew = "/opt/homebrew/bin/brew";

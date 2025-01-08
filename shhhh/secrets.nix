@@ -40,7 +40,7 @@ in {
   "./uf/uf-gh.age".publicKeys = [df];
   "./uf/uf-gh.pub.age".publicKeys = [df];
 
-  # Wireguard
+  # Wireguard # TODO: remove
   "./wg/belfast-asus-appletv.age".publicKeys = [df];
   "./wg/belfast-oneplus9.age".publicKeys = [df];
   "./wg/belfast-makati.age".publicKeys = [df];

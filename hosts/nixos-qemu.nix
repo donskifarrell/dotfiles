@@ -7,7 +7,7 @@
   ...
 }: let
   user = "df";
-  hostname = "makati-qemu";
+  hostname = "abhaile-qemu";
   # TODO: Not always the case for VMs
   system = "x86_64-linux";
 in {

@@ -4,10 +4,9 @@ I've got 4 machines:
 
 | Hostname | Users | System         | What is it?             |
 | -------- | ----- | -------------- | ----------------------- |
-| makati   | df    | x86_64-linux   | Desktop workstation     |
-| manila   | df    | aarch64-darwin | M1 Macbook Pro          |
+| abhaile  | df    | x86_64-linux   | Desktop workstation     |
+| iompar   | df    | aarch64-darwin | M1 Macbook Pro          |
 | qemu     | df    | x86_64-linux   | VM (multiple)           |
-| belfast  | N/A   | x86_64-linux   | Ubuntu(?) VPS - Not Nix |
 
 These dotfiles try to keep things easy and composable. Everything is driven from the base `flake.nix` using standard tooling.
 
@@ -52,10 +51,10 @@ unzip .dotfiles.zip
 
 # We need to bootstrap the nix-darwin installer. I use flakes, so we need to use experimental flake commands
 # Note: --impure flag is due to some configs like boot timestamp that I need to resolve still.
-nix run --extra-experimental-features nix-command --extra-experimental-features flakes nix-darwin -- switch --flake ~/.dotfiles/#manila --impure
+nix run --extra-experimental-features nix-command --extra-experimental-features flakes nix-darwin -- switch --flake ~/.dotfiles/#iompar --impure
 
 # Once that installs, we can use the simpler command in the future (Alias it somewhere)
-/run/current-system/sw/bin/darwin-rebuild switch --flake ~/.dotfiles/#manila --impure
+/run/current-system/sw/bin/darwin-rebuild switch --flake ~/.dotfiles/#iompar --impure
 
 # Now you can delete the dotfiles and do a proper git clone
 rm -rf ~/.dotfiles
@@ -92,10 +91,10 @@ wget -O .dotfiles.zip https://github.com/donskifarrell/dotfiles/archive/refs/hea
 unzip .dotfiles.zip
 
 # Once we have the dotfiles in the correct location
-sudo nixos-rebuild --flake ~/.dotfiles/#makati switch --impure
+sudo nixos-rebuild --flake ~/.dotfiles/#abhaile switch --impure
 
 # Nixos manual warns 23.11 may break boot mounts, so it's wise to re-run:
-# sudo nixos-rebuild --flake ~/.dotfiles/#makati boot --impure
+# sudo nixos-rebuild --flake ~/.dotfiles/#abhaile boot --impure
 
 # Now you can delete the dotfiles and do a proper git clone
 rm -rf ~/.dotfiles

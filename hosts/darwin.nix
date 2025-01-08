@@ -4,7 +4,7 @@
   ...
 }: let
   user = "df";
-  hostname = "manila";
+  hostname = "iompar";
   system = "aarch64-darwin";
   homeDir =
     if pkgs.stdenv.isLinux

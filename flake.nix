@@ -71,7 +71,7 @@
 
     darwinConfigurations = {
       # OSX MBP
-      manila = darwin.lib.darwinSystem {
+      iompar = darwin.lib.darwinSystem {
         system = "aarch64-darwin";
         modules = [
           ./hosts/darwin.nix
@@ -84,7 +84,7 @@
 
     nixosConfigurations = {
       # Main desktop
-      makati = lib.nixosSystem {
+      abhaile = lib.nixosSystem {
         system = "x86_64-linux";
         modules = [
           nix-flatpak.nixosModules.nix-flatpak

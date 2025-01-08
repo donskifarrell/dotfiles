@@ -5,7 +5,7 @@
   ...
 }: let
   user = "df";
-  hostname = "makati";
+  hostname = "abhaile";
   system = "x86_64-linux";
   homeDir =
     if pkgs.stdenv.isLinux
