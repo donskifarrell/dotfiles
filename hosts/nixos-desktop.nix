@@ -61,25 +61,6 @@ in {
 
   hardware.ledger.enable = true;
 
-  # nixpkgs.overlays = [
-  #   (final: prev: {
-  #     mutter = prev.mutter.overrideAttrs (oldAttrs: {
-  #       patches =
-  #         (oldAttrs.patches or [])
-  #         ++ [
-  #           # Avoid crashed by defaulting to high priority thread instead
-  #           # of realtime for the KMS thread
-  #           # https://www.phoronix.com/news/GNOME-High-Priority-KMS-Thread
-  #           # https://gitlab.gnome.org/GNOME/mutter/-/merge_requests/4124
-  #           (pkgs.fetchpatch2 {
-  #             url = "https://gitlab.gnome.org/GNOME/mutter/-/merge_requests/4124.patch";
-  #             hash = "sha256-h1gjyZx23NQ3VDwcGRy6hLkfgLdukao7NzH+48C/NE4=";
-  #           })
-  #         ];
-  #     });
-  #   })
-  # ];
-
   system.stateVersion = "23.05"; # Don't change this
   time.timeZone = "Europe/Dublin";
 
@@ -220,50 +201,29 @@ in {
         ./home-manager
         ./home-manager/alacritty.nix
         ./home-manager/btop.nix
-        ./home-manager/electron.nix
         ./home-manager/fish.nix
         ./home-manager/git.nix
-        # ./home-manager/gtk.nix
-        # ./home-manager/hyprland.nix
         ./home-manager/neovim.nix
-        ./home-manager/rofi.nix
         ./home-manager/ssh.nix
         ./home-manager/starship.nix
         ./home-manager/tmux.nix
         ./home-manager/vscode.nix
-        # ./home-manager/waybar.nix
+
+        ./home-manager/electron.nix
+        # ./home-manager/gtk.nix
       ];
 
       home.homeDirectory = pkgs.lib.mkForce "/home/${user}";
 
       home.packages = let
         pkgSets = import ./home-manager/packages.nix {inherit pkgs inputs;};
-        custom_viv =
-          (pkgs.vivaldi.overrideAttrs (oldAttrs: {
-            buildPhase =
-              builtins.replaceStrings
-              ["for f in libGLESv2.so libqt5_shim.so ; do"]
-              ["for f in libGLESv2.so libqt5_shim.so libqt6_shim.so ; do"]
-              oldAttrs.buildPhase;
-          }))
-          .override
-          {
-            qt5 = pkgs.qt6;
-            commandLineArgs = ["--ozone-platform=wayland"];
-            # The following two are just my preference, feel free to leave them out
-            proprietaryCodecs = true;
-            enableWidevine = true;
-          };
       in
         pkgSets.essentials-utils
         ++ pkgSets.essentials-dev
         ++ pkgSets.essentials-gui
         ++ pkgSets.essentials-x86-gui
         ++ pkgSets.nixos
-        ++ [
-          custom_viv
-        ];
-      # ++ pkgSets.nixos-gnome;
+        ++ pkgSets.nixos-gnome;
 
       home = {
         file."gnome-scratchpad" = {
