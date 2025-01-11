@@ -52,89 +52,39 @@ in {
   services.journald.extraConfig = ''
     Storage=persistent
   '';
-  # services.hardware.watchdog = {
-  #   enable = true;
-  #   device = "/dev/watchdog"; # Adjust if your device differs
-  #   timeout = 60; # Time in seconds before watchdog triggers
-  # };
   services.sysstat.enable = true;
 
-  hardware.ledger.enable = true;
 
-  system.stateVersion = "23.05"; # Don't change this
-  time.timeZone = "Europe/Dublin";
+  # system.stateVersion = "23.05"; # Don't change this
+  # time.timeZone = "Europe/Dublin";
 
   nix = {
     settings = {
       allowed-users = ["${user}"];
-      trusted-users = ["${user}"];
+      # trusted-users = ["${user}"];
     };
   };
 
-  environment.etc.hosts.enable = false;
-  security.pki.certificates = [
-    ''
-      caddy root_certificate
-      =========
-      -----BEGIN CERTIFICATE-----
-      MIIBozCCAUmgAwIBAgIQaZbAw9ZXThugIv0pddnvczAKBggqhkjOPQQDAjAwMS4wLAYDVQQDEyVDYWRkeSBMb2NhbCBBdXRob3JpdHkgLSAyMDIzIEVDQyBSb290MB4XDTIzMTExMDA4NDMxMVoXDTMzMDkxODA4NDMxMVowMDEuMCwGA1UEAxMlQ2FkZHkgTG9jYWwgQXV0aG9yaXR5IC0gMjAyMyBFQ0MgUm9vdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABO/4MZJ0c68Oaqc9PUPbENzwcwUO7OO1CIf5OuXCtZgL6KXv6GA8lf5WDpwmGCT4AgSEfAvAYvc8Pp6qAkeUysCjRTBDMA4GA1UdDwEB/wQEAwIBBjASBgNVHRMBAf8ECDAGAQH/AgEBMB0GA1UdDgQWBBQNGlMkDFy27HBnJBr/hA0mT9/eCjAKBggqhkjOPQQDAgNIADBFAiEAmHZ4oP4vPEK7h8/bCl24/z6azgVcmpS0tD9VaKJYWEUCIFve8+cF4yYI039YpW31XIAUG/DoD2wARUXJBjiC2beN
-      -----END CERTIFICATE-----
-    ''
-    ''
-      caddy intermediate_certificate
-      =========
-      -----BEGIN CERTIFICATE-----
-      MIIByDCCAW6gAwIBAgIRAKhJAYHl99hKJuhoH3a8JSAwCgYIKoZIzj0EAwIwMDEuMCwGA1UEAxMlQ2FkZHkgTG9jYWwgQXV0aG9yaXR5IC0gMjAyMyBFQ0MgUm9vdDAeFw0yMzExMTAwODQzMTFaFw0yMzExMTcwODQzMTFaMDMxMTAvBgNVBAMTKENhZGR5IExvY2FsIEF1dGhvcml0eSAtIEVDQyBJbnRlcm1lZGlhdGUwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASGW1EiH6JIJgQhEAg0UTcpemhPIsyBZXkffc/twPf2W1/riBWT79BBIxX2F/oqoWsHuI5Wt8YSnquqs6oipowvo2YwZDAOBgNVHQ8BAf8EBAMCAQYwEgYDVR0TAQH/BAgwBgEB/wIBADAdBgNVHQ4EFgQUMB8pWha9hvU0ZwRVlZE4J7yJujgwHwYDVR0jBBgwFoAUDRpTJAxctuxwZyQa/4QNJk/f3gowCgYIKoZIzj0EAwIDSAAwRQIhAIGbYlcE1wkleGa57LCQ3NPcRJLPShn64s2NvB/hqSExAiA6Lg6HZFXllefvHqjlkKWOmEjGxgn1HItsQeNC3D6RHA==
-      -----END CERTIFICATE-----
-    ''
-  ];
+  # security
+  # sound
+  # bluetooth
+  # 
 
-  networking = let
-    wg_port = "51820"; # UDP port used by Wireguard VPS server
-  in {
-    hostName = "${hostname}";
-    networkmanager.enable = true;
-    wireless.enable = false;
-    firewall = {
-      # 3389: RDP from OSX
-      allowedTCPPorts = [3389];
-
-      # wireguard trips rpfilter up
-      extraCommands = ''
-        ip46tables -t mangle -I nixos-fw-rpfilter -p udp -m udp --sport ${wg_port} -j RETURN
-        ip46tables -t mangle -I nixos-fw-rpfilter -p udp -m udp --dport ${wg_port} -j RETURN
-      '';
-      extraStopCommands = ''
-        ip46tables -t mangle -D nixos-fw-rpfilter -p udp -m udp --sport ${wg_port} -j RETURN || true
-        ip46tables -t mangle -D nixos-fw-rpfilter -p udp -m udp --dport ${wg_port} -j RETURN || true
-      '';
-    };
-  };
-
-  security = {
-    polkit.enable = true;
-    rtkit.enable = true;
-    pam.services.swaylock = {};
-  };
+  # security = {
+  #   polkit.enable = true;
+  # };
 
   services = {
-    # Enable CUPS to print documents
-    printing = {
-      enable = true;
-      #  drivers = [pkgs.samsung-unified-linux-driver];
-    };
-    gvfs.enable = true; # Mount, trash, and other functionalities
-    tumbler.enable = true; # Thumbnail support for images
-    dbus.enable = true;
+    # dbus.enable = true;
 
-    flatpak = {
-      enable = true;
+    # flatpak = {
+    #   enable = true;
 
-      packages = let
-        pkgSets = import ./home-manager/packages.nix {inherit pkgs inputs;};
-      in
-        pkgSets.nixos-flatpak;
-    };
+    #   packages = let
+    #     pkgSets = import ./home-manager/packages.nix {inherit pkgs inputs;};
+    #   in
+    #     pkgSets.nixos-flatpak;
+    # };
 
     # TODO: what is this option?
     # udiskie.enable = true; # Auto mount devices
@@ -147,15 +97,13 @@ in {
   virtualisation.podman.enable = true;
 
   hardware = {
-    bluetooth.enable = true;
-    bluetooth.powerOnBoot = true;
 
-    pulseaudio.enable = false;
+    # pulseaudio.enable = false;
 
-    opengl = {
-      enable = true;
-      extraPackages = with pkgs; [amdvlk];
-    };
+    # opengl = {
+    #   enable = true;
+    #   extraPackages = with pkgs; [amdvlk];
+    # };
   };
 
   # Define a user account. Don't forget to set a password with ‘passwd’.
@@ -181,7 +129,7 @@ in {
 
   programs = {
     adb.enable = true;
-    dconf.enable = true;
+    # dconf.enable = true;
     fish.enable = true;
   };
 
@@ -235,7 +183,6 @@ in {
   };
 
   environment.systemPackages = [
-    inputs.agenix.packages."${pkgs.system}".default # "x86_64-linux"
 
     pkgs.archiver
     pkgs.curl
