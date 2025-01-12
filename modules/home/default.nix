@@ -1,9 +1,13 @@
 {
+  pkgs,
+  ...
+}:
+{
   imports = [
-    ./agenix.nix
     ./direnv.nix
-    ./ssh.nix
+    ./git.nix
     ./nix.nix
+    ./ssh.nix
   ];
 
   programs = {
@@ -17,5 +21,13 @@
       enable = true;
       enableFishIntegration = true;
     };
+
+    firefox.enable = true;
+    git.enable = true;
+    vscode.enable = true;
   };
+
+  home.packages = with pkgs; [
+    age
+  ];
 }

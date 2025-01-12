@@ -4,9 +4,12 @@
 {
   config,
   lib,
+  pkgs,
   modulesPath,
   ...
-}: {
+}:
+
+{
   imports = [
     (modulesPath + "/installer/scan/not-detected.nix")
   ];
@@ -19,27 +22,42 @@
       systemd-boot.consoleMode = "auto";
       efi.canTouchEfiVariables = true;
 
-      systemd-boot.memtest86.enable = true;
+      # systemd-boot.memtest86.enable = true;
     };
   };
 
-  boot.initrd.availableKernelModules = ["xhci_pci" "ahci" "nvme" "usbhid" "sd_mod"];
-  boot.initrd.kernelModules = [];
-  boot.kernelModules = ["kvm-amd" "uinput"];
-  boot.extraModulePackages = [];
+  boot.initrd.availableKernelModules = [
+    "xhci_pci"
+    "ahci"
+    "nvme"
+    "usbhid"
+    "usb_storage"
+    "sd_mod"
+  ];
+  boot.initrd.kernelModules = [ ];
+  boot.kernelModules = [ "kvm-amd" ];
+  boot.extraModulePackages = [ ];
 
   fileSystems."/" = {
-    device = "/dev/disk/by-uuid/8a7401a5-b56a-4e6a-97b9-54ed9e1d7725";
+    device = "/dev/disk/by-uuid/8254371d-2e69-4ffd-a525-9a5403807d2a";
     fsType = "ext4";
   };
 
+  # TODO: First luks was defined in hardware-config.nix, second device was defined in config.nix..
+  boot.initrd.luks.devices."luks-0bce0bcf-75c3-406c-8cc4-551fe0fe03eb".device = "/dev/disk/by-uuid/0bce0bcf-75c3-406c-8cc4-551fe0fe03eb";
+  boot.initrd.luks.devices."luks-28fc080a-b431-4e36-8dd7-3f9eecd70275".device = "/dev/disk/by-uuid/28fc080a-b431-4e36-8dd7-3f9eecd70275";
+
   fileSystems."/boot" = {
-    device = "/dev/disk/by-uuid/3A70-60E5";
+    device = "/dev/disk/by-uuid/4F53-FD04";
     fsType = "vfat";
+    options = [
+      "fmask=0077"
+      "dmask=0077"
+    ];
   };
 
   swapDevices = [
-    {device = "/dev/disk/by-uuid/8e0c9bef-adae-48cd-885c-b77be7bd0444";}
+    { device = "/dev/disk/by-uuid/d1a64ee4-2de7-4d6f-b0ee-19814d2fa891"; }
   ];
 
   # Enables DHCP on each ethernet and wireless interface. In case of scripted networking
@@ -52,4 +70,5 @@
   # networking.interfaces.wlp5s0.useDHCP = lib.mkDefault true;
 
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
+  hardware.cpu.amd.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
 }

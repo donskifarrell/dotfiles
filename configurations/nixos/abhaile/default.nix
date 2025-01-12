@@ -1,6 +1,6 @@
 # See /modules/nixos/* for actual settings
 # This file is just *top-level* configuration.
-{ flake, ... }:
+{ flake, pkgs, ... }:
 
 let
   inherit (flake) inputs;
@@ -18,8 +18,9 @@ in
 
     inputs.agenix.nixosModules.default
 
+    self.nixosModules.agenix
     self.nixosModules.bluetooth
-    self.nixosModules.bootlabel
+    #    self.nixosModules.bootlabel
     self.nixosModules.networking
     self.nixosModules.printing
     self.nixosModules.shared
@@ -30,7 +31,7 @@ in
     # GUI
     self.nixosModules.fonts
     self.nixosModules.gnome
-    # self.nixosModules.xserver
+    self.nixosModules.xserver
 
     # (self + /modules/nixos/linux/distributed-build.nix)
   ];
@@ -47,6 +48,16 @@ in
   home-manager.users."df" = {
     imports = [ (self + /configurations/home/df.nix) ];
   };
+
+  # List packages installed in system profile. To search, run:
+  # $ nix search wget
+  environment.systemPackages = with pkgs; [
+    #  vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
+    #  wget
+    inputs.agenix.packages.x86_64-linux.default
+    git
+    nixfmt-rfc-style
+  ];
 
   # This value determines the NixOS release from which the default
   # settings for stateful data, like file locations and database versions
