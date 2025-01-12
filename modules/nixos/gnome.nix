@@ -1,4 +1,5 @@
-{pkgs, ...}: {
+{ pkgs, ... }:
+{
   services = {
     xserver = {
       enable = true;
@@ -21,7 +22,7 @@
     gvfs.enable = true; # Mount, trash, and other functionalities
     tumbler.enable = true; # Thumbnail support for images
   };
-  
+
   environment.systemPackages = with pkgs; [
     # This is necessary to set CAPS to CTRL
     # gnome-tweaks

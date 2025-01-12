@@ -1,4 +1,9 @@
-{ flake, pkgs, lib, ... }:
+{
+  flake,
+  pkgs,
+  lib,
+  ...
+}:
 
 let
   inherit (flake) inputs;
@@ -26,7 +31,10 @@ in
       experimental-features = "nix-command flakes";
       # Nullify the registry for purity.
       flake-registry = builtins.toFile "empty-flake-registry.json" ''{"flakes":[],"version":2}'';
-      trusted-users = [ "root" (if pkgs.stdenv.isDarwin then flake.config.me.username else "@wheel") ];
+      trusted-users = [
+        "root"
+        (if pkgs.stdenv.isDarwin then flake.config.me.username else "@wheel")
+      ];
     };
   };
 }

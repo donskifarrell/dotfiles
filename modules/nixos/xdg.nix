@@ -1,4 +1,5 @@
-{pkgs, ...}: {
+{ pkgs, ... }:
+{
   # XDG Portals
   xdg = {
     autostart.enable = true;

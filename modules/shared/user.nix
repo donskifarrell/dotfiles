@@ -1,4 +1,9 @@
-{ flake, pkgs, lib, ... }:
+{
+  flake,
+  pkgs,
+  lib,
+  ...
+}:
 
 {
   users.users =
@@ -10,14 +15,19 @@
     {
       root.openssh.authorizedKeys.keys = myKeys;
 
-      "df" = {
-        openssh.authorizedKeys.keys = myKeys;
-        shell = pkgs.fish;
-      } // lib.optionalAttrs pkgs.stdenv.isLinux {
-        isNormalUser = true;
-        initialHashedPassword = "";
-        extraGroups = [ "networkmanager" "wheel" ];
-      };
+      "df" =
+        {
+          openssh.authorizedKeys.keys = myKeys;
+          shell = pkgs.fish;
+        }
+        // lib.optionalAttrs pkgs.stdenv.isLinux {
+          isNormalUser = true;
+          initialHashedPassword = "";
+          extraGroups = [
+            "networkmanager"
+            "wheel"
+          ];
+        };
     };
 
   programs.fish.enable = true;
