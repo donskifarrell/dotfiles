@@ -45,7 +45,6 @@
       ".ruby-version"
       "dump.rdb"
       "main.tfvars"
-      ".vscode/"
       "node_modules/"
       ".yarn_cache/"
       "Library/"

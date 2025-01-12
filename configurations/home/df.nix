@@ -13,6 +13,7 @@ in
 {
   imports = [
     self.homeModules.direnv
+    self.homeModules.fish
     self.homeModules.git
     self.homeModules.nix
     self.homeModules.ssh
@@ -43,10 +44,12 @@ in
 
   programs = {
     bat.enable = true;
+    btop.enable = true;
     direnv.enable = true;
     eza.enable = true;
     fish.enable = true;
     fzf.enable = true;
+    neovim.enable = true;
 
     zoxide = {
       enable = true;
@@ -59,6 +62,5 @@ in
   };
 
   home.packages = with pkgs; [
-    age
   ];
 }
