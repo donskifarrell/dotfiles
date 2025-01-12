@@ -1,4 +1,9 @@
-{ flake, pkgs, lib, ... }:
+{
+  flake,
+  pkgs,
+  lib,
+  ...
+}:
 let
   inherit (flake) inputs;
   inherit (inputs) self;
@@ -7,14 +12,16 @@ let
 in
 {
   imports = [
-    self.homeModules.default
+    self.homeModules.direnv
+    self.homeModules.git
+    self.homeModules.nix
+    self.homeModules.ssh
   ];
 
   home = {
-    homeDirectory = lib.mkDefault homeDir;
-
     stateVersion = "24.11";
 
+    homeDirectory = lib.mkDefault homeDir;
     username = "df";
 
     sessionVariables = {
@@ -31,6 +38,27 @@ in
       XDG_DATA_HOME = "${homeDir}/.local/share";
     };
 
-    sessionPath = ["${homeDir}/dev/bin"];
+    sessionPath = [ "${homeDir}/dev/bin" ];
   };
+
+  programs = {
+    bat.enable = true;
+    direnv.enable = true;
+    eza.enable = true;
+    fish.enable = true;
+    fzf.enable = true;
+
+    zoxide = {
+      enable = true;
+      enableFishIntegration = true;
+    };
+
+    firefox.enable = true;
+    git.enable = true;
+    vscode.enable = true;
+  };
+
+  home.packages = with pkgs; [
+    age
+  ];
 }
