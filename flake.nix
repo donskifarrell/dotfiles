@@ -8,6 +8,7 @@
 
     # Common
     agenix.url = "github:ryantm/agenix";
+    agenix.inputs.nixpkgs.follows = "nixpkgs";
     flake-parts.url = "github:hercules-ci/flake-parts";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
     home-manager.url = "github:nix-community/home-manager";
@@ -15,14 +16,6 @@
     nix-index-database.url = "github:nix-community/nix-index-database";
     nixos-hardware.url = "github:NixOS/nixos-hardware";
     nixos-unified.url = "github:srid/nixos-unified";
-
-    # utils.url = "github:numtide/flake-utils";
-    # agenix = {
-    #   url = "github:ryantm/agenix";
-    #   inputs.nixpkgs.follows = "nixpkgs";
-    # };
-    # nurl.url = "github:nix-community/nurl";
-    # nix-vscode-extensions.url = "github:nix-community/nix-vscode-extensions";
     # nix-flatpak.url = "github:gmodena/nix-flatpak/?ref=v0.2.0";
 
     # OSX
@@ -38,9 +31,10 @@
       flake = false;
     };
 
-    # Devshell
+    # Dev
     git-hooks.url = "github:cachix/git-hooks.nix";
     git-hooks.flake = false;
+    nix-vscode-extensions.url = "github:nix-community/nix-vscode-extensions";
   };
 
   # Wired using https://nixos-unified.org/autowiring.html

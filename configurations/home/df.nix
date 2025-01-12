@@ -8,6 +8,7 @@ let
   inherit (flake) inputs;
   inherit (inputs) self;
 
+  # TODO: Move to a top-level config
   homeDir = "/${if pkgs.stdenv.isDarwin then "Users" else "home"}/df";
 in
 {
@@ -17,6 +18,7 @@ in
     self.homeModules.git
     self.homeModules.nix
     self.homeModules.ssh
+    self.homeModules.vscode
   ];
 
   home = {
@@ -49,18 +51,50 @@ in
     eza.enable = true;
     fish.enable = true;
     fzf.enable = true;
+    jq.enable = true;
+    git.enable = true;
     neovim.enable = true;
 
     zoxide = {
       enable = true;
       enableFishIntegration = true;
     };
-
-    firefox.enable = true;
-    git.enable = true;
-    vscode.enable = true;
   };
 
   home.packages = with pkgs; [
+    _1password-cli
+    _1password-gui
+    maestral-gui
+
+    # Browsers
+    brave
+    firefox
+    vivaldi
+    chromium
+
+    # Apps
+    slack
+    obsidian
+
+    # Tools
+    unzip
+    unrar
+    wget
+
+    # Dev
+    distrobox
+
+    # Gnome
+    # gnome-extension-manager
+    # gnomeExtensions.dash-to-dock
+    # gnomeExtensions.caffeine
+    # gnomeExtensions.vitals
+    # gnomeExtensions.just-perfection
+    # gnomeExtensions.sound-output-device-chooser
+    # gnomeExtensions.blur-my-shell
+    # gnomeExtensions.appindicator
+    # # gnomeExtensions.gtile
+    # # gnomeExtensions.gnome-rectangle # https://github.com/acristoffers/gnome-rectangle
+    # gnomeExtensions.allow-locked-remote-desktop
   ];
 }

@@ -1,4 +1,5 @@
-{pkgs, ...}: {
+{ pkgs, ... }:
+{
   essentials-utils = with pkgs; [
     age
     bash
@@ -39,14 +40,14 @@
   ];
 
   essentials-dev = with pkgs; [
-    (google-cloud-sdk.withExtraComponents [google-cloud-sdk.components.gke-gcloud-auth-plugin])
+    (google-cloud-sdk.withExtraComponents [ google-cloud-sdk.components.gke-gcloud-auth-plugin ])
     # docker
     # docker-compose
     alejandra
     android-tools
     cargo
     devbox
-    direnv
+    # direnv
     distrobox
     exiftool
     flyctl
@@ -66,7 +67,7 @@
     qrencode
     shfmt
     statix
-    unzip
+    # unzip
     upx
     virt-manager
     # virtiofsd # not on OSX
@@ -180,7 +181,7 @@
   ];
 
   osx = with pkgs; [
-    (nerdfonts.override {fonts = ["JetBrainsMono"];})
+    (nerdfonts.override { fonts = [ "JetBrainsMono" ]; })
     dejavu_fonts
     font-awesome
     hack-font

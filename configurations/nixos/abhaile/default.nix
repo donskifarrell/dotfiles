@@ -44,6 +44,12 @@ in
   # Common config is in user.nix
   users.users."df".isNormalUser = true;
 
+  home-manager = {
+    extraSpecialArgs = {
+      inherit inputs;
+    };
+  };
+
   # Enable home-manager for "df" user
   home-manager.users."df" = {
     imports = [ (self + /configurations/home/df.nix) ];
