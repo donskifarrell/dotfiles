@@ -4,15 +4,6 @@
 let
   df = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKMs4ZWWDVhhGphzt5qWlFJwdekbT8GZ642uKB6nig3k df@secrets.nix";
   users = [ df ];
-
-  makati = "TODO";
-  manila = "TODO";
-  qemu = "TODO";
-  systems = [
-    makati
-    manila
-    qemu
-  ];
 in
 {
   # Configs
@@ -45,7 +36,7 @@ in
   "./uf/uf-gh.age".publicKeys = [ df ];
   "./uf/uf-gh.pub.age".publicKeys = [ df ];
 
-  # Wireguard # TODO: remove
+  # Wireguard # TODO: cleanup
   "./wg/belfast-asus-appletv.age".publicKeys = [ df ];
   "./wg/belfast-oneplus9.age".publicKeys = [ df ];
   "./wg/belfast-makati.age".publicKeys = [ df ];

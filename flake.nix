@@ -37,11 +37,15 @@
     nix-vscode-extensions.url = "github:nix-community/nix-vscode-extensions";
   };
 
-  # Wired using https://nixos-unified.org/autowiring.html
   outputs =
-    inputs:
-    inputs.nixos-unified.lib.mkFlake {
-      inherit inputs;
-      root = ./.;
+    inputs@{ self, ... }:
+    inputs.flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = [
+        "x86_64-linux"
+        "aarch64-darwin"
+      ];
+      imports = (
+        with builtins; map (fn: ./modules/flake-parts/${fn}) (attrNames (readDir ./modules/flake-parts))
+      );
     };
 }

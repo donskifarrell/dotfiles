@@ -13,6 +13,8 @@
       "-" = "cd -";
       ".." = "cd ..";
       "..." = "cd ../..";
+
+      os-switch = "nh os switch ~/.dotfiles";
     };
 
     shellAliases = {

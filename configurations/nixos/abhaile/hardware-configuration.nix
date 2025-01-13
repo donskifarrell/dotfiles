@@ -43,9 +43,11 @@
     fsType = "ext4";
   };
 
-  # TODO: First luks was defined in hardware-config.nix, second device was defined in config.nix..
-  boot.initrd.luks.devices."luks-0bce0bcf-75c3-406c-8cc4-551fe0fe03eb".device = "/dev/disk/by-uuid/0bce0bcf-75c3-406c-8cc4-551fe0fe03eb";
-  boot.initrd.luks.devices."luks-28fc080a-b431-4e36-8dd7-3f9eecd70275".device = "/dev/disk/by-uuid/28fc080a-b431-4e36-8dd7-3f9eecd70275";
+  # Note: First luks was defined in hardware-config.nix, second device was defined in config.nix..
+  boot.initrd.luks.devices."luks-0bce0bcf-75c3-406c-8cc4-551fe0fe03eb".device =
+    "/dev/disk/by-uuid/0bce0bcf-75c3-406c-8cc4-551fe0fe03eb";
+  boot.initrd.luks.devices."luks-28fc080a-b431-4e36-8dd7-3f9eecd70275".device =
+    "/dev/disk/by-uuid/28fc080a-b431-4e36-8dd7-3f9eecd70275";
 
   fileSystems."/boot" = {
     device = "/dev/disk/by-uuid/4F53-FD04";

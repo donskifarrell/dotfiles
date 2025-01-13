@@ -9,10 +9,9 @@
   perSystem =
     { self', pkgs, ... }:
     {
+      packages.default = self'.packages.activate;
+
       # For 'nix fmt'
       formatter = pkgs.nixfmt-rfc-style;
-
-      # Enables 'nix run' to activate.
-      packages.default = self'.packages.activate;
     };
 }
