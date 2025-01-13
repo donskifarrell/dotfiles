@@ -2,12 +2,13 @@
   config,
   pkgs,
   ...
-}: {
+}:
+{
   programs.tmux = {
     enable = true;
     shortcut = "a";
     terminal = "screen-256color";
-    shell = "${config.home.homeDirectory}/.nix-profile/bin/fish";
+    # shell = "${config.home.homeDirectory}/.nix-profile/bin/fish";
     clock24 = true;
     keyMode = "vi";
     escapeTime = 0; # address vim mode switching delay (http://superuser.com/a/252717/65504)
@@ -43,13 +44,13 @@
 
       set-option -g status on
       set -g status-position top
-      set -g status-interval 5    # set update frequencey (default 15 seconds)
+      set -g status-interval 5    # set update frequency (default 15 seconds)
 
       # ----------------------
       # Key Bindings
       # -----------------------
 
-      # # Keep your finger on ctrl, or don't, same result
+      # Keep your finger on ctrl, or don't, same result
       bind-key C-d detach-client
       bind-key C-p paste-buffer
 
@@ -93,11 +94,7 @@
       bind -n S-Right next-window
 
       # OSX Specific Settings
-      ${
-        if pkgs.stdenv.hostPlatform.isDarwin
-        then "set -s copy-command 'pbcopy'"
-        else ""
-      }
+      ${if pkgs.stdenv.hostPlatform.isDarwin then "set -s copy-command 'pbcopy'" else ""}
     '';
 
     plugins = with pkgs; [
@@ -144,8 +141,7 @@
       }
       {
         plugin = tmuxPlugins.better-mouse-mode;
-        extraConfig = ''
-        '';
+        extraConfig = '''';
       }
     ];
   };

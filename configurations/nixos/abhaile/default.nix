@@ -37,7 +37,7 @@ in
   time.timeZone = "Europe/Dublin";
   networking.hostName = "abhaile";
 
-  # TODO: Remove overlay
+  # TODO: Remove overlay and fix in nix.nix file
   nixpkgs.overlays = [
     (final: prev: {
       # until #369069 gets merged: https://nixpk.gs/pr-tracker.html?pr=369069

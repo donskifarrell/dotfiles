@@ -21,6 +21,7 @@ in
     self.homeModules.nix
     self.homeModules.ssh
     self.homeModules.starship
+    self.homeModules.tmux
     self.homeModules.vscode
   ];
 
