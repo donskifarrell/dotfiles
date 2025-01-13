@@ -20,7 +20,7 @@ in
 
     self.nixosModules.agenix
     self.nixosModules.bluetooth
-    #    self.nixosModules.bootlabel
+    # self.nixosModules.bootlabel
     self.nixosModules.networking
     self.nixosModules.printing
     self.nixosModules.shared
@@ -32,12 +32,35 @@ in
     self.nixosModules.fonts
     self.nixosModules.gnome
     self.nixosModules.xserver
-
-    # (self + /modules/nixos/linux/distributed-build.nix)
   ];
 
   time.timeZone = "Europe/Dublin";
   networking.hostName = "abhaile";
+
+  # TODO: Remove overlay
+  nixpkgs.overlays = [
+    (final: prev: {
+      # until #369069 gets merged: https://nixpk.gs/pr-tracker.html?pr=369069
+      gnome-extension-manager = prev.gnome-extension-manager.overrideAttrs (old: {
+        src = prev.fetchFromGitHub {
+          owner = "mjakeman";
+          repo = "extension-manager";
+          rev = "v0.6.0";
+          hash = "sha256-AotIzFCx4k7XLdk+2eFyJgrG97KC1wChnSlpLdk90gE=";
+        };
+        patches = [ ];
+        buildInputs = with prev; [
+          blueprint-compiler
+          gtk4
+          json-glib
+          libadwaita
+          libsoup_3
+          libbacktrace
+          libxml2
+        ];
+      });
+    })
+  ];
 
   # For home-manager to work.
   # https://github.com/nix-community/home-manager/issues/4026#issuecomment-1565487545

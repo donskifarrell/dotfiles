@@ -61,40 +61,49 @@ in
     };
   };
 
-  home.packages = with pkgs; [
-    _1password-cli
-    _1password-gui
-    maestral-gui
+  home.packages =
+    with pkgs;
+    [
+      _1password-cli
+      _1password-gui
+      authenticator
+      maestral-gui
 
-    # Browsers
-    brave
-    firefox
-    vivaldi
-    chromium
+      # Browsers
+      brave
+      firefox
+      vivaldi
+      chromium
 
-    # Apps
-    slack
-    obsidian
+      # Apps
+      slack
+      obsidian
 
-    # Tools
-    unzip
-    unrar
-    wget
+      # Tools
+      curl
+      unzip
+      unrar
+      wget
 
-    # Dev
-    distrobox
-
-    # Gnome
-    # gnome-extension-manager
-    # gnomeExtensions.dash-to-dock
-    # gnomeExtensions.caffeine
-    # gnomeExtensions.vitals
-    # gnomeExtensions.just-perfection
-    # gnomeExtensions.sound-output-device-chooser
-    # gnomeExtensions.blur-my-shell
-    # gnomeExtensions.appindicator
-    # # gnomeExtensions.gtile
-    # # gnomeExtensions.gnome-rectangle # https://github.com/acristoffers/gnome-rectangle
-    # gnomeExtensions.allow-locked-remote-desktop
-  ];
+      # Dev
+      distrobox
+    ]
+    ++ (
+      if pkgs.stdenv.isLinux then
+        [
+          # Gnome
+          # TODO: Remove overlay in default.nix
+          gnome-extension-manager
+          # gnomeExtensions.allow-locked-remote-desktop
+          gnomeExtensions.blur-my-shell
+          gnomeExtensions.appindicator
+          gnomeExtensions.caffeine
+          gnomeExtensions.dash-to-dock
+          gnomeExtensions.just-perfection
+          gnomeExtensions.pop-shell
+          gnomeExtensions.vitals
+        ]
+      else
+        [ ]
+    );
 }
