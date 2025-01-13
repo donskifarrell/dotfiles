@@ -2,19 +2,27 @@
   inputs,
   pkgs,
   ...
-}: let
+}:
+let
   user = "df";
   hostname = "iompar";
   system = "aarch64-darwin";
   homeDir =
-    if pkgs.stdenv.isLinux
-    then "/home/${user}"
-    else if pkgs.stdenv.isDarwin
-    then "/Users/${user}"
-    else throw "Unsupported platform";
-in {
+    if pkgs.stdenv.isLinux then
+      "/home/${user}"
+    else if pkgs.stdenv.isDarwin then
+      "/Users/${user}"
+    else
+      throw "Unsupported platform";
+in
+{
   _module.args = {
-    inherit user hostname system homeDir;
+    inherit
+      user
+      hostname
+      system
+      homeDir
+      ;
   };
 
   ids.uids.nixbld = 300;
@@ -46,36 +54,38 @@ in {
     #   "homebrew/homebrew-cask" = homebrew-cask;
     # };
   };
-  homebrew = let
-    pkgSets = import ./home-manager/packages.nix {inherit pkgs;};
-  in {
-    enable = true;
+  homebrew =
+    let
+      pkgSets = import ./home-manager/packages.nix { inherit pkgs; };
+    in
+    {
+      enable = true;
 
-    onActivation = {
-      cleanup = "uninstall";
-      autoUpdate = true;
-      upgrade = false;
+      onActivation = {
+        cleanup = "uninstall";
+        autoUpdate = true;
+        upgrade = false;
+      };
+
+      global.autoUpdate = false;
+
+      masApps = {
+        "Coin Tick - Menu Bar Crypto" = 1141688067;
+        "ColorSlurp" = 1287239339;
+        "Unsplash Wallpapers" = 1284863847;
+        "WireGuard" = 1451685025;
+      };
+
+      brews = pkgSets.osx-brews;
+
+      caskArgs.no_quarantine = true;
+      casks = pkgSets.osx-casks;
     };
-
-    global.autoUpdate = false;
-
-    masApps = {
-      "Coin Tick - Menu Bar Crypto" = 1141688067;
-      "ColorSlurp" = 1287239339;
-      "Unsplash Wallpapers" = 1284863847;
-      "WireGuard" = 1451685025;
-    };
-
-    brews = pkgSets.osx-brews;
-
-    caskArgs.no_quarantine = true;
-    casks = pkgSets.osx-casks;
-  };
 
   services.nix-daemon.enable = true;
   # nix.package = pkgs.nix;
 
-  environment.shells = [pkgs.fish];
+  environment.shells = [ pkgs.fish ];
   # TODO: Is this needed?
   # nix-darwin doesn't change the shells so we do it here
   # system.activationScripts.postActivation.text = ''
@@ -98,37 +108,40 @@ in {
       inherit inputs;
     };
 
-    users.${user} = {pkgs, ...}: {
-      _module.args = {
-        inherit user hostname system;
-      };
+    users.${user} =
+      { pkgs, ... }:
+      {
+        _module.args = {
+          inherit user hostname system;
+        };
 
-      imports = [
-        ./home-manager
-        ./home-manager/alacritty.nix
-        ./home-manager/btop.nix
-        ./home-manager/fish.nix
-        ./home-manager/git.nix
-        ./home-manager/neovim.nix
-        ./home-manager/ssh.nix
-        ./home-manager/starship.nix
-        ./home-manager/tmux.nix
-        ./home-manager/vscode.nix
-      ];
-
-      # Different location on OSX
-      home.homeDirectory = pkgs.lib.mkForce "/Users/${user}";
-
-      home.packages = let
-        pkgSets = import ./home-manager/packages.nix {inherit pkgs;};
-      in
-        pkgSets.essentials-utils
-        ++ pkgSets.essentials-dev
-        ++ pkgSets.essentials-gui
-        ++ pkgSets.osx
-        ++ [
-          inputs.agenix.packages."${pkgs.system}".default
+        imports = [
+          ./home-manager
+          ./home-manager/alacritty.nix
+          ./home-manager/btop.nix
+          ./home-manager/fish.nix
+          ./home-manager/git.nix
+          ./home-manager/neovim.nix
+          ./home-manager/ssh.nix
+          ./home-manager/starship.nix
+          ./home-manager/tmux.nix
+          ./home-manager/vscode.nix
         ];
-    };
+
+        # Different location on OSX
+        home.homeDirectory = pkgs.lib.mkForce "/Users/${user}";
+
+        home.packages =
+          let
+            pkgSets = import ./home-manager/packages.nix { inherit pkgs; };
+          in
+          pkgSets.essentials-utils
+          ++ pkgSets.essentials-dev
+          ++ pkgSets.essentials-gui
+          ++ pkgSets.osx
+          ++ [
+            inputs.agenix.packages."${pkgs.system}".default
+          ];
+      };
   };
 }
