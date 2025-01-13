@@ -26,6 +26,7 @@ in
     self.nixosModules.shared
     self.nixosModules.sound
     self.nixosModules.ssh
+    self.nixosModules.sudo
     self.nixosModules.xdg
 
     # GUI
