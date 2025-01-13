@@ -57,23 +57,25 @@
       cdr = "cd $(git rev-parse --show-toplevel)";
     };
 
-    encode = {
-      description = "Encodes a string to base64";
-      body = ''
-        echo -n "$argv[1]" | base64
-      '';
-    };
+    functions = {
+      encode = {
+        description = "Encodes a string to base64";
+        body = ''
+          echo -n "$argv[1]" | base64
+        '';
+      };
 
-    decode = {
-      description = "Decodes a string from base64";
-      body = ''
-        echo "$argv[1]" | base64 -D
-      '';
-    };
+      decode = {
+        description = "Decodes a string from base64";
+        body = ''
+          echo "$argv[1]" | base64 -D
+        '';
+      };
 
-    fish_greeting = {
-      description = "Override default greeting";
-      body = "";
+      fish_greeting = {
+        description = "Override default greeting";
+        body = "";
+      };
     };
 
     interactiveShellInit = ''
