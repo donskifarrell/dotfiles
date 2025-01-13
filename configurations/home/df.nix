@@ -13,12 +13,14 @@ let
 in
 {
   imports = [
+    self.homeModules.alacritty
     self.homeModules.direnv
     self.homeModules.fish
     self.homeModules.git
-    self.homeModules.nix
     self.homeModules.nh
+    self.homeModules.nix
     self.homeModules.ssh
+    self.homeModules.starship
     self.homeModules.vscode
   ];
 
