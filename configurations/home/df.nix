@@ -17,6 +17,7 @@ in
     self.homeModules.fish
     self.homeModules.git
     self.homeModules.nix
+    self.homeModules.nh
     self.homeModules.ssh
     self.homeModules.vscode
   ];
@@ -51,8 +52,8 @@ in
     eza.enable = true;
     fish.enable = true;
     fzf.enable = true;
-    jq.enable = true;
     git.enable = true;
+    jq.enable = true;
     neovim.enable = true;
 
     zoxide = {
@@ -87,6 +88,7 @@ in
 
       # Dev
       distrobox
+      devbox
     ]
     ++ (
       if pkgs.stdenv.isLinux then
