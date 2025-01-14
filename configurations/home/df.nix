@@ -40,6 +40,8 @@ in
       MANPAGER = "sh -c 'col -bx | ${pkgs.bat}/bin/bat -l man -p'";
       MANROFFOPT = "-c";
 
+      EDITOR = "nvim";
+
       XDG_CACHE_DIR = "${homeDir}/.cache";
       XDG_CACHE_HOME = "${homeDir}/.cache";
       XDG_CONFIG_HOME = "${homeDir}/.config";
@@ -105,6 +107,7 @@ in
       # Dev
       distrobox
       devbox
+      virt-manager
     ]
     ++ (
       if pkgs.stdenv.isLinux then
