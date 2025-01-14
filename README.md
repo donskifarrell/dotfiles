@@ -1,6 +1,4 @@
-# My Dots
-
-I've got 4 machines:
+# Dots
 
 | Hostname       | Users | System         | What is it?         |
 | -------------- | ----- | -------------- | ------------------- |
