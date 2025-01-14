@@ -79,8 +79,9 @@ in
       chromium
 
       # Apps
-      slack
+      element-desktop
       obsidian
+      slack
 
       # Tools
       curl
