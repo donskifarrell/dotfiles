@@ -19,6 +19,7 @@ in
     self.homeModules.git
     self.homeModules.nh
     self.homeModules.nix
+    self.homeModules.nix-index
     self.homeModules.ssh
     self.homeModules.starship
     self.homeModules.tmux

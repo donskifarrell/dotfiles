@@ -17,6 +17,7 @@ in
     ./hardware-configuration.nix
 
     inputs.agenix.nixosModules.default
+    inputs.nix-index-database.nixosModules.nix-index
 
     self.nixosModules.agenix
     self.nixosModules.bluetooth
@@ -37,6 +38,15 @@ in
 
   time.timeZone = "Europe/Dublin";
   networking.hostName = "abhaile";
+
+  # TODO: Remove - Debug random restart
+  boot.crashDump.enable = true;
+  services.journald.rateLimitBurst = 50000;
+  services.journald.rateLimitInterval = "1s";
+  services.journald.extraConfig = ''
+    Storage=persistent
+  '';
+  services.sysstat.enable = true;
 
   # TODO: Remove overlay and fix in nix.nix file
   nixpkgs.overlays = [
@@ -72,11 +82,14 @@ in
     extraSpecialArgs = {
       inherit inputs;
     };
-  };
 
-  # Enable home-manager for "df" user
-  home-manager.users."df" = {
-    imports = [ (self + /configurations/home/df.nix) ];
+    # Enable home-manager for "df" user
+    users."df" = {
+      imports = [
+        inputs.nix-index-database.hmModules.nix-index
+        (self + /configurations/home/df.nix)
+      ];
+    };
   };
 
   # List packages installed in system profile. To search, run:
@@ -87,6 +100,9 @@ in
     inputs.agenix.packages.x86_64-linux.default
     git
     nixfmt-rfc-style
+
+    # TODO: Remove - Debug random restart
+    linuxKernel.packages.linux_6_6.cpupower
   ];
 
   # This value determines the NixOS release from which the default
