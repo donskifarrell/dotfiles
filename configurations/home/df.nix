@@ -49,6 +49,8 @@ in
     sessionPath = [ "${homeDir}/dev/bin" ];
   };
 
+  services.udiskie.enable = true;
+
   programs = {
     bat.enable = true;
     btop.enable = true;

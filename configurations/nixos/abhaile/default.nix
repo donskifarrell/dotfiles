@@ -39,6 +39,9 @@ in
   time.timeZone = "Europe/Dublin";
   networking.hostName = "abhaile";
 
+  # To enable automounting with udiskie in home manager
+  services.udisks2.enable = true;
+
   # TODO: Remove - Debug random restart
   boot.crashDump.enable = true;
   services.journald.rateLimitBurst = 50000;
