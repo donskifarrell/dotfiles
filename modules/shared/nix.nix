@@ -44,6 +44,8 @@ in
     registry.nixpkgs.flake = flake.inputs.nixpkgs; # Make `nix shell` etc use pinned nixpkgs
 
     settings = {
+      auto-optimise-store = lib.mkDefault true;
+
       max-jobs = "auto";
       experimental-features = "nix-command flakes";
       # Nullify the registry for purity.
@@ -52,6 +54,11 @@ in
         "root"
         (if pkgs.stdenv.isDarwin then flake.config.me.username else "@wheel")
       ];
+    };
+
+    gc = {
+      automatic = true;
+      options = "--delete-older-than 7d";
     };
   };
 }
