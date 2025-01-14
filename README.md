@@ -2,19 +2,13 @@
 
 I've got 4 machines:
 
-| Hostname | Users | System         | What is it?             |
-| -------- | ----- | -------------- | ----------------------- |
-| abhaile  | df    | x86_64-linux   | Desktop workstation     |
-| iompar   | df    | aarch64-darwin | M1 Macbook Pro          |
-| qemu     | df    | x86_64-linux   | VM (multiple)           |
+| Hostname       | Users | System         | What is it?         |
+| -------------- | ----- | -------------- | ------------------- |
+| abhaile (home) | df    | x86_64-linux   | Desktop workstation |
+| iompar (carry) | df    | aarch64-darwin | M1 Macbook Pro      |
+| TODO: qemu     | df    | x86_64-linux   | VM (multiple)       |
 
-These dotfiles try to keep things easy and composable. Everything is driven from the base `flake.nix` using standard tooling.
-
-In `./hosts` you'll find the main configurations for each hostname above. Each config file will have system customisations as needed but the bulk of customisation is simply adding or omitting the relevant import module file.
-
-Similarly for `home-manager`, each hostname config may have the odd customisation, but most of the selection is simply importing the relevant home-manager module.
-
-For user packages, I put everything into `./hosts/home-manager/packages.nix` so it's easier to see what each system has at once.
+These dotfiles try to keep things easy and composable. Everything is driven from the base `flake.nix` using common tooling along with the https://flake.parts/ framework for some autowiring. Some liberal copying from https://github.com/srid/nixos-config and my own previous configs.
 
 A general good resource is https://github.com/nix-community/awesome-nix and https://mynixos.com/
 
@@ -75,32 +69,6 @@ Post-install, there are still some additional steps:
 
 3. Review nix-darwin options: https://daiderd.com/nix-darwin/manual/index.html
 
-## NIXOS Fresh Install
-
-The nixos install is more involved, as it's an entire system.
-
-```
-# The easiest way is to use the GUI installer from an ISO: https://nixos.org/download.html#nixos-iso
-
-# Get the df@secrets.nix key and put in the .ssh folder
-# `mkdir ~/.ssh` might be needed
-
-# Manually download the dotfiles from this repo to the path ~/.dotfiles. We'll replace later
-cd ~
-wget -O .dotfiles.zip https://github.com/donskifarrell/dotfiles/archive/refs/heads/main.zip
-unzip .dotfiles.zip
-
-# Once we have the dotfiles in the correct location
-sudo nixos-rebuild --flake ~/.dotfiles/#abhaile switch --impure
-
-# Nixos manual warns 23.11 may break boot mounts, so it's wise to re-run:
-# sudo nixos-rebuild --flake ~/.dotfiles/#abhaile boot --impure
-
-# Now you can delete the dotfiles and do a proper git clone
-rm -rf ~/.dotfiles
-git clone git@github.com:donskifarrell/dotfiles.git ~/.dotfiles
-```
-
 ## TODO
 
 ### - Common
@@ -108,34 +76,19 @@ git clone git@github.com:donskifarrell/dotfiles.git ~/.dotfiles
 - Install tooling:
   - Syncthing
   - Podman (with alias for docker)
-  - ~~VMs: https://github.com/Mic92/nixos-shell or virt-manager~~
 - Allow stable/unstable nixpkgs
 
 ### - Nixos
 
 - DConf settings
-- Integrate Flatpak / AppImage on Linux
 - Create an iso image with base config already installed
 - Install tooling:
   - OpenSnitch
-  - 1password extension
 - For dev VMs, use https://github.com/nix-community/nixos-vscode-server
-- Add cron job to switch wallpapers: https://github.com/cronie-crond/cronie
-- ROFI applets: https://github.com/adi1090x/rofi
 - Add plymouth theme: https://github.com/adi1090x/plymouth-themes
-- better font for GTK, maybe SF PRO
-- trackpad speed
-- scroll speed
-- bluetooth audio on google meet not resetting
-- media keys
-- XWayland / electron etc, wayland support in apps: https://nixos.wiki/wiki/Wayland
+- Media keys
 - BIOS tweak (XMP; V.T on CPU)
-- Encrypt disk
-- Font rendering
-- Rectangle alt - qtile, forge
-- startup apps
 - Enforce BT settings - A2DP sink/LDAC for headset
-- ULauncher focus (Wayland portal/layout issue)
 
 ## Misc Links
 
