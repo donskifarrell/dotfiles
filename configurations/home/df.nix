@@ -49,7 +49,15 @@ in
     sessionPath = [ "${homeDir}/dev/bin" ];
   };
 
+  # A fix for https://github.com/nix-community/home-manager/issues/2064
+  systemd.user.targets.tray = {
+    Unit = {
+      Description = "Home Manager System Tray";
+      Requires = [ "graphical-session-pre.target" ];
+    };
+  };
   services.udiskie.enable = true;
+  services.playerctld.enable = true;
 
   programs = {
     bat.enable = true;
@@ -91,6 +99,7 @@ in
       unzip
       unrar
       wget
+      playerctl
 
       # Dev
       distrobox
