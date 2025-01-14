@@ -15,6 +15,8 @@
       "..." = "cd ../..";
 
       os-switch = "nh os switch ~/.dotfiles";
+      os-list-gens = "nix profile history --profile /nix/var/nix/profiles/system";
+      os-wipe-gens = "sudo nix profile wipe-history --profile /nix/var/nix/profiles/system --older-than 14d";
     };
 
     shellAliases = {

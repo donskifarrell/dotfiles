@@ -96,10 +96,11 @@ in
 
       # Tools
       curl
-      unzip
-      unrar
-      wget
+      p7zip
       playerctl
+      unrar
+      unzip
+      wget
 
       # Dev
       distrobox
