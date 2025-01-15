@@ -10,7 +10,11 @@ in
   imports = [
     (self + /modules/flake-parts/config.nix)
 
-    self.darwinModules.default
+    inputs.agenix.nixosModules.default
+    inputs.home-manager.darwinModules.home-manager
+    inputs.nix-homebrew.darwinModules.nix-homebrew
+
+    self.darwinModules.shared
   ];
 
   # activationScripts are executed every time you boot the system or run `nixos-rebuild` / `darwin-rebuild`.

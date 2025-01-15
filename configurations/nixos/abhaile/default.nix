@@ -21,7 +21,6 @@ in
     inputs.agenix.nixosModules.default
     inputs.nix-index-database.nixosModules.nix-index
 
-    self.nixosModules.agenix
     self.nixosModules.bluetooth
     # self.nixosModules.bootlabel
     self.nixosModules.networking
