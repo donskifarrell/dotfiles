@@ -17,9 +17,7 @@ in
     self.homeModules.direnv
     self.homeModules.fish
     self.homeModules.git
-    self.homeModules.nh
     self.homeModules.nix
-    self.homeModules.nix-index
     self.homeModules.ssh
     self.homeModules.starship
     self.homeModules.tmux
@@ -65,13 +63,29 @@ in
     bat.enable = true;
     btop.enable = true;
     eza.enable = true;
+    fd.enable = true;
     fish.enable = true;
     fzf.enable = true;
-    fd.enable = true;
     git.enable = true;
     jq.enable = true;
     neovim.enable = true;
     ripgrep.enable = true;
+
+    nix-index = {
+      enable = true;
+      enableFishIntegration = true;
+    };
+
+    nh = {
+      enable = true;
+      # TODO: extract username to a top-level config
+      flake = "/home/df/.dotfiles";
+    };
+
+    yazi = {
+      enable = true;
+      enableFishIntegration = true;
+    };
 
     zoxide = {
       enable = true;

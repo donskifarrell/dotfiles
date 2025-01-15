@@ -23,7 +23,7 @@
       changed = ''show --pretty="format:" --name-only'';
       please = "push --force-with-lease";
       commend = "commit --amend --no-editor";
-      pom = "push origin master";
+      pom = "push origin main";
       lt = "log --tags --decorate --simplify-by-decoration --oneline";
       lg = "log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --date=relative";
       info = "for-each-ref --sort=committerdate refs/heads/ --format='%(HEAD) %(color:yellow)%(refname:short)%(color:reset) - %(color:red)%(objectname:short)%(color:reset) - %(contents:subject) - %(authorname) (%(color:green)%(committerdate:relative)%(color:reset))'";
