@@ -1,5 +1,6 @@
 {
   flake,
+  config,
   pkgs,
   lib,
   ...
@@ -52,7 +53,7 @@ in
       flake-registry = builtins.toFile "empty-flake-registry.json" ''{"flakes":[],"version":2}'';
       trusted-users = [
         "root"
-        (if pkgs.stdenv.isDarwin then flake.config.me.username else "@wheel")
+        (if pkgs.stdenv.isDarwin then config.me.username else "@wheel")
       ];
     };
 

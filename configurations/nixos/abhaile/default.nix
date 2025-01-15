@@ -8,6 +8,8 @@ let
 in
 {
   imports = [
+    (self + /modules/flake-parts/config.nix)
+
     inputs.nixos-hardware.nixosModules.common-cpu-amd
     inputs.nixos-hardware.nixosModules.common-cpu-amd-pstate
     inputs.nixos-hardware.nixosModules.common-cpu-amd-zenpower
@@ -78,7 +80,7 @@ in
 
   # For home-manager to work.
   # https://github.com/nix-community/home-manager/issues/4026#issuecomment-1565487545
-  # Common config is in user.nix
+  # Common config is in modules/shared/user.nix
   users.users."df".isNormalUser = true;
 
   home-manager = {
@@ -89,6 +91,8 @@ in
     # Enable home-manager for "df" user
     users."df" = {
       imports = [
+        (self + /modules/flake-parts/config.nix)
+
         inputs.nix-index-database.hmModules.nix-index
         (self + /configurations/home/df.nix)
       ];

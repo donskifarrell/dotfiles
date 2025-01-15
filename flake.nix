@@ -44,8 +44,9 @@
         "x86_64-linux"
         "aarch64-darwin"
       ];
-      imports = (
-        with builtins; map (fn: ./modules/flake-parts/${fn}) (attrNames (readDir ./modules/flake-parts))
-      );
+      imports = [
+        ./modules/flake-parts/toplevel.nix
+        ./modules/flake-parts/devshell.nix
+      ];
     };
 }

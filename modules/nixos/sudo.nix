@@ -1,11 +1,11 @@
-{ flake, ... }:
+{ config, ... }:
 {
   security.sudo.extraRules = [
     {
-      users = [ flake.config.me.username ];
+      users = [ config.me.username ];
       commands = [
         {
-          command = "/etc/profiles/per-user/${flake.config.me.username}/bin/nh";
+          command = "/etc/profiles/per-user/${config.me.username}/bin/nh";
           options = [ "NOPASSWD" ];
         }
       ];
