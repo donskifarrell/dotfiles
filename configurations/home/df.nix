@@ -67,9 +67,11 @@ in
     eza.enable = true;
     fish.enable = true;
     fzf.enable = true;
+    fd.enable = true;
     git.enable = true;
     jq.enable = true;
     neovim.enable = true;
+    ripgrep.enable = true;
 
     zoxide = {
       enable = true;
@@ -87,17 +89,26 @@ in
 
       # Browsers
       brave
+      chromium
       firefox
       vivaldi
-      chromium
 
       # Apps
       element-desktop
+      glogg
+      krita
       obsidian
+      opensnitch-ui
+      skypeforlinux
       slack
+      vlc
 
       # Tools
       curl
+      exiftool
+      ffmpeg
+      imagemagick
+      lsof
       p7zip
       playerctl
       unrar
@@ -105,9 +116,15 @@ in
       wget
 
       # Dev
-      distrobox
+      bore-cli
       devbox
+      distrobox
+      quickemu
       virt-manager
+
+      # Network
+      drill
+      trippy
     ]
     ++ (
       if pkgs.stdenv.isLinux then
