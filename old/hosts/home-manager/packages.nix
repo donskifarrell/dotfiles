@@ -40,15 +40,9 @@
   ];
 
   essentials-dev = with pkgs; [
-    (google-cloud-sdk.withExtraComponents [ google-cloud-sdk.components.gke-gcloud-auth-plugin ])
-    # docker
-    # docker-compose
-    alejandra
+
     android-tools
     cargo
-    devbox
-    # direnv
-    distrobox
     exiftool
     flyctl
     git-filter-repo

@@ -30,6 +30,7 @@ in
       jnoortheen.nix-ide
       jock.svg
       matthewpi.caddyfile-support
+      mechatroner.rainbow-csv
       mkhl.direnv
       ms-vscode-remote.remote-ssh
       redhat.vscode-yaml
