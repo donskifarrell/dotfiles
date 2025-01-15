@@ -1,5 +1,6 @@
 {
   flake,
+  config,
   pkgs,
   lib,
   ...
@@ -13,6 +14,8 @@ let
 in
 {
   imports = [
+    # (self + /modules/flake-parts/config.nix)
+
     self.homeModules.alacritty
     self.homeModules.direnv
     self.homeModules.fish
@@ -40,6 +43,7 @@ in
       MANROFFOPT = "-c";
 
       EDITOR = "nvim";
+      TEST_CONFIG = "test[${config.me.homeDir}][${config.me.username}]";
 
       XDG_CACHE_DIR = "${homeDir}/.cache";
       XDG_CACHE_HOME = "${homeDir}/.cache";
@@ -50,7 +54,7 @@ in
     sessionPath = [ "${homeDir}/dev/bin" ];
   };
 
-  # A fix for https://github.com/nix-community/home-manager/issues/2064
+  # A fix for https://github.com/nix-community/home-manager/issues/2064 to enable udiskie to build
   systemd.user.targets.tray = {
     Unit = {
       Description = "Home Manager System Tray";
