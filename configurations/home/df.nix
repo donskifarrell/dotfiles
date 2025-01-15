@@ -22,6 +22,7 @@ in
     self.homeModules.starship
     self.homeModules.tmux
     self.homeModules.vscode
+    self.homeModules.yazi
   ];
 
   home = {
@@ -80,11 +81,6 @@ in
       enable = true;
       # TODO: extract username to a top-level config
       flake = "/home/df/.dotfiles";
-    };
-
-    yazi = {
-      enable = true;
-      enableFishIntegration = true;
     };
 
     zoxide = {
