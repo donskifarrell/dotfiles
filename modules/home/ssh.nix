@@ -4,10 +4,13 @@
   ...
 }:
 {
+  services.ssh-agent.enable = true;
+
   programs.ssh = {
     enable = true;
 
     includes = [ "~/.ssh/sshconfig.local" ];
+    addKeysToAgent = "confirm";
 
     extraConfig = lib.mkMerge [
       ''
