@@ -28,8 +28,16 @@ in
     /System/Library/PrivateFrameworks/SystemAdministration.framework/Resources/activateSettings -u
   '';
 
+  # TODO: extract username into variable
+  system.activationScripts.postActivation.text = ''
+    echo "setting up users' shells..." >&2
+    dscl . create /Users/df UserShell "/etc/profiles/per-user/df/bin/fish"
+  '';
+
   nixpkgs.hostPlatform = "aarch64-darwin";
   networking.hostName = "iompar";
+
+  services.nix-daemon.enable = true;
 
   # Add ability to used TouchID for sudo authentication
   security.pam.enableSudoTouchIdAuth = true;
@@ -42,6 +50,7 @@ in
   # For home-manager to work.
   # https://github.com/nix-community/home-manager/issues/4026#issuecomment-1565487545
   # Common config is in modules/shared/user.nix
+  # TODO: extract username into variable
   users.users."df".home = "/Users/df";
 
   home-manager = {
