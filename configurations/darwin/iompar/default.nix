@@ -5,6 +5,8 @@
 let
   inherit (flake) inputs;
   inherit (inputs) self;
+
+  username = "df";
 in
 {
   imports = [
@@ -28,11 +30,9 @@ in
     # so we do not need to logout and login again to make the changes take effect.
     /System/Library/PrivateFrameworks/SystemAdministration.framework/Resources/activateSettings -u
   '';
-
-  # TODO: extract username into variable
   system.activationScripts.postActivation.text = ''
     echo "setting up users' shells..." >&2
-    dscl . create /Users/df UserShell "/etc/profiles/per-user/df/bin/fish"
+    dscl . create /Users/${username} UserShell "/etc/profiles/per-user/${username}/bin/fish"
   '';
 
   nixpkgs.hostPlatform = "aarch64-darwin";
@@ -51,8 +51,7 @@ in
   # For home-manager to work.
   # https://github.com/nix-community/home-manager/issues/4026#issuecomment-1565487545
   # Common config is in modules/shared/user.nix
-  # TODO: extract username into variable
-  users.users."df".home = "/Users/df";
+  users.users."${username}".home = "/Users/${username}";
 
   home-manager = {
     extraSpecialArgs = {
@@ -67,12 +66,12 @@ in
     backupFileExtension = "nix-old-bk";
 
     # Enable home-manager for "runner" user
-    users."df" = {
+    users."${username}" = {
       imports = [
         (self + /modules/flake-parts/config.nix)
 
         inputs.nix-index-database.hmModules.nix-index
-        (self + /configurations/home/df.nix)
+        (self + /configurations/home/${username}.nix)
       ];
     };
   };

@@ -9,13 +9,10 @@ let
   inherit (flake) inputs;
   inherit (inputs) self;
 
-  # TODO: Move to a top-level config
-  homeDir = "/${if pkgs.stdenv.isDarwin then "Users" else "home"}/df";
+  homeDir = config.me.homeDir;
 in
 {
   imports = [
-    # (self + /modules/flake-parts/config.nix)
-
     self.homeModules.alacritty
     self.homeModules.direnv
     self.homeModules.fish
@@ -32,7 +29,7 @@ in
     stateVersion = "24.11";
 
     homeDirectory = lib.mkDefault homeDir;
-    username = "df";
+    username = config.me.username;
 
     sessionVariables = {
       LANG = "en_GB.UTF-8";
@@ -43,7 +40,6 @@ in
       MANROFFOPT = "-c";
 
       EDITOR = "nvim";
-      TEST_CONFIG = "test[${config.me.homeDir}][${config.me.username}]";
 
       XDG_CACHE_DIR = "${homeDir}/.cache";
       XDG_CACHE_HOME = "${homeDir}/.cache";
@@ -84,8 +80,7 @@ in
 
     nh = {
       enable = true;
-      # TODO: extract username to a top-level config
-      flake = "/home/df/.dotfiles";
+      flake = "/home/${config.me.username}/.dotfiles";
     };
 
     zoxide = {

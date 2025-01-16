@@ -5,6 +5,8 @@
 let
   inherit (flake) inputs;
   inherit (inputs) self;
+
+  username = "df";
 in
 {
   imports = [
@@ -21,11 +23,16 @@ in
     inputs.agenix.nixosModules.default
     inputs.nix-index-database.nixosModules.nix-index
 
+    (self + /modules/shared/agenix.nix)
+    (self + /modules/shared/fonts.nix)
+    (self + /modules/shared/i18n.nix)
+    (self + /modules/shared/nix.nix)
+    (self + /modules/shared/user.nix)
+
     self.nixosModules.bluetooth
     # self.nixosModules.bootlabel
     self.nixosModules.networking
     self.nixosModules.printing
-    self.nixosModules.shared
     self.nixosModules.sound
     self.nixosModules.ssh
     self.nixosModules.sudo
@@ -80,20 +87,20 @@ in
   # For home-manager to work.
   # https://github.com/nix-community/home-manager/issues/4026#issuecomment-1565487545
   # Common config is in modules/shared/user.nix
-  users.users."df".isNormalUser = true;
+  users.users."${username}".isNormalUser = true;
 
   home-manager = {
     extraSpecialArgs = {
       inherit inputs;
     };
 
-    # Enable home-manager for "df" user
-    users."df" = {
+    # Enable home-manager for user
+    users."${username}" = {
       imports = [
         (self + /modules/flake-parts/config.nix)
 
         inputs.nix-index-database.hmModules.nix-index
-        (self + /configurations/home/df.nix)
+        (self + /configurations/home/${username}.nix)
       ];
     };
   };

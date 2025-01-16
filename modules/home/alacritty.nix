@@ -2,12 +2,10 @@
   config,
   lib,
   pkgs,
-  user,
   ...
 }:
 let
-  # TODO: Move to a top-level config
-  homeDir = "/${if pkgs.stdenv.isDarwin then "Users" else "home"}/df";
+  homeDir = config.me.homeDir;
 in
 {
   programs.alacritty = {

@@ -1,14 +1,13 @@
 {
+  config,
   inputs,
   pkgs,
   ...
 }:
 let
   vscode-marketplace = inputs.nix-vscode-extensions.extensions.${system}.vscode-marketplace;
-
-  # TODO: Move to a top-level config
-  homeDir = "/${if pkgs.stdenv.isDarwin then "Users" else "home"}/df";
-  system = "${if pkgs.stdenv.isDarwin then "aarch64-darwin" else "x86_64-linux"}";
+  homeDir = config.me.homeDir;
+  system = config.me.system;
 in
 {
   programs.vscode = {

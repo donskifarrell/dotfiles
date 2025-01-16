@@ -1,13 +1,13 @@
 # TODO: Migrate to just a home-manager module
 {
+  config,
   inputs,
   pkgs,
   ...
 }:
 let
-  # TODO: Move to a top-level config
-  user = "df";
-  homeDir = "/${if pkgs.stdenv.isDarwin then "Users" else "home"}/df";
+  user = config.me.username;
+  homeDir = config.me.homeDir;
 
   # Maybe a better way to do this (e.g as a bundle?) but they don't change that much so it's fine.
   sshFiles = [
