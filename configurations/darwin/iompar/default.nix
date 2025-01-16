@@ -15,6 +15,7 @@ in
     inputs.nix-homebrew.darwinModules.nix-homebrew
 
     (self + /modules/shared/agenix.nix)
+    (self + /modules/shared/fonts.nix)
     (self + /modules/shared/nix.nix)
     (self + /modules/shared/user.nix)
 

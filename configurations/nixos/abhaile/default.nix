@@ -32,7 +32,7 @@ in
     self.nixosModules.xdg
 
     # GUI
-    self.nixosModules.fonts
+    (self + /modules/shared/fonts.nix)
     self.nixosModules.gnome
     self.nixosModules.xserver
   ];
