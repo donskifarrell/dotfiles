@@ -16,20 +16,10 @@
     nix-index-database.url = "github:nix-community/nix-index-database";
     nixos-hardware.url = "github:NixOS/nixos-hardware";
     nixos-unified.url = "github:srid/nixos-unified";
-    # nix-flatpak.url = "github:gmodena/nix-flatpak/?ref=v0.2.0";
 
     # OSX
     nix-darwin.url = "github:LnL7/nix-darwin";
     nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
-    nix-homebrew.url = "github:zhaofengli-wip/nix-homebrew";
-    homebrew-core = {
-      url = "github:homebrew/homebrew-core";
-      flake = false;
-    };
-    homebrew-cask = {
-      url = "github:homebrew/homebrew-cask";
-      flake = false;
-    };
 
     # Dev
     git-hooks.url = "github:cachix/git-hooks.nix";

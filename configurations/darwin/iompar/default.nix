@@ -12,7 +12,6 @@ in
 
     inputs.agenix.nixosModules.default
     inputs.home-manager.darwinModules.home-manager
-    inputs.nix-homebrew.darwinModules.nix-homebrew
 
     (self + /modules/shared/agenix.nix)
     (self + /modules/shared/fonts.nix)
@@ -20,6 +19,7 @@ in
     (self + /modules/shared/user.nix)
 
     self.darwinModules.system
+    self.darwinModules.homebrew
   ];
 
   # activationScripts are executed every time you boot the system or run `nixos-rebuild` / `darwin-rebuild`.

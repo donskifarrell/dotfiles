@@ -84,36 +84,16 @@
   ];
 
   essentials-x86-gui = with pkgs; [
-    brave
-    chromium
-    firefox
+
     hw-probe
     libreoffice-still
-    maestral-gui
-    mattermost-desktop
     netperf
-    obsidian
     opensnitch-ui
     pgadmin4
     sublime4
     telegram-desktop
     ulauncher
-    # (vivaldi.overrideAttrs (oldAttrs: {
-    #   buildPhase =
-    #     builtins.replaceStrings
-    #     ["for f in libGLESv2.so libqt5_shim.so ; do"]
-    #     ["for f in libGLESv2.so libqt5_shim.so libqt6_shim.so ; do"]
-    #     oldAttrs.buildPhase;
-    # }))
-    # .override
-    # {
-    #   qt5 = qt6;
-    #   commandLineArgs = ["--ozone-platform=wayland"];
-    #   # The following two are just my preference, feel free to leave them out
-    #   proprietaryCodecs = true;
-    #   enableWidevine = true;
-    # }
-    vlc
+
     wl-clipboard
     wl-clipboard-x11
     zathura
@@ -126,62 +106,6 @@
     s-tui
     caffeine-ng
     furmark
-  ];
-
-  # https://flathub.org
-  nixos-flatpak = [
-    "com.slack.Slack"
-    "com.belmoussaoui.Authenticator"
-  ];
-
-  osx-brews = [
-    "flyctl" # always ahead of nixpkgs
-    "scrcpy" # always ahead of nixpkgs
-    "mas"
-    "swift-protobuf" # iOS builds bnk
-    "grpc-swift" # iOS builds bnk
-  ];
-
-  # https://github.com/macos-fuse-t/fuse-t
-  osx-casks = [
-    "android-studio"
-    "appcleaner"
-    "balenaetcher"
-    "brave-browser"
-    "db-browser-for-sqlite"
-    "firefox"
-    "google-chrome"
-    "itsycal"
-    "keepingyouawake"
-    "libreoffice"
-    "little-snitch"
-    "maestral"
-    "mattermost"
-    "obsidian"
-    "omnidisksweeper"
-    "openmtp"
-    "pgadmin4"
-    "postman"
-    "raycast"
-    "rectangle"
-    "slack"
-    "steam"
-    "skype"
-    "sublime-text"
-    "the-unarchiver"
-    "utm"
-    "vivaldi"
-    "vlc"
-  ];
-
-  osx = with pkgs; [
-    (nerdfonts.override { fonts = [ "JetBrainsMono" ]; })
-    dejavu_fonts
-    font-awesome
-    hack-font
-    jetbrains-mono
-    meslo-lgs-nf
-    cocoapods # iOS builds bnk
   ];
 
   nixos = with pkgs; [
@@ -201,41 +125,5 @@
     qt6.qtwayland
     qt6.qt5compat
     wirelesstools
-  ];
-
-  nixos-gnome = with pkgs; [
-    gnome-extension-manager
-
-    gnomeExtensions.dash-to-dock
-    # gnomeExtensions.gsconnect
-    # gnomeExtensions.mpris-indicator-button
-    gnomeExtensions.caffeine
-    gnomeExtensions.vitals
-    gnomeExtensions.just-perfection
-    gnomeExtensions.sound-output-device-chooser
-    gnomeExtensions.blur-my-shell
-    gnomeExtensions.appindicator
-    # gnomeExtensions.gtile
-    # gnomeExtensions.gnome-rectangle # https://github.com/acristoffers/gnome-rectangle
-    gnomeExtensions.allow-locked-remote-desktop
-  ];
-
-  nixos-hyprland = with pkgs; [
-    flameshot
-    gtklock
-    lm_sensors
-    nwg-dock-hyprland
-    playerctl
-    simplescreenrecorder
-    swaylock-effects
-    swaynotificationcenter
-    swww
-    wev
-    wl-clipboard
-    wlogout
-    wmctrl
-  ];
-
-  qemu = with pkgs; [
   ];
 }
