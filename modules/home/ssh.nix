@@ -4,7 +4,7 @@
   ...
 }:
 {
-  services.ssh-agent.enable = true;
+  services.ssh-agent.enable = if pkgs.stdenv.isLinux then true else false;
 
   programs.ssh = {
     enable = true;

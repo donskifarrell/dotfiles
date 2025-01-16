@@ -61,8 +61,8 @@ in
       Requires = [ "graphical-session-pre.target" ];
     };
   };
-  services.udiskie.enable = true;
-  services.playerctld.enable = true;
+  services.udiskie.enable = if pkgs.stdenv.isLinux then true else false;
+  services.playerctld.enable = if pkgs.stdenv.isLinux then true else false;
 
   programs = {
     bat.enable = true;

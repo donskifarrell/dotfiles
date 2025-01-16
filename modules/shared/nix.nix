@@ -45,7 +45,7 @@ in
     registry.nixpkgs.flake = flake.inputs.nixpkgs; # Make `nix shell` etc use pinned nixpkgs
 
     settings = {
-      auto-optimise-store = lib.mkDefault true;
+      auto-optimise-store = if pkgs.stdenv.isLinux then true else false;
 
       max-jobs = "auto";
       experimental-features = "nix-command flakes";
@@ -57,6 +57,7 @@ in
       ];
     };
 
+    optimise.automatic = if pkgs.stdenv.isLinux then true else false;
     gc = {
       automatic = true;
       options = "--delete-older-than 7d";

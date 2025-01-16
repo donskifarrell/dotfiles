@@ -1,6 +1,6 @@
 # See /modules/darwin/* for actual settings
 # This file is just *top-level* configuration.
-{ flake, ... }:
+{ flake, pkgs, ... }:
 
 let
   inherit (flake) inputs;
@@ -14,7 +14,11 @@ in
     inputs.home-manager.darwinModules.home-manager
     inputs.nix-homebrew.darwinModules.nix-homebrew
 
-    self.darwinModules.shared
+    (self + /modules/shared/agenix.nix)
+    (self + /modules/shared/nix.nix)
+    (self + /modules/shared/user.nix)
+
+    # self.darwinModules.system
   ];
 
   # activationScripts are executed every time you boot the system or run `nixos-rebuild` / `darwin-rebuild`.
@@ -27,7 +31,8 @@ in
   nixpkgs.hostPlatform = "aarch64-darwin";
   networking.hostName = "iompar";
 
-defaults = {
+  system = {
+    defaults = {
       # menuExtraClock.Show24Hour = true;  # show 24 hour clock
 
       # customize dock
@@ -163,6 +168,10 @@ defaults = {
   users.users."df".home = "/Users/df";
 
   home-manager = {
+    extraSpecialArgs = {
+      inherit inputs;
+    };
+
     # Automatically move old dotfiles out of the way
     #
     # Note that home-manager is not very smart, if this backup file already exists it
@@ -180,6 +189,13 @@ defaults = {
       ];
     };
   };
+
+  environment.systemPackages = with pkgs; [
+    #  vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
+    #  wget
+    git
+    nixfmt-rfc-style
+  ];
 
   # Used for backwards compatibility, please read the changelog before changing.
   # $ darwin-rebuild changelog
