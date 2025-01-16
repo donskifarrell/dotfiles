@@ -74,6 +74,7 @@ in
     git.enable = true;
     jq.enable = true;
     neovim.enable = true;
+    neovim.defaultEditor = true;
     ripgrep.enable = true;
 
     nix-index = {
