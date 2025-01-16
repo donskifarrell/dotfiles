@@ -92,53 +92,52 @@ in
   home.packages =
     with pkgs;
     [
-      _1password-cli
-      _1password-gui
-      authenticator
-      maestral-gui
-
-      # Browsers
-      brave
-      chromium
-      firefox
-      vivaldi
-
-      # Apps
-      element-desktop
-      glogg
-      krita
-      obsidian
-      opensnitch-ui
-      skypeforlinux
-      slack
-      vlc
-
-      # Tools
-      curl
-      exiftool
-      ffmpeg
-      imagemagick
-      lsof
-      p7zip
-      playerctl
-      unrar
-      unzip
-      wget
-
       # Dev
       bore-cli
-      devbox
-      distrobox
-      quickemu
-      virt-manager
-
-      # Network
-      drill
-      trippy
+      devbox # No homebrew formula for OSX
     ]
     ++ (
       if pkgs.stdenv.isLinux then
         [
+          _1password-cli
+          _1password-gui
+          authenticator
+          maestral-gui
+
+          # Browsers
+          brave
+          chromium
+          firefox
+          vivaldi
+
+          # Apps
+          element-desktop
+          glogg
+          krita
+          obsidian
+          opensnitch-ui
+          skypeforlinux
+          slack
+          vlc
+
+          # Tools
+          curl
+          exiftool
+          ffmpeg
+          imagemagick
+          lsof
+          p7zip
+          playerctl
+          trippy
+          unrar
+          unzip
+          wget
+
+          # Dev
+          distrobox
+          quickemu
+          virt-manager
+
           # Gnome
           # TODO: Remove overlay in default.nix
           gnome-extension-manager

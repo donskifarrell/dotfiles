@@ -17,9 +17,20 @@
     };
 
     brews = [
+      # Tools
       "curl"
+      "exiftool"
+      "ffmpeg"
+      "imagemagick"
+      "lsof"
       "mas"
-      "scrcpy" # always ahead of nixpkgs
+      "p7zip"
+      "scrcpy"
+      "trippy"
+      "wget"
+
+      # Dev
+      "distrobox"
     ];
 
     caskArgs.no_quarantine = true;
@@ -33,11 +44,12 @@
       "firefox"
       "vivaldi"
 
-      # Tools
+      # Apps
       "appcleaner"
       "balenaetcher"
       "itsycal"
       "keepingyouawake"
+      "krita"
       "libreoffice"
       "obsidian"
       "openmtp"
