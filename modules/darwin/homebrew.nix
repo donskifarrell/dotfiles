@@ -28,14 +28,11 @@
       "scrcpy"
       "trippy"
       "wget"
-
-      # Dev
-      "distrobox"
     ];
 
     caskArgs.no_quarantine = true;
     casks = [
-      "little-snitch"
+      "little-snitch@5"
       "maestral"
 
       # Browsers
