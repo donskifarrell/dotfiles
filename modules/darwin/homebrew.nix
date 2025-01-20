@@ -63,6 +63,7 @@
       "android-studio"
       "postman"
       "utm"
+      "db-browser-for-sqlite"
     ];
   };
 }
