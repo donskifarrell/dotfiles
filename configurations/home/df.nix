@@ -136,6 +136,7 @@ in
           # Dev
           distrobox
           quickemu
+          sqlitebrowser
           virt-manager
 
           # Gnome
