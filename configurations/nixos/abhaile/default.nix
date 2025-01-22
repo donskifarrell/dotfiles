@@ -50,6 +50,8 @@ in
   # To enable automounting with udiskie in home manager
   services.udisks2.enable = true;
 
+  boot.kernelPackages = pkgs.linuxPackages_6_12;
+
   # TODO: Remove - Debug random restart
   boot.crashDump.enable = true;
   services.journald.rateLimitBurst = 50000;
@@ -115,7 +117,7 @@ in
     nixfmt-rfc-style
 
     # TODO: Remove - Debug random restart
-    linuxKernel.packages.linux_6_6.cpupower
+    linuxKernel.packages.linux_6_12.cpupower
   ];
 
   # This value determines the NixOS release from which the default
