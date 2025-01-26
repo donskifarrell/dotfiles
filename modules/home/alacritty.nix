@@ -71,7 +71,7 @@ in
           {
             regex = ''(ipfs:|ipns:|magnet:|mailto:|gemini:|gopher:|https:|http:|news:|file:|git:|ssh:|ftp:)[^\u0000-\u001F\u007F-\u009F<>"\\s{-}\\^⟨⟩`]+'';
             command = lib.mkMerge [
-              (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "${homeDir}/.nix-profile/bin/xdg-open")
+              (lib.mkIf pkgs.stdenv.hostPlatform.isLinux "xdg-open")
               (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "open")
             ];
             post_processing = true;
