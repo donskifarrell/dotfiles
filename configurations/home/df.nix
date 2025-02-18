@@ -135,6 +135,7 @@ in
 
           # Dev
           distrobox
+          insomnia
           quickemu
           sqlitebrowser
           virt-manager
