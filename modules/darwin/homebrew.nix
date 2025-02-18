@@ -61,9 +61,10 @@
 
       # Dev
       "android-studio"
+      "db-browser-for-sqlite"
+      "httpie"
       "postman"
       "utm"
-      "db-browser-for-sqlite"
     ];
   };
 }

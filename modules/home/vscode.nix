@@ -24,6 +24,7 @@ in
       formulahendry.auto-rename-tag
       foxundermoon.shell-format
       golang.go
+      inferrinizzard.prettier-sql-vscode
       jetpack-io.devbox
       jgclark.vscode-todo-highlight
       jnoortheen.nix-ide
