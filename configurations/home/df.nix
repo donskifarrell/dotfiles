@@ -115,6 +115,7 @@ in
           glogg
           krita
           obsidian
+          onlyoffice-desktopeditors
           opensnitch-ui
           skypeforlinux
           slack
