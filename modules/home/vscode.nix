@@ -126,7 +126,8 @@ in
           "**/*.sql"
         ],
         "remote.SSH.configFile": "${homeDir}/.ssh/sshconfig.local",
-        "Prettier-SQL.SQLFlavourOverride": "postgresql"
+        "Prettier-SQL.SQLFlavourOverride": "mysql",
+        "Prettier-SQL.expressionWidth": 120
       }
     '';
   };
