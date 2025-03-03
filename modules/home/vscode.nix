@@ -62,6 +62,10 @@ in
         },
         "go.formatTool": "gofmt",
         "go.toolsManagement.autoUpdate": false,
+        "go.lintTool": "golangci-lint",
+        "go.lintFlags": [
+          "--fast"
+        ],
         "cSpell.language": "en-GB",
         "diffEditor.ignoreTrimWhitespace": false,
         "editor.bracketPairColorization.enabled": true,
