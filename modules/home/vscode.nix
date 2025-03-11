@@ -63,8 +63,8 @@ in
         "go.formatTool": "gofmt",
         "go.toolsManagement.autoUpdate": false,
         "go.lintTool": "golangci-lint",
+        "go.lintOnSave": "package",
         "go.lintFlags": [
-          "--fast"
         ],
         "cSpell.language": "en-GB",
         "diffEditor.ignoreTrimWhitespace": false,
