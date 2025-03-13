@@ -120,6 +120,7 @@ in
           skypeforlinux
           slack
           vlc
+          zed-editor
 
           # Tools
           curl
