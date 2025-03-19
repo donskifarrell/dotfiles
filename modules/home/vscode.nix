@@ -50,6 +50,9 @@ in
         "[json]": {
           "editor.defaultFormatter": "vscode.json-language-features"
         },
+        "[css]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
         "nix.formatterPath": "nixfmt",
         "[nix]": {
           "editor.defaultFormatter": "jnoortheen.nix-ide"
