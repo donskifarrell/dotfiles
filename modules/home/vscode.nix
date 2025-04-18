@@ -15,8 +15,10 @@ in
     mutableExtensionsDir = true;
 
     extensions = with vscode-marketplace; [
+      # ms-vscode-remote.remote-ssh
       astro-build.astro-vscode
       bradlc.vscode-tailwindcss
+      bufbuild.vscode-buf
       dbaeumer.vscode-eslint
       donjayamanne.githistory
       esbenp.prettier-vscode
@@ -32,7 +34,6 @@ in
       matthewpi.caddyfile-support
       mechatroner.rainbow-csv
       mkhl.direnv
-      ms-vscode-remote.remote-ssh
       redhat.vscode-yaml
       streetsidesoftware.code-spell-checker
       tamasfe.even-better-toml
