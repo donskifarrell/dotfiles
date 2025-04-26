@@ -84,4 +84,8 @@ in
   # Used for backwards compatibility, please read the changelog before changing.
   # $ darwin-rebuild changelog
   system.stateVersion = 4;
+
+  # https://github.com/nix-darwin/nix-darwin/issues/1346
+  # https://github.com/nix-darwin/nix-darwin/issues/1339
+  ids.gids.nixbld = 350;
 }
