@@ -98,17 +98,22 @@
     '';
 
     plugins = with pkgs; [
-      tmuxPlugins.cpu
       {
         plugin = tmuxPlugins.catppuccin;
         extraConfig = ''
           set -g @catppuccin_flavour 'macchiato'
 
+          # See status variables at https://man7.org/linux/man-pages/man1/tmux.1.html#FORMATS
+          # See other formatting styles at: https://github.com/tmux/tmux/wiki/Formats#trimming-and-padding
+
           set -g @catppuccin_window_default_fill "number"
-          set -g @catppuccin_window_default_text " #W " # use "#W" for application instead of directory
+          set -g @catppuccin_window_default_text " #{window_name} "
+
+          set -g @catppuccin_window_fill "number"
+          set -g @catppuccin_window_text " #{window_name} "
 
           set -g @catppuccin_window_current_fill "number"
-          set -g @catppuccin_window_current_text " #W "
+          set -g @catppuccin_window_current_text " #{window_name} "
 
           set -g @catppuccin_window_left_separator "█"
           set -g @catppuccin_window_middle_separator "█"
