@@ -95,6 +95,7 @@ in
       # Dev
       bore-cli
       devbox # No homebrew formula for OSX
+      ollama
     ]
     ++ (
       if pkgs.stdenv.isLinux then

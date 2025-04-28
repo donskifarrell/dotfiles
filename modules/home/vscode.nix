@@ -15,7 +15,6 @@ in
     mutableExtensionsDir = true;
 
     extensions = with vscode-marketplace; [
-      # ms-vscode-remote.remote-ssh
       astro-build.astro-vscode
       bradlc.vscode-tailwindcss
       bufbuild.vscode-buf
@@ -35,9 +34,14 @@ in
       mechatroner.rainbow-csv
       mkhl.direnv
       redhat.vscode-yaml
+      saoudrizwan.claude-dev
       streetsidesoftware.code-spell-checker
       tamasfe.even-better-toml
       waderyan.gitblame
+
+      # AllowUnfree hack
+      (ms-windows-ai-studio.windows-ai-studio.override { meta.license = [ ]; })
+      # ms-vscode-remote.remote-ssh
     ];
 
     userSettings = builtins.fromJSON ''
