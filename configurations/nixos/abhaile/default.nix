@@ -90,6 +90,10 @@ in
   # https://github.com/nix-community/home-manager/issues/4026#issuecomment-1565487545
   # Common config is in modules/shared/user.nix
   users.users."${username}".isNormalUser = true;
+  users.groups.libvirtd.members = [ username ];
+
+  virtualisation.libvirtd.enable = true;
+  virtualisation.spiceUSBRedirection.enable = true;
 
   home-manager = {
     extraSpecialArgs = {

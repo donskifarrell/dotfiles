@@ -12,6 +12,14 @@ A general good resource is https://github.com/nix-community/awesome-nix and http
 
 For configuration of Asus ROG Rapture GT-AX6000, look [here](./bin/asus-gt-ax6000/README.md)
 
+## Virtual Machines
+
+#### Windows 11
+
+There is this excellent blog: https://blog.redstone.engineer/posts/nixos-windows-guest-graphical-improvement-filesystem-clipboard-sharing-guide/
+
+And this excellent tool: https://schneegans.de/windows/unattend-generator/
+
 ## OSX Fresh Install
 
 There are always some small manual tweak to do, but essentially a fresh install goes like:

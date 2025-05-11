@@ -142,6 +142,7 @@ in
           quickemu
           sqlitebrowser
           virt-manager
+          virtiofsd
 
           # Gnome
           # TODO: Remove overlay in default.nix
