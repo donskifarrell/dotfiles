@@ -26,6 +26,9 @@
     git-hooks.flake = false;
     nix-vscode-extensions.url = "github:nix-community/nix-vscode-extensions";
     nix-vscode-extensions.inputs.nixpkgs.follows = "nixpkgs";
+
+    # Flatpak
+    nix-flatpak.url = "github:gmodena/nix-flatpak";
   };
 
   outputs =

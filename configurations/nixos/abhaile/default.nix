@@ -22,6 +22,7 @@ in
 
     inputs.agenix.nixosModules.default
     inputs.nix-index-database.nixosModules.nix-index
+    inputs.nix-flatpak.nixosModules.nix-flatpak
 
     (self + /modules/shared/agenix.nix)
     (self + /modules/shared/fonts.nix)
@@ -29,8 +30,9 @@ in
     (self + /modules/shared/nix.nix)
     (self + /modules/shared/user.nix)
 
-    self.nixosModules.bluetooth
     # self.nixosModules.bootlabel
+    self.nixosModules.bluetooth
+    self.nixosModules.flatpak
     self.nixosModules.networking
     self.nixosModules.printing
     self.nixosModules.sound
