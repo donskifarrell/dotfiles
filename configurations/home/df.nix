@@ -3,6 +3,7 @@
   config,
   pkgs,
   lib,
+  inputs,
   ...
 }:
 let
@@ -69,8 +70,8 @@ in
     fzf.enable = true;
     git.enable = true;
     jq.enable = true;
-    neovim.enable = true;
     neovim.defaultEditor = true;
+    neovim.enable = true;
     ripgrep.enable = true;
 
     nix-index = {
@@ -96,6 +97,7 @@ in
       bore-cli
       devbox # No homebrew formula for OSX
       ollama
+      inputs.zed-editor.packages.${pkgs.system}.zed-editor-fhs
     ]
     ++ (
       if pkgs.stdenv.isLinux then
@@ -121,7 +123,6 @@ in
           skypeforlinux
           slack
           vlc
-          zed-editor
 
           # Tools
           curl
