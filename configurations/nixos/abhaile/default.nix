@@ -44,6 +44,9 @@ in
     (self + /modules/shared/fonts.nix)
     self.nixosModules.gnome
     self.nixosModules.xserver
+
+    # Gaming
+    self.nixosModules.steam
   ];
 
   time.timeZone = "Europe/Dublin";
