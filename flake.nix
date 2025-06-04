@@ -26,7 +26,6 @@
     git-hooks.flake = false;
     nix-vscode-extensions.url = "github:nix-community/nix-vscode-extensions";
     nix-vscode-extensions.inputs.nixpkgs.follows = "nixpkgs";
-    zed-editor.url = "github:HPsaucii/zed-editor-flake";
 
     # Flatpak
     nix-flatpak.url = "github:gmodena/nix-flatpak";

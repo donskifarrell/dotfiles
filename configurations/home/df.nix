@@ -3,7 +3,6 @@
   config,
   pkgs,
   lib,
-  inputs,
   ...
 }:
 let
@@ -97,7 +96,6 @@ in
       bore-cli
       devbox # No homebrew formula for OSX
       ollama
-      inputs.zed-editor.packages.${pkgs.system}.zed-editor-fhs
     ]
     ++ (
       if pkgs.stdenv.isLinux then
