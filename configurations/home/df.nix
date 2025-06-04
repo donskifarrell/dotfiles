@@ -118,7 +118,6 @@ in
           obsidian
           onlyoffice-desktopeditors
           opensnitch-ui
-          skypeforlinux
           slack
           vlc
 

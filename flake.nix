@@ -4,7 +4,7 @@
   inputs = {
     # Nixpkgs
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    stable-pkgs.url = "github:nixos/nixpkgs/nixos-24.11";
+    stable-pkgs.url = "github:nixos/nixpkgs/nixos-25.05";
 
     # Common
     agenix.url = "github:ryantm/agenix";

@@ -52,7 +52,6 @@
       "openmtp"
       "raycast"
       "rectangle"
-      "skype"
       "slack"
       "steam"
       "sublime-text"
