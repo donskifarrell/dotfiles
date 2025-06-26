@@ -33,6 +33,7 @@ in
     # self.nixosModules.bootlabel
     self.nixosModules.bluetooth
     self.nixosModules.flatpak
+    self.nixosModules.gpu
     self.nixosModules.networking
     self.nixosModules.printing
     self.nixosModules.sound
@@ -66,30 +67,11 @@ in
   '';
   services.sysstat.enable = true;
 
-  # TODO: Remove overlay and fix in nix.nix file
-  nixpkgs.overlays = [
-    (final: prev: {
-      # until #369069 gets merged: https://nixpk.gs/pr-tracker.html?pr=369069
-      gnome-extension-manager = prev.gnome-extension-manager.overrideAttrs (old: {
-        src = prev.fetchFromGitHub {
-          owner = "mjakeman";
-          repo = "extension-manager";
-          rev = "v0.6.0";
-          hash = "sha256-AotIzFCx4k7XLdk+2eFyJgrG97KC1wChnSlpLdk90gE=";
-        };
-        patches = [ ];
-        buildInputs = with prev; [
-          blueprint-compiler
-          gtk4
-          json-glib
-          libadwaita
-          libsoup_3
-          libbacktrace
-          libxml2
-        ];
-      });
-    })
-  ];
+  systemd = {
+    # To configure GPU
+    packages = with pkgs; [ lact ];
+    services.lactd.wantedBy = [ "multi-user.target" ];
+  };
 
   # For home-manager to work.
   # https://github.com/nix-community/home-manager/issues/4026#issuecomment-1565487545
@@ -119,14 +101,16 @@ in
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
-    #  vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
-    #  wget
     inputs.agenix.packages.x86_64-linux.default
     git
     nixfmt-rfc-style
+    lact
 
     # TODO: Remove - Debug random restart
     linuxKernel.packages.linux_6_12.cpupower
+
+    # Gaming
+    mangohud
   ];
 
   # This value determines the NixOS release from which the default

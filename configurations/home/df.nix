@@ -51,12 +51,15 @@ in
   };
 
   # A fix for https://github.com/nix-community/home-manager/issues/2064 to enable udiskie to build
-  systemd.user.targets.tray = {
-    Unit = {
-      Description = "Home Manager System Tray";
-      Requires = [ "graphical-session-pre.target" ];
+  systemd = {
+    user.targets.tray = {
+      Unit = {
+        Description = "Home Manager System Tray";
+        Requires = [ "graphical-session-pre.target" ];
+      };
     };
   };
+
   services.udiskie.enable = if pkgs.stdenv.isLinux then true else false;
   services.playerctld.enable = if pkgs.stdenv.isLinux then true else false;
 
@@ -135,6 +138,7 @@ in
           wget
 
           # Dev
+          android-tools
           distrobox
           insomnia
           quickemu
