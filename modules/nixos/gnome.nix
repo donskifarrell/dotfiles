@@ -1,18 +1,16 @@
 { pkgs, ... }:
 {
   services = {
-    xserver = {
-      enable = true;
+    xserver.enable = true;
 
-      displayManager = {
-        gdm = {
-          enable = true;
-          wayland = true;
-        };
+    displayManager = {
+      gdm = {
+        enable = true;
+        wayland = true;
       };
-
-      desktopManager.gnome.enable = true;
     };
+
+    desktopManager.gnome.enable = true;
 
     gnome = {
       sushi.enable = true;
