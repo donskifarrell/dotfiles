@@ -56,7 +56,7 @@ in
   # To enable automounting with udiskie in home manager
   services.udisks2.enable = true;
 
-  boot.kernelPackages = pkgs.linuxPackages_6_12;
+  boot.kernelPackages = pkgs.linuxPackages_latest;
 
   # TODO: Remove - Debug random restart
   boot.crashDump.enable = true;
@@ -73,14 +73,31 @@ in
     services.lactd.wantedBy = [ "multi-user.target" ];
   };
 
+  services.udev.extraRules = ''
+    SUBSYSTEM=="kvmfr", OWNER="${username}", GROUP="kvm", MODE="0660"
+  '';
+
   # For home-manager to work.
   # https://github.com/nix-community/home-manager/issues/4026#issuecomment-1565487545
   # Common config is in modules/shared/user.nix
   users.users."${username}".isNormalUser = true;
   users.groups.libvirtd.members = [ username ];
 
-  virtualisation.libvirtd.enable = true;
+  virtualisation.libvirtd = {
+    enable = true;
+
+    qemu.verbatimConfig = ''
+      cgroup_device_acl = [
+          "/dev/null", "/dev/full", "/dev/zero",
+          "/dev/random", "/dev/urandom",
+          "/dev/ptmx", "/dev/kvm",
+          "/dev/kvmfr0"
+      ]
+    '';
+  };
+
   virtualisation.spiceUSBRedirection.enable = true;
+  security.tpm2.enable = true;
 
   home-manager = {
     extraSpecialArgs = {
@@ -105,12 +122,16 @@ in
     git
     nixfmt-rfc-style
     lact
+    pciutils
 
     # TODO: Remove - Debug random restart
     linuxKernel.packages.linux_6_12.cpupower
 
     # Gaming
     mangohud
+    looking-glass-client
+    virt-viewer
+    swtpm
   ];
 
   # This value determines the NixOS release from which the default

@@ -36,10 +36,14 @@
   ];
   boot.initrd.kernelModules = [ ];
   boot.kernelModules = [
+    "kvmfr"
     "kvm-amd"
     "amdgpu"
   ];
-  boot.extraModulePackages = [ ];
+  boot.extraModulePackages = [ config.boot.kernelPackages.kvmfr ];
+  boot.extraModprobeConfig = ''
+    options kvmfr static_size_mb=32
+  '';
 
   fileSystems."/" = {
     device = "/dev/disk/by-uuid/8254371d-2e69-4ffd-a525-9a5403807d2a";
