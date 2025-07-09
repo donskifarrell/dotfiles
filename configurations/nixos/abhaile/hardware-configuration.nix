@@ -26,7 +26,19 @@
     };
   };
 
+  boot.initrd.kernelModules = [
+    "vfio_pci"
+    "vfio"
+    "vfio_iommu_type1"
+
+    "kvmfr"
+    "kvm-amd"
+    "amdgpu"
+  ];
   boot.initrd.availableKernelModules = [
+    "vfio_pci"
+    "vfio"
+
     "xhci_pci"
     "ahci"
     "nvme"
@@ -34,14 +46,14 @@
     "usb_storage"
     "sd_mod"
   ];
-  boot.initrd.kernelModules = [ ];
-  boot.kernelModules = [
-    "kvmfr"
-    "kvm-amd"
-    "amdgpu"
+  boot.kernelParams = [
+    "video=efifb:off" # Prevents early framebuffer from touching dGPU
+    "vfio-pci.ids=1002:7550,1002:ab40" # RX 9070 GPU and HDMI audio
   ];
   boot.extraModulePackages = [ config.boot.kernelPackages.kvmfr ];
   boot.extraModprobeConfig = ''
+    softdep amdgpu pre: vfio-pci
+    options vfio-pci ids=1002:7550,1002:ab40
     options kvmfr static_size_mb=32
   '';
 
