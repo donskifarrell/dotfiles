@@ -38,6 +38,9 @@
       <ipi state="on"/>
       <avic state="on"/>
     </hyperv>
+    <kvm>
+      <hidden state="on"/>
+    </kvm>
     <vmport state="off"/>
     <smm state="on"/>
   </features>
@@ -88,9 +91,6 @@
       <readonly/>
       <address type="drive" controller="0" bus="0" target="0" unit="3"/>
     </disk>
-    <!-- <controller type="usb" index="0" model="qemu-xhci" ports="15">
-      <address type="pci" domain="0x0000" bus="0x03" slot="0x00" function="0x0"/>
-    </controller> -->
     <controller type="pci" index="0" model="pcie-root"/>
     <controller type="pci" index="1" model="pcie-root-port">
       <model name="pcie-root-port"/>
@@ -165,8 +165,11 @@
     <controller type="sata" index="0">
       <address type="pci" domain="0x0000" bus="0x00" slot="0x1f" function="0x2"/>
     </controller>
-    <controller type="virtio-serial" index="0">
+    <controller type="usb" index="0" model="qemu-xhci" ports="15">
       <address type="pci" domain="0x0000" bus="0x04" slot="0x00" function="0x0"/>
+    </controller>
+    <controller type="virtio-serial" index="0">
+      <address type="pci" domain="0x0000" bus="0x08" slot="0x00" function="0x0"/>
     </controller>
     <filesystem type="mount" accessmode="passthrough">
       <driver type="virtiofs"/>
@@ -224,6 +227,18 @@
         <address domain="0x0000" bus="0x03" slot="0x00" function="0x1"/>
       </source>
       <address type="pci" domain="0x0000" bus="0x07" slot="0x00" function="0x0"/>
+    </hostdev>
+    <hostdev mode="subsystem" type="pci" managed="yes">
+      <source>
+        <address domain="0x0000" bus="0x01" slot="0x00" function="0x0"/>
+      </source>
+      <address type="pci" domain="0x0000" bus="0x03" slot="0x00" function="0x0"/>
+    </hostdev>
+    <hostdev mode="subsystem" type="pci" managed="yes">
+      <source>
+        <address domain="0x0000" bus="0x02" slot="0x00" function="0x0"/>
+      </source>
+      <address type="pci" domain="0x0000" bus="0x09" slot="0x00" function="0x0"/>
     </hostdev>
     <redirdev bus="usb" type="spicevmc">
       <address type="usb" bus="0" port="2"/>
