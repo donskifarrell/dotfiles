@@ -5,6 +5,8 @@
       enable32Bit = true;
     };
 
-    amdgpu.initrd.enable = true;
+    opengl.enable = true;
+
+    # amdgpu.initrd.enable = true;
   };
 }

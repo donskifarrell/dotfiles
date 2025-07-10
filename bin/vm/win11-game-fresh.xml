@@ -34,6 +34,7 @@
       <synic state="on"/>
       <stimer state="on"/>
       <frequencies state="on"/>
+      <reenlightenment state="on"/>
       <tlbflush state="on"/>
       <ipi state="on"/>
       <avic state="on"/>
@@ -196,11 +197,11 @@
       <target type="virtio" name="com.redhat.spice.0"/>
       <address type="virtio-serial" controller="0" bus="0" port="1"/>
     </channel>
+    <input type="mouse" bus="ps2"/>
+    <input type="keyboard" bus="ps2"/>
     <input type="tablet" bus="usb">
       <address type="usb" bus="0" port="1"/>
     </input>
-    <input type="mouse" bus="ps2"/>
-    <input type="keyboard" bus="ps2"/>
     <tpm model="tpm-crb">
       <backend type="emulator" version="2.0"/>
     </tpm>
@@ -218,13 +219,13 @@
     </video>
     <hostdev mode="subsystem" type="pci" managed="yes">
       <source>
-        <address domain="0x0000" bus="0x03" slot="0x00" function="0x0"/>
+        <address domain="0x0000" bus="0x03" slot="0x00" function="0x1"/>
       </source>
       <address type="pci" domain="0x0000" bus="0x03" slot="0x00" function="0x0"/>
     </hostdev>
     <hostdev mode="subsystem" type="pci" managed="yes">
       <source>
-        <address domain="0x0000" bus="0x03" slot="0x00" function="0x1"/>
+        <address domain="0x0000" bus="0x03" slot="0x00" function="0x0"/>
       </source>
       <address type="pci" domain="0x0000" bus="0x06" slot="0x00" function="0x0"/>
     </hostdev>

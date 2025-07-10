@@ -69,6 +69,10 @@ in
           "[typescriptreact]": {
             "editor.defaultFormatter": "esbenp.prettier-vscode"
           },
+          "[xml]": {
+            "editor.defaultFormatter": "redhat.vscode-xml",
+            "editor.tabSize": 2
+          },
           "go.formatTool": "gofmt",
           "go.toolsManagement.autoUpdate": false,
           "go.lintTool": "golangci-lint",
