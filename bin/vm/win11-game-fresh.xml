@@ -208,16 +208,16 @@
     <tpm model="tpm-crb">
       <backend type="emulator" version="2.0"/>
     </tpm>
-    <graphics type='spice' port='5900' autoport='no' listen='127.0.0.1'>
-  <listen type='address' address='127.0.0.1'/>
-  <image compression='off'/>
-</graphics>
+    <graphics type="spice" port="5900" autoport="no" listen="127.0.0.1">
+      <listen type="address" address="127.0.0.1"/>
+      <image compression="off"/>
+    </graphics>
     <sound model="ich9">
       <address type="pci" domain="0x0000" bus="0x00" slot="0x1b" function="0x0"/>
     </sound>
     <audio id="1" type="spice"/>
     <video>
-      <model type="qxl" ram="65536" vram="65536" vgamem="16384" heads="1" primary="yes"/>
+      <model type="vga" vram="16384" heads="1" primary="yes"/>
       <address type="pci" domain="0x0000" bus="0x00" slot="0x01" function="0x0"/>
     </video>
     <hostdev mode="subsystem" type="pci" managed="yes">
