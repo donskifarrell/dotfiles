@@ -83,6 +83,7 @@ in
   users.users."${username}".isNormalUser = true;
   users.groups.libvirtd.members = [ username ];
 
+  virtualisation.spiceUSBRedirection.enable = true;
   virtualisation.libvirtd = {
     enable = true;
 
@@ -102,7 +103,6 @@ in
     };
   };
 
-  virtualisation.spiceUSBRedirection.enable = true;
   security.tpm2.enable = true;
 
   home-manager = {
@@ -138,6 +138,7 @@ in
     looking-glass-client
     virt-viewer
     swtpm
+    bridge-utils
   ];
 
   # This value determines the NixOS release from which the default
