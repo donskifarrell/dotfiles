@@ -38,6 +38,7 @@
       <tlbflush state="on"/>
       <ipi state="on"/>
       <avic state="on"/>
+      <vendor_id state='on' value='randomid'/>
     </hyperv>
     <kvm>
       <hidden state="on"/>
@@ -247,6 +248,6 @@
     <qemu:arg value="-device"/>
     <qemu:arg value="{&quot;driver&quot;:&quot;ivshmem-plain&quot;,&quot;id&quot;:&quot;shmem0&quot;,&quot;memdev&quot;:&quot;looking-glass&quot;}"/>
     <qemu:arg value="-object"/>
-    <qemu:arg value="{&quot;qom-type&quot;:&quot;memory-backend-file&quot;,&quot;id&quot;:&quot;looking-glass&quot;,&quot;mem-path&quot;:&quot;/dev/kvmfr0&quot;,&quot;size&quot;:33554432,&quot;share&quot;:true}"/>
+    <qemu:arg value="{&quot;qom-type&quot;:&quot;memory-backend-file&quot;,&quot;id&quot;:&quot;looking-glass&quot;,&quot;mem-path&quot;:&quot;/dev/kvmfr0&quot;,&quot;size&quot;:134217728,&quot;share&quot;:true}"/>
   </qemu:commandline>
 </domain>

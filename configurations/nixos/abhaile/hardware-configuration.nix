@@ -55,7 +55,7 @@
   boot.extraModprobeConfig = ''
     # softdep amdgpu pre: vfio-pci
     options vfio-pci ids=1002:7550,1002:ab40
-    options kvmfr static_size_mb=32
+    options kvmfr static_size_mb=128
   '';
 
   fileSystems."/" = {
