@@ -89,7 +89,10 @@ in
 
     qemu = {
       package = pkgs.qemu_kvm;
-      ovmf.enable = true;
+      ovmf = {
+        enable = true;
+        packages = [ pkgs.OVMFFull.fd ]; # includes secureboot + VARS images
+      };
       swtpm.enable = true;
 
       verbatimConfig = ''
@@ -102,6 +105,38 @@ in
       '';
     };
   };
+
+  # # Ensure the libvirt "default" NAT network exists and autostarts.
+  # # Uses libvirt's bundled default.xml.
+  # systemd.services.libvirt-define-default-net = {
+  #   description = "Define & autostart libvirt 'default' NAT network (virbr0)";
+  #   after = [ "libvirtd.service" ];
+  #   requires = [ "libvirtd.service" ];
+  #   wantedBy = [ "multi-user.target" ];
+  #   serviceConfig.Type = "oneshot";
+  #   script = ''
+  #     set -euo pipefail
+  #     if ! ${pkgs.libvirt}/bin/virsh net-info default >/dev/null 2>&1; then
+  #       ${pkgs.libvirt}/bin/virsh net-define ${pkgs.libvirt}/share/libvirt/networks/default.xml
+  #     fi
+  #     ${pkgs.libvirt}/bin/virsh net-autostart default || true
+  #     # Start it if not active
+  #     if ! ${pkgs.libvirt}/bin/virsh net-info default 2>/dev/null | grep -q 'Active:.*yes'; then
+  #       ${pkgs.libvirt}/bin/virsh net-start default
+  #     fi
+  #   '';
+  # };
+
+  # <network>
+  #   <name>default</name>
+  #   <forward mode='nat'/>
+  #   <bridge name='virbr0' stp='on' delay='0'/>
+  #   <ip address='192.168.122.1' netmask='255.255.255.0'>
+  #     <dhcp>
+  #       <range start='192.168.122.2' end='192.168.122.254'/>
+  #     </dhcp>
+  #   </ip>
+  # </network>
 
   security.tpm2.enable = true;
 
@@ -129,6 +164,7 @@ in
     nixfmt-rfc-style
     lact
     pciutils
+    dnsmasq
 
     # TODO: Remove - Debug random restart
     linuxKernel.packages.linux_6_12.cpupower

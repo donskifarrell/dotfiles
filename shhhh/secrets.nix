@@ -49,4 +49,8 @@ in
   "./bnk/bnk-do-df.pub.age".publicKeys = [ df ];
   "./bnk/bnk-gitea-df.age".publicKeys = [ df ];
   "./bnk/bnk-gitea-df.pub.age".publicKeys = [ df ];
+
+  # Clan
+  "./clan/braisle.clan.age".publicKeys = [ df ];
+  "./clan/braisle.clan.pub.age".publicKeys = [ df ];
 }

@@ -43,6 +43,11 @@ let
       dir = "uf";
       name = "uf-gh";
     }
+    # Clan
+    {
+      dir = "clan";
+      name = "braisle.clan";
+    }
   ];
   addToSSHMap =
     map: file:
