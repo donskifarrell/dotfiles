@@ -89,10 +89,10 @@ in
 
     qemu = {
       package = pkgs.qemu_kvm;
-      ovmf = {
-        enable = true;
-        packages = [ pkgs.OVMFFull.fd ]; # includes secureboot + VARS images
-      };
+      # ovmf = {
+      #   enable = true;
+      #   packages = [ pkgs.OVMFFull.fd ]; # includes secureboot + VARS images
+      # };
       swtpm.enable = true;
 
       verbatimConfig = ''
@@ -153,6 +153,8 @@ in
         inputs.nix-index-database.hmModules.nix-index
         (self + /configurations/home/${username}.nix)
       ];
+
+      services.tailscale-systray.enable = true;
     };
   };
 

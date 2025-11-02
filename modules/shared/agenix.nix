@@ -126,9 +126,9 @@ in
     };
     # Clan SOPS keys
     "braisle-sops-keys" = {
-      file = "../../shhhh/clan/keys.txt.age";
+      file = ../../shhhh/clan/keys.txt.age;
       path = "${homeDir}/.config/sops/age/keys.txt";
       owner = "${user}";
-    }
+    };
   };
 }

@@ -16,7 +16,20 @@
         "wlp5s0"
         "virbr0"
         "enp9s0"
+        "tailscale0"
       ];
+      allowedUDPPorts = [ 41641 ];
+      checkReversePath = "loose";
     };
+
+    # MagicDNS for Tailscale
+    nameservers = [
+      "100.100.100.100"
+      "8.8.8.8"
+      "1.1.1.1"
+    ];
+    search = [ "tail8f3a60.ts.net" ];
   };
+
+  services.tailscale.enable = true;
 }
