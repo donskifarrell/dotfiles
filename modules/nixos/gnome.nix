@@ -15,6 +15,7 @@
     gnome = {
       sushi.enable = true;
       gnome-keyring.enable = true;
+      gcr-ssh-agent.enable = false;
     };
 
     gvfs.enable = true; # Mount, trash, and other functionalities

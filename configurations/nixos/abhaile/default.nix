@@ -81,30 +81,45 @@ in
   # https://github.com/nix-community/home-manager/issues/4026#issuecomment-1565487545
   # Common config is in modules/shared/user.nix
   users.users."${username}".isNormalUser = true;
-  users.groups.libvirtd.members = [ username ];
+  # users.groups.libvirtd.members = [ username ];
 
-  virtualisation.spiceUSBRedirection.enable = true;
+  # virtualisation.spiceUSBRedirection.enable = true;
+  # virtualisation.libvirtd = {
+  #   enable = true;
+
+  #   qemu = {
+  #     package = pkgs.qemu_kvm;
+  #     # ovmf = {
+  #     #   enable = true;
+  #     #   packages = [ pkgs.OVMFFull.fd ]; # includes secureboot + VARS images
+  #     # };
+  #     swtpm.enable = true;
+
+  #     verbatimConfig = ''
+  #       cgroup_device_acl = [
+  #           "/dev/null", "/dev/full", "/dev/zero",
+  #           "/dev/random", "/dev/urandom",
+  #           "/dev/ptmx", "/dev/kvm",
+  #           "/dev/kvmfr0"
+  #       ]
+  #     '';
+  #   };
+  # };
+
   virtualisation.libvirtd = {
     enable = true;
-
     qemu = {
       package = pkgs.qemu_kvm;
-      # ovmf = {
-      #   enable = true;
-      #   packages = [ pkgs.OVMFFull.fd ]; # includes secureboot + VARS images
-      # };
-      swtpm.enable = true;
-
-      verbatimConfig = ''
-        cgroup_device_acl = [
-            "/dev/null", "/dev/full", "/dev/zero",
-            "/dev/random", "/dev/urandom",
-            "/dev/ptmx", "/dev/kvm",
-            "/dev/kvmfr0"
-        ]
-      '';
+      swtpm.enable = true; # Optional, for TPM emulation
     };
   };
+
+  programs.virt-manager.enable = true; # optional GUI
+
+  # users.users.yourusername.extraGroups = [ "libvirtd" ];
+
+  networking.firewall.checkReversePath = "loose"; # helps with bridging/NAT
+  environment.sessionVariables.LIBVIRT_DEFAULT_URI = "qemu:///system";
 
   # # Ensure the libvirt "default" NAT network exists and autostarts.
   # # Uses libvirt's bundled default.xml.

@@ -73,6 +73,9 @@ in
             "editor.defaultFormatter": "redhat.vscode-xml",
             "editor.tabSize": 2
           },
+          "[github-actions-workflow]": {
+            "editor.defaultFormatter": "redhat.vscode-yaml"
+          },
           "go.formatTool": "gofmt",
           "go.toolsManagement.autoUpdate": false,
           "go.lintTool": "golangci-lint",

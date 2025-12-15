@@ -9,16 +9,16 @@
   programs.ssh = {
     enable = true;
 
-    includes = [ "~/.ssh/sshconfig.local" ];
-    addKeysToAgent = "confirm";
+    # includes = [ "~/.ssh/sshconfig.local" ];
+    # addKeysToAgent = "confirm";
 
-    extraConfig = lib.mkMerge [
-      ''
-        IgnoreUnknown UseKeychain
-      ''
-      (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin ''
-        UseKeychain yes
-      '')
-    ];
+    # extraConfig = lib.mkMerge [
+    #   ''
+    #     IgnoreUnknown UseKeychain
+    #   ''
+    #   (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin ''
+    #     UseKeychain yes
+    #   '')
+    # ];
   };
 }

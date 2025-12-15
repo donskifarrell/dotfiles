@@ -98,7 +98,7 @@
         src = pkgs.fetchFromGitHub {
           owner = "PatrickF1";
           repo = "fzf.fish";
-          rev = "8d99f0caa30a626369541f80848ffdbf28e96acc";
+          rev = "8920367cf85eee5218cc25a11e209d46e2591e7a";
           sha256 = "sha256-CqRSkwNqI/vdxPKrShBykh+eHQq9QIiItD6jWdZ/DSM=";
         };
       }
@@ -116,7 +116,7 @@
         src = pkgs.fetchFromGitHub {
           owner = "wfxr";
           repo = "forgit";
-          rev = "48e91dadb53f7ac33cab238fb761b18630b6da6e";
+          rev = "76506fc3da3cc5a720dce0084816f3be83d548cb";
           sha256 = "sha256-WvJxjEzF3vi+YPVSH3QdDyp3oxNypMoB71TAJ7D8hOQ=";
         };
       }

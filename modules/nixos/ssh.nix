@@ -8,4 +8,8 @@
       };
     };
   };
+
+  programs.ssh = {
+    startAgent = true;
+  };
 }
