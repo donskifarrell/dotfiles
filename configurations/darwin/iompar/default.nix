@@ -27,11 +27,11 @@ in
   system.primaryUser = "df";
 
   # activationScripts are executed every time you boot the system or run `nixos-rebuild` / `darwin-rebuild`.
-#  system.activationScripts.postUserActivation.text = ''
-    # activateSettings -u will reload the settings from the database and apply them to the current session,
-    # so we do not need to logout and login again to make the changes take effect.
-#    /System/Library/PrivateFrameworks/SystemAdministration.framework/Resources/activateSettings -u
-#  '';
+  #  system.activationScripts.postUserActivation.text = ''
+  # activateSettings -u will reload the settings from the database and apply them to the current session,
+  # so we do not need to logout and login again to make the changes take effect.
+  #    /System/Library/PrivateFrameworks/SystemAdministration.framework/Resources/activateSettings -u
+  #  '';
   system.activationScripts.postActivation.text = ''
     echo "setting up users' shells..." >&2
     dscl . create /Users/${username} UserShell "/etc/profiles/per-user/${username}/bin/fish"
@@ -39,6 +39,17 @@ in
 
   nixpkgs.hostPlatform = "aarch64-darwin";
   networking.hostName = "iompar";
+  networking = {
+    knownNetworkServices = [
+      "Wi-Fi"
+      "Thunderbolt Bridge"
+      "osx"
+    ];
+    dns = [
+      "1.1.1.1"
+      "8.8.8.8"
+    ];
+  };
 
   # Add ability to used TouchID for sudo authentication
   security.pam.services.sudo_local.touchIdAuth = true;
