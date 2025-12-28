@@ -1,9 +1,8 @@
 # ---
-# schema = "single-disk"
+# schema = "single-disk-custom-luks"
 # [placeholders]
-# mainDisk = "/dev/disk/by-id/nvme-Samsung_SSD_990_PRO_1TB_S6Z1NJ0W231781Y" 
+# mainDisk = "/dev/disk/by-id/nvme-Samsung_SSD_990_PRO_1TB_S6Z1NJ0W231781Y"
 # ---
-# This file was automatically generated!
 # CHANGING this configuration requires wiping and reinstalling the machine
 {
 
@@ -37,9 +36,19 @@
             root = {
               size = "100%";
               content = {
-                type = "filesystem";
-                format = "ext4";
-                mountpoint = "/";
+                type = "luks";
+                name = "cryptroot"; # maps to /dev/mapper/cryptroot
+
+                # optional but common on SSDs:
+                settings = {
+                  allowDiscards = true;
+                };
+
+                content = {
+                  type = "filesystem";
+                  format = "ext4";
+                  mountpoint = "/";
+                };
               };
             };
           };
