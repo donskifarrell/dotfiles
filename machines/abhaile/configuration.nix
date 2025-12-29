@@ -24,11 +24,7 @@
     # DE
     # cosmic
     gnome
-
-    ynab
   ];
-
-  mono.ynab.enable = true;
 
   time.timeZone = "Europe/Dublin";
 
