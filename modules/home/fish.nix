@@ -1,6 +1,6 @@
 {
   config.flake.homeModules.fish =
-    { pkgs, ... }:
+    { flakeHostname, pkgs, ... }:
     {
       config = {
         programs.fish = {
@@ -22,7 +22,7 @@
             ".." = "cd ..";
             "..." = "cd ../..";
 
-            # os-switch = "nh os switch ~/.dotfiles";
+            os-switch = "nh os switch ~/.dotfiles -H ${flakeHostname}";
             os-list-gens = "nix profile history --profile /nix/var/nix/profiles/system";
             os-wipe-gens = "sudo nix profile wipe-history --profile /nix/var/nix/profiles/system --older-than 14d";
           };

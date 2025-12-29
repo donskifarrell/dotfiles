@@ -40,6 +40,7 @@
         bore-cli
         glogg
         insomnia
+        nixfmt-rfc-style
         sqlitebrowser
       ];
     };

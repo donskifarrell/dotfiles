@@ -89,7 +89,7 @@
                 tags = [ "vm" ];
               };
               abhaile = {
-                deploy.targetHost = "root@192.168.178.117";
+                deploy.targetHost = "root@192.168.178.26";
                 tags = [ "abhaile" ];
               };
             };
@@ -219,7 +219,7 @@
             treefmt = {
               projectRootFile = "flake.nix";
               programs = {
-                alejandra.enable = true;
+                nixfmt.enable = true;
                 statix.enable = true;
                 deadnix.enable = true;
               };

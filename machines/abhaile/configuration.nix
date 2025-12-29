@@ -13,6 +13,7 @@
     home-mgr-module
     i18n
     keyboard
+    nh
     nix-config
     opensnitch
     openssh
@@ -30,6 +31,7 @@
 
   my = {
     mainUser.name = "df";
+    flakeHostname = "abhaile";
   };
 
   # Needed on the NixOS system to be set as default user shell

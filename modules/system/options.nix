@@ -18,6 +18,11 @@
               description = "Additional SSH public keys for the main user.";
             };
           };
+
+          flakeHostname = lib.mkOption {
+            type = lib.types.str;
+            description = "The hostname to rebuild against for nh os switch";
+          };
         };
       };
 
