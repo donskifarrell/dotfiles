@@ -149,13 +149,28 @@
                 };
               };
 
-              tailnet = {
+              aon-tailnet = {
                 module = {
                   name = "tailscale";
                   input = "self";
                 };
                 roles.peer = {
-                  tags.all = { };
+                  machines.abhaile = { };
+                  settings = {
+                    enableSSH = true;
+                    exitNode = false; # currently breaks iptables on desktop install
+                    enableHostAliases = true;
+                  };
+                };
+              };
+
+              aon-tailnet-exit = {
+                module = {
+                  name = "tailscale";
+                  input = "self";
+                };
+                roles.peer = {
+                  machines.eachtrach = { };
                   settings = {
                     enableSSH = true;
                     exitNode = true;

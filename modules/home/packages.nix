@@ -34,6 +34,7 @@
         unrar
         unzip
         wget
+        wl-clipboard
 
         # Dev
         android-tools
