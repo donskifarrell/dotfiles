@@ -88,6 +88,10 @@
                 deploy.targetHost = "root@192.168.122.77";
                 tags = [ "vm" ];
               };
+              abhaile = {
+                deploy.targetHost = "root@192.168.178.117";
+                tags = [ "abhaile" ];
+              };
             };
 
             instances = {
@@ -116,10 +120,28 @@
                   name = "users";
                   input = "clan-core";
                 };
-                roles.default.tags.all = { };
+
+                roles.default.tags.vm = { };
+
                 roles.default.settings = {
                   user = "mise";
                   prompt = false;
+                  groups = [
+                    "networkmanager"
+                    "wheel"
+                  ];
+                };
+              };
+
+              user-df = {
+                module = {
+                  name = "users";
+                  input = "clan-core";
+                };
+                roles.default.machines.abhaile = { };
+                roles.default.settings = {
+                  user = "df";
+                  prompt = true;
                   groups = [
                     "networkmanager"
                     "wheel"
@@ -168,7 +190,7 @@
                   input = "clan-core";
                 };
 
-                roles.default.tags.nixos = { };
+                roles.default.tags.all = { };
               };
             };
           };
