@@ -2,89 +2,39 @@
   config.flake.nixosModules.sops-secrets =
     { lib, ... }:
     let
-      helpers = import ./helpers/mkClanFileGenerators.nix { inherit lib; };
+      helpers = import ../../lib/mkClanSecretGenerators.nix { inherit lib; };
 
-      mk = helpers.mkClanFileGenerators;
+      mkSecretFiles = helpers.mkClanSecretGenerators;
     in
     {
       config = {
         clan.core.vars.generators =
-          (mk {
-            folderPath = "ssh/df";
+          (mkSecretFiles {
+            folderPath = "ssh";
             files = {
-              "df_key" = "0600";
-              "df_key.pub" = "0644";
+              "sshconfig.local" = "0600";
+              "aon.clan.pub" = "0644";
+              "aon.clan" = "0600";
+              "df_gh.pub" = "0644";
+              "df_gh" = "0600";
+              "ff_gh.pub" = "0644";
+              "ff_gh" = "0600";
+              "pgstar_gh.pub" = "0644";
+              "pgstar_gh" = "0600";
+              "uf_gh.pub" = "0644";
+              "uf_gh" = "0600";
             };
           })
-          // (mk {
-            folderPath = "ssh/uf";
+          // (mkSecretFiles {
+            folderPath = "git";
             files = {
-              "uf_key" = "0600";
-              "uf_key.pub" = "0644";
+              "gitconfig.local" = "0644";
+              "gitconfig.df" = "0644";
+              "gitconfig.ff" = "0644";
+              "gitconfig.pgstar" = "0644";
+              "gitconfig.uf" = "0644";
             };
           });
       };
     };
-  # { ... }:
-  # {
-  #   config = {
-  #     clan.core.vars.generators."ssh/aon-clan-test" = {
-  #       share = true;
-
-  #       prompts = {
-  #         private-key = {
-  #           description = "The private key contents";
-  #           type = "multiline";
-  #         };
-  #         public-key = {
-  #           description = "The public key contents";
-  #           type = "multiline";
-  #         };
-  #       };
-
-  #       files."ssh-aon-clan-test_key" = {
-  #         secret = true;
-  #         mode = "0600";
-  #       };
-  #       files."ssh-aon-clan-test_key.pub" = {
-  #         secret = true;
-  #         mode = "0644";
-  #       };
-
-  #       script = ''
-  #         cat "$prompts"/private-key > "$out"/ssh-aon-clan-test_key
-  #         cat "$prompts"/public-key > "$out"/ssh-aon-clan-test_key.pub
-  #       '';
-  #     };
-
-  #     clan.core.vars.generators."ssh/aon-git-test" = {
-  #       share = true;
-
-  #       prompts = {
-  #         private-key = {
-  #           description = "The private key contents";
-  #           type = "multiline";
-  #         };
-  #         public-key = {
-  #           description = "The public key contents";
-  #           type = "multiline";
-  #         };
-  #       };
-
-  #       files."git-aon-clan-test_key" = {
-  #         secret = true;
-  #         mode = "0600";
-  #       };
-  #       files."git-aon-clan-test_key.pub" = {
-  #         secret = true;
-  #         mode = "0644";
-  #       };
-
-  #       script = ''
-  #         cat "$prompts"/private-key > "$out"/git-aon-clan-test_key
-  #         cat "$prompts"/public-key > "$out"/git-aon-clan-test_key.pub
-  #       '';
-  #     };
-  #   };
-  # };
 }

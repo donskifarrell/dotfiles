@@ -1,7 +1,7 @@
 { lib }:
 let
   # Normalize keys for generator names - avoid weird chars
-  sanitize = s: lib.replaceStrings [ "/" " " ] [ "_" "_" ] s;
+  sanitize = s: lib.replaceStrings [ " " ] [ "_" ] s;
 
   mkOne =
     {
@@ -36,7 +36,7 @@ let
 
 in
 {
-  mkClanFileGenerators =
+  mkClanSecretGenerators =
     {
       folderPath,
       files,
