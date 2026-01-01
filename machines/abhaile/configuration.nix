@@ -21,6 +21,7 @@
     printing
     sound
     touchpad
+    sops-secrets
 
     # DE
     # cosmic
@@ -72,6 +73,8 @@
       yazi
       zellij
       zoxide
+
+      secrets
     ];
 
     programs = {
