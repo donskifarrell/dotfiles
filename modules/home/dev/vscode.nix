@@ -103,6 +103,7 @@
                   "*.tmpl": "html"
                 },
                 "git.confirmSync": false,
+                "git.path": "/run/current-system/sw/bin/git",
                 "redhat.telemetry.enabled": false,
                 "todohighlight.keywords": [
                   {
