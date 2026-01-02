@@ -2,59 +2,57 @@
 let
   # Normalize keys for generator names - avoid weird chars
   sanitize = s: lib.replaceStrings [ " " ] [ "_" ] s;
-
-  mkOne =
-    {
-      folderPath,
-      fileName,
-      mode,
-      share ? true,
-      promptKey ? "file-contents",
-    }:
-    {
-      name = "${sanitize folderPath}/${sanitize fileName}";
-      value = {
-        inherit share;
-
-        prompts.${promptKey} = {
-          description = "The contents for ${fileName}";
-          type = "multiline";
-          # to store prompts in fs:
-          # persist = true;
-        };
-
-        files.${fileName} = {
-          secret = true;
-          mode = mode; # e.g. "0600"
-        };
-
-        script = ''
-          cat "$prompts"/${promptKey} > "$out"/${fileName}
-        '';
-      };
-    };
-
 in
 {
+  # mkClanSecretGenerators :: { folderPath, files, share?, promptPrefix? } -> attrset
+  #
+  # files = {
+  #   "sshconfig.local" = "0600";
+  # };
   mkClanSecretGenerators =
     {
       folderPath,
       files,
       share ? true,
-      promptKey ? "file-contents",
+      promptPrefix ? "file",
     }:
-    lib.listToAttrs (
-      lib.mapAttrsToList (
-        fileName: mode:
-        mkOne {
-          inherit
-            folderPath
-            fileName
-            mode
-            share
-            promptKey
-            ;
+    let
+      folderKey = sanitize folderPath;
+
+      # One prompt per file (unique key), but still stored under the same generator folder.
+      prompts = lib.mapAttrs' (
+        fileName: _mode:
+        lib.nameValuePair "${promptPrefix}-${fileName}" {
+          description = "The contents for ${folderPath}/${fileName}";
+          type = "multiline";
+          # persist = true; # enable to store prompt inputs to fs
         }
-      ) files
-    );
+      ) files;
+
+      # files attrset: files."<fileName>" = { secret=true; mode=...; }
+      fileDefs = lib.mapAttrs (_fileName: mode: {
+        secret = true;
+        group = "secrets";
+        inherit mode;
+      }) files;
+
+      # Script writes each prompt to its matching output filename
+      scriptLines = lib.concatStringsSep "\n" (
+        lib.mapAttrsToList (fileName: _mode: ''
+          cat "$prompts"/"${promptPrefix}-${fileName}" > "$out"/"${fileName}"
+        '') files
+      );
+    in
+    {
+      ${folderKey} = {
+        inherit share;
+        prompts = prompts;
+        files = fileDefs;
+
+        script = ''
+          set -euo pipefail
+          ${scriptLines}
+        '';
+      };
+    };
 }

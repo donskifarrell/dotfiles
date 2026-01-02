@@ -21,7 +21,9 @@
     printing
     sound
     touchpad
-    sops-secrets
+
+    secrets-sops
+    secrets-user
 
     # DE
     # cosmic
@@ -40,6 +42,7 @@
 
   users.users =
     let
+      # TODO: switch to clan secrets
       key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA6h5RafG9hYqgT3nviJO9P9eEUEAHJlIEqFWfoxFOP6";
     in
     {
@@ -52,12 +55,43 @@
       };
     };
 
+  secretsUser = {
+    enable = true;
+
+    ssh = {
+      files = [
+        "sshconfig.local"
+        "aon.clan"
+        "aon.clan.pub"
+        "df_gh"
+        "df_gh.pub"
+        "ff_gh"
+        "ff_gh.pub"
+        "pgstar_gh"
+        "pgstar_gh.pub"
+        "uf_gh"
+        "uf_gh.pub"
+      ];
+    };
+
+    git = {
+      files = [
+        "gitconfig.local"
+        "gitconfig.df"
+        "gitconfig.ff"
+        "gitconfig.pgstar"
+        "gitconfig.uf"
+      ];
+    };
+  };
+
   home-manager.users.${config.my.mainUser.name} = {
     imports = with modules.homeModules; [
       atuin
       delta
       direnv
       distrobox
+      eza
       fish
       ghostty
       git
@@ -73,15 +107,12 @@
       yazi
       zellij
       zoxide
-
-      secrets
     ];
 
     programs = {
       bat.enable = true;
       btop.enable = true;
       element-desktop.enable = true;
-      eza.enable = true;
       fd.enable = true;
       fzf.enable = true;
       jq.enable = true;

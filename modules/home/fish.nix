@@ -43,7 +43,7 @@
             ls = "${pkgs.eza}/bin/eza --git --color=automatic";
             ll = "${pkgs.eza}/bin/eza --all --long --git --color=automatic";
             la = "${pkgs.eza}/bin/eza --all --binary --group --header --long --git --color=automatic";
-            l = "la";
+            l = "la --octal-permissions";
 
             # See forgit - https://github.com/wfxr/forgit
             # ga = "git add' # replaced by forgit";

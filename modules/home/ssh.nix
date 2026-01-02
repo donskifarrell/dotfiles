@@ -6,7 +6,7 @@
         programs.ssh = {
           enable = true;
 
-          # TODO: includes = [ "~/.ssh/sshconfig.local" ];
+          includes = [ "~/.ssh/sshconfig.local" ];
 
           # Global defaults for all hosts (Host *)
           matchBlocks."*" = {
