@@ -7,7 +7,7 @@
           enable = true;
 
           interactiveShellInit = ''
-            fzf_configure_bindings --directory=\ct
+            fzf_configure_bindings --directory=\cd --variables=
             set -Ux fzf_fd_opts --hidden --exclude=.git --exclude=Library
             set -Ux FZF_DEFAULT_OPTS "\
             --height=80% --layout=reverse --info=inline --border --margin=1 --padding=1"

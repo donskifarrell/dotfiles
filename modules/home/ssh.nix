@@ -5,8 +5,7 @@
       config = {
         programs.ssh = {
           enable = true;
-
-          includes = [ "~/.ssh/sshconfig.local" ];
+          enableDefaultConfig = false;
 
           # Global defaults for all hosts (Host *)
           matchBlocks."*" = {
@@ -33,6 +32,8 @@
           # macOS compatibility / keychain integration
           extraConfig = lib.mkMerge [
             ''
+              Include ~/.ssh/sshconfig.local
+
               IgnoreUnknown UseKeychain
             ''
             (lib.mkIf pkgs.stdenv.hostPlatform.isDarwin ''
