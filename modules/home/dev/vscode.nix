@@ -12,6 +12,24 @@
     in
     {
       config = {
+        # This is to ensure no matter how vscode launches (via desktop of terminal) it uses the same env.
+        home.packages = [
+          (pkgs.writeShellScriptBin "code-login" ''
+            exec ${pkgs.fish}/bin/fish -lc 'code --reuse-window $argv'  
+          '')
+        ];
+        xdg.desktopEntries.code = {
+          name = "Visual Studio Code";
+          genericName = "Code Editor";
+          exec = "code-login %F";
+          icon = "code";
+          terminal = false;
+          categories = [
+            "Development"
+            "IDE"
+          ];
+        };
+
         programs.vscode = {
           enable = true;
           mutableExtensionsDir = true;
@@ -150,7 +168,9 @@
                 ],
                 "remote.SSH.configFile": "${config.home.homeDirectory}/.ssh/sshconfig.local",
                 "Prettier-SQL.SQLFlavourOverride": "mysql",
-                "Prettier-SQL.expressionWidth": 120
+                "Prettier-SQL.expressionWidth": 120,
+                "terminal.integrated.inheritEnv": true,
+                "terminal.integrated.defaultProfile.linux": "fish"
               }
             '';
           };
