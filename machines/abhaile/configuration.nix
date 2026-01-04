@@ -63,27 +63,27 @@
 
     ssh = {
       files = [
-        # "sshconfig.local"
+        "sshconfig.local"
         "aon.clan"
-        # "aon.clan.pub"
-        # "df_gh"
-        # "df_gh.pub"
-        # "ff_gh"
-        # "ff_gh.pub"
-        # "pgstar_gh"
-        # "pgstar_gh.pub"
-        # "uf_gh"
-        # "uf_gh.pub"
+        "aon.clan.pub"
+        "df_gh"
+        "df_gh.pub"
+        "ff_gh"
+        "ff_gh.pub"
+        "pgstar_gh"
+        "pgstar_gh.pub"
+        "uf_gh"
+        "uf_gh.pub"
       ];
     };
 
     git = {
       files = [
-        # "gitconfig.local"
-        # "gitconfig.df"
-        # "gitconfig.ff"
-        # "gitconfig.pgstar"
-        # "gitconfig.uf"
+        "gitconfig.local"
+        "gitconfig.df"
+        "gitconfig.ff"
+        "gitconfig.pgstar"
+        "gitconfig.uf"
       ];
     };
   };
