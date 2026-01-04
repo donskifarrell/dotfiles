@@ -1,14 +1,68 @@
 { lib }:
 let
-  # Normalize keys for generator names - avoid weird chars
-  sanitize = s: lib.replaceStrings [ " " ] [ "_" ] s;
+  sanitize = s: lib.replaceStrings [ " " "/" "." ":" "@" ] [ "_" "_" "_" "_" "_" ] s;
+
+  # helper to build a single generator (one unit) for one secret file
+  mkOne =
+    {
+      folderPath,
+      fileName,
+      mode,
+      share ? true,
+      promptPrefix ? "file",
+      owner ? "root",
+      group ? "root",
+    }:
+    let
+      folderKey = sanitize folderPath;
+      fileKey = sanitize fileName;
+
+      genName = "${folderKey}-${fileKey}";
+      promptName = "${promptPrefix}-${fileName}";
+    in
+    {
+      ${genName} = {
+        inherit share;
+
+        prompts = {
+          ${promptName} = {
+            description = "The contents for ${folderPath}/${fileName}";
+            type = "multiline";
+          };
+        };
+
+        # still emits the file under the "files" attribute; Clan will place it
+        # under the generator output root. Your downstream layout stays consistent.
+        files = {
+          ${fileName} = {
+            secret = true;
+            inherit mode owner group;
+          };
+        };
+
+        script = ''
+          set -euo pipefail
+
+          cat "$prompts"/"${promptName}" > "$out"/"${fileName}"
+
+          # Ensure trailing newline if the file is non-empty and doesn't already end with LF.
+          if [ -s "$out"/"${fileName}" ]; then
+            last="$(tail -c 1 "$out"/"${fileName}" || true)"
+
+            # If last byte was '\n', command substitution strips it => empty string.
+            if [ -n "$last" ]; then
+              printf '\n' >> "$out"/"${fileName}"
+            fi
+          fi
+        '';
+      };
+    };
+
 in
 {
-  # mkClanSecretGenerators :: { folderPath, files, share?, promptPrefix? } -> attrset
+  # mkClanSecretGenerators :: { folderPath, files, share?, promptPrefix?, owner?, group? } -> attrset
   #
-  # files = {
-  #   "sshconfig.local" = "0600";
-  # };
+  # files = { "aon.clan" = "0640"; ... }
   mkClanSecretGenerators =
     {
       folderPath,
@@ -18,48 +72,19 @@ in
       owner ? "root",
       group ? "root",
     }:
-    let
-      folderKey = sanitize folderPath;
-
-      # One prompt per file (unique key), but still stored under the same generator folder.
-      prompts = lib.mapAttrs' (
-        fileName: _mode:
-        lib.nameValuePair "${promptPrefix}-${fileName}" {
-          description = "The contents for ${folderPath}/${fileName}";
-          type = "multiline";
-          # persist = true; # enable to store prompt inputs to fs
-        }
-      ) files;
-
-      # files attrset: files."<fileName>" = { secret=true; mode=...; }
-      fileDefs = lib.mapAttrs (_fileName: mode: {
-        secret = true;
-        inherit mode owner group;
-      }) files;
-
-      # Script writes each prompt to its matching output filename
-      scriptLines = lib.concatStringsSep "\n" (
-        lib.mapAttrsToList (fileName: _mode: ''
-          cat "$prompts"/"${promptPrefix}-${fileName}" > "$out"/"${fileName}"
-          if [ "$(tail -c 1 "$out"/"${fileName}" | wc -c)" -ne 0 ]; then
-            # file is non-empty; ensure it ends with LF
-            if ! tail -c 1 "$out"/"${fileName}" | grep -q $'\n'; then
-              printf '\n' >> "$out"/"${fileName}"
-            fi
-          fi
-        '') files
-      );
-    in
-    {
-      ${folderKey} = {
-        inherit share;
-        prompts = prompts;
-        files = fileDefs;
-
-        script = ''
-          set -euo pipefail
-          ${scriptLines}
-        '';
-      };
-    };
+    lib.foldl' (
+      acc: fileName:
+      acc
+      // mkOne {
+        inherit
+          folderPath
+          fileName
+          share
+          promptPrefix
+          owner
+          group
+          ;
+        mode = files.${fileName};
+      }
+    ) { } (builtins.attrNames files);
 }

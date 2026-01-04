@@ -12,7 +12,19 @@
       user = cfg.user;
       home = cfg.home;
 
-      srcFor = folder: file: "${cfg.secretsRoot}/${folder}/${file}";
+      # Must match sanitize() in mkClanSecretGenerators.nix
+      sanitize = s: lib.replaceStrings [ " " "/" "." ":" "@" ] [ "_" "_" "_" "_" "_" ] s;
+
+      # Given folder + file, compute the generator name
+      generatorFor = folder: file: "${sanitize folder}-${sanitize file}";
+
+      # Compute the actual source path of a secret
+      srcFor =
+        folder: file:
+        let
+          gen = generatorFor folder file;
+        in
+        "${cfg.secretsRoot}/${gen}/${file}";
 
       linkRule =
         folder: file: destPath:
@@ -20,12 +32,12 @@
 
       # tmpfiles ACL rule: give user read access to the secret target
       # (symlink ownership doesn't matter; target readability does)
-      aclRule = folder: file: "a+ ${srcFor folder file} - - - - u:${user}:r";
+      # aclRule = folder: file: "a+ ${srcFor folder file} - - - - u:${user}:r";
 
       # Ensure the folder under secretsRoot is traversable by the user.
       # Dirs are typically 0750 root:root; give user `x` via ACL.
       # Avoids “permission denied” on traversal.
-      aclDirRule = folder: "a+ ${cfg.secretsRoot}/${folder} - - - - u:${user}:x";
+      # aclDirRule = folder: "a+ ${cfg.secretsRoot}/${folder} - - - - u:${user}:x";
 
       # spec = { folder, destDir, files, dirs }
       linkSpec =
@@ -40,16 +52,16 @@
         (map (d: "d ${home}/${d} 0700 ${user} ${cfg.group} - -") dirs)
         ++ (map (f: linkRule folder f "${destDir}/${f}") files);
 
-      aclSpec =
-        spec:
-        let
-          folder = spec.folder;
-          files = spec.files;
-        in
-        # Ensure traversal on /run/secrets/vars/<folder>
-        [ (aclDirRule folder) ]
-        # Ensure user can read each file
-        ++ (map (f: aclRule folder f) files);
+      # aclSpec =
+      #   spec:
+      #   let
+      #     folder = spec.folder;
+      #     files = spec.files;
+      #   in
+      #   # Ensure traversal on /run/secrets/vars/<folder>
+      #   [ (aclDirRule folder) ]
+      #   # Ensure user can read each file
+      #   ++ (map (f: aclRule folder f) files);
     in
     {
       options.secretsUser = {
@@ -167,10 +179,10 @@
         systemd.tmpfiles.rules =
           # Home dirs + symlinks
           (lib.optionals cfg.ssh.enable (linkSpec cfg.ssh))
-          ++ (lib.optionals cfg.git.enable (linkSpec cfg.git))
-          # ACLs on secret targets (and their folders)
-          ++ (lib.optionals cfg.ssh.enable (aclSpec cfg.ssh))
-          ++ (lib.optionals cfg.git.enable (aclSpec cfg.git));
+          ++ (lib.optionals cfg.git.enable (linkSpec cfg.git));
+        # ACLs on secret targets (and their folders)
+        # ++ (lib.optionals cfg.ssh.enable (aclSpec cfg.ssh))
+        # ++ (lib.optionals cfg.git.enable (aclSpec cfg.git));
 
         systemd.services.apply-clan-secret-acls = {
           description = "Apply ACLs to clan secrets after they exist";
