@@ -15,7 +15,7 @@
         # This is to ensure no matter how vscode launches (via desktop of terminal) it uses the same env.
         home.packages = [
           (pkgs.writeShellScriptBin "code-login" ''
-            exec ${pkgs.fish}/bin/fish -lc 'code --reuse-window $argv'  
+            exec ${pkgs.fish}/bin/fish -c 'env GTK_USE_PORTAL=1 code --reuse-window $argv'
           '')
         ];
         xdg.desktopEntries.code = {

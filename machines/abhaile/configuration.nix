@@ -40,6 +40,9 @@
   # Needed on the NixOS system to be set as default user shell
   programs.fish.enable = true;
 
+  # Fixes missing terminfo for xterm-ghostty on root
+  environment.sessionVariables.TERMINFO_DIRS = "/run/current-system/sw/share/terminfo";
+
   users.users =
     let
       # TODO: switch to clan secrets
@@ -142,6 +145,8 @@
   };
 
   environment.systemPackages = with pkgs; [
+    eza
+    ghostty
   ];
 
   system.stateVersion = "25.11";

@@ -11,6 +11,7 @@
         clan.core.vars.generators =
           (mkSecretFiles {
             folderPath = "ssh";
+            group = "secrets";
             files = {
               "sshconfig.local" = "0640";
               "aon.clan.pub" = "0644";
@@ -27,6 +28,7 @@
           })
           // (mkSecretFiles {
             folderPath = "git";
+            group = "secrets";
             files = {
               "gitconfig.local" = "0644";
               "gitconfig.df" = "0644";

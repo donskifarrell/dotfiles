@@ -15,6 +15,8 @@ in
       files,
       share ? true,
       promptPrefix ? "file",
+      owner ? "root",
+      group ? "root",
     }:
     let
       folderKey = sanitize folderPath;
@@ -32,14 +34,19 @@ in
       # files attrset: files."<fileName>" = { secret=true; mode=...; }
       fileDefs = lib.mapAttrs (_fileName: mode: {
         secret = true;
-        group = "secrets";
-        inherit mode;
+        inherit mode owner group;
       }) files;
 
       # Script writes each prompt to its matching output filename
       scriptLines = lib.concatStringsSep "\n" (
         lib.mapAttrsToList (fileName: _mode: ''
           cat "$prompts"/"${promptPrefix}-${fileName}" > "$out"/"${fileName}"
+          if [ "$(tail -c 1 "$out"/"${fileName}" | wc -c)" -ne 0 ]; then
+            # file is non-empty; ensure it ends with LF
+            if ! tail -c 1 "$out"/"${fileName}" | grep -q $'\n'; then
+              printf '\n' >> "$out"/"${fileName}"
+            fi
+          fi
         '') files
       );
     in
