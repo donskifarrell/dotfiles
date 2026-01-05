@@ -98,6 +98,11 @@
                 deploy.targetHost = "root@192.168.178.26";
                 tags = [ "abhaile" ];
               };
+
+              # Test VM
+              bb = {
+                tags = [ "vm" ];
+              };
             };
 
             instances = {
@@ -131,7 +136,7 @@
 
                 roles.default.settings = {
                   user = "mise";
-                  prompt = false;
+                  prompt = true;
                   groups = [
                     "networkmanager"
                     "wheel"
