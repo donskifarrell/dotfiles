@@ -1,25 +1,3 @@
-####
-
-## Commands
-
-```
-{
-  inputs = {
-
-
-    # NixVirt = {
-    #   url = "https://flakehub.com/f/AshleyYakeley/NixVirt/*.tar.gz";
-    #   inputs.nixpkgs.follows = "nixpkgs";
-    # };
-
-    pre-commit-hooks-nix = {
-      url = "github:cachix/pre-commit-hooks.nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-  };
-
-```
-
 # Aon clan
 
 Using [Clan.lol](https://clan.lol) as an orchestrator.

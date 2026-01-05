@@ -7,6 +7,10 @@
 #   sudo virsh net-start default
 #   sudo virsh net-autostart default
 #
+# On guest (linux):
+#
+#   sudo apt-get install qemu-guest-agent
+#
 {
   config.flake.nixosModules.virtualisation =
     {
