@@ -1,3 +1,4 @@
+{ inputs, ... }:
 {
   config.flake.nixosModules.nix-virt =
     {
@@ -7,15 +8,18 @@
     }:
     let
       cfg = config.secretsUser;
-      nixvirt = pkgs.nixvirt;
     in
     {
+      imports = [
+        inputs.NixVirt.nixosModules.default
+      ];
+
       config = {
         virtualisation.libvirt.connections."qemu:///system" = {
           networks = [
             {
-              definition = nixvirt.lib.network.writeXML (
-                nixvirt.lib.network.templates.nat {
+              definition = inputs.NixVirt.lib.network.writeXML (
+                inputs.NixVirt.lib.network.templates.nat {
                   name = "clan-nat";
                   subnet = "192.168.100.0/24";
                 }
@@ -26,8 +30,8 @@
 
           pools = [
             {
-              definition = nixvirt.lib.pool.writeXML (
-                nixvirt.lib.pool.templates.dir {
+              definition = inputs.NixVirt.lib.pool.writeXML (
+                inputs.NixVirt.lib.pool.templates.dir {
                   name = "clan-vms";
                   path = "/var/lib/libvirt/clan-vms";
                 }
@@ -38,8 +42,8 @@
 
           domains = [
             {
-              definition = nixvirt.lib.domain.writeXML (
-                nixvirt.lib.domain.templates.nixos {
+              definition = inputs.NixVirt.lib.domain.writeXML (
+                inputs.NixVirt.lib.domain.templates.nixos {
                   name = "vm-bb";
                   memory = 4096;
                   vcpu = 4;
