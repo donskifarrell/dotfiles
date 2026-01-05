@@ -21,6 +21,7 @@
     printing
     sound
     touchpad
+    virtualisation
 
     secrets-sops
     secrets-user
@@ -92,6 +93,7 @@
     imports = with modules.homeModules; [
       atuin
       delta
+      difftastic
       direnv
       distrobox
       eza

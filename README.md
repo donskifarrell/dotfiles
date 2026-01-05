@@ -1,65 +1,16 @@
 ####
 
-Heavily borrowed from https://github.com/onixcomputer/onix-core and https://github.com/perstarkse/infra
-
-- Tailscale module
-
 ## Commands
-
-clan machines install eachtrach \
- --update-hardware-config nixos-facter \
- --phases kexec \
- --target-host root@91.99.168.74
-
-clan templates apply disk single-disk eachtrach --set mainDisk "/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_105596894"
-
-clan machines install eachtrach --target-host root@91.99.168.74
-
----
-
-OLD EACHTRACH FLAKE.NIX:
 
 ```
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs?ref=nixos-unstable";
 
-    flake-parts = {
-      url = "github:hercules-ci/flake-parts";
-      inputs.nixpkgs-lib.follows = "nixpkgs";
-    };
-
-    clan-core = {
-      url = "git+https://git.clan.lol/clan/clan-core";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.flake-parts.follows = "flake-parts";
-    };
-
-    sops-nix.url = "github:Mic92/sops-nix";
-    sops-nix.inputs.nixpkgs.follows = "nixpkgs";
-
-    import-tree.url = "github:vic/import-tree";
-
-    # home-manager = {
-    #   url = "github:nix-community/home-manager";
-    #   inputs.nixpkgs.follows = "nixpkgs";
-    # };
 
     # NixVirt = {
     #   url = "https://flakehub.com/f/AshleyYakeley/NixVirt/*.tar.gz";
     #   inputs.nixpkgs.follows = "nixpkgs";
     # };
-
-    # vars-helper = {
-    #   url = "github:perstarkse/clan-vars-helper";
-    #   inputs.nixpkgs.follows = "nixpkgs";
-    #   inputs.flake-parts.follows = "flake-parts";
-    # };
-
-    treefmt-nix = {
-      url = "github:numtide/treefmt-nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
 
     pre-commit-hooks-nix = {
       url = "github:cachix/pre-commit-hooks.nix";
@@ -67,162 +18,26 @@ OLD EACHTRACH FLAKE.NIX:
     };
   };
 
-  outputs =
-    inputs@{
-      clan-core,
-      flake-parts,
-      # home-manager,
-      # vars-helper,
-      ...
-    }:
-    flake-parts.lib.mkFlake { inherit inputs; } (
-      { config, self, ... }:
-      let
-        # Import modules directly
-        modules = import "${self}/modules/default.nix" { inherit inputs; };
-      in
-      {
-        imports = [
-          clan-core.flakeModules.default
-          # home-manager.flakeModules.home-manager
-          inputs.treefmt-nix.flakeModule
-
-          # (inputs.import-tree ./modules)
-
-          ./parts/devshells.nix
-          ./parts/formatter.nix
-          ./parts/pre-commit.nix
-          ./parts/sops-viz.nix
-        ];
-
-        systems = [
-          "x86_64-linux"
-          "aarch64-linux"
-          "aarch64-darwin"
-        ];
-
-        flake.clan = {
-          meta.name = "brasile";
-          meta.description = "home cluster";
-
-          inherit modules;
-
-          specialArgs = {
-            modules = config.flake;
-          };
-
-          inventory = {
-            machines = {
-              eachtrach = {
-                name = "eachtrach";
-                tags = [
-                  "eachtrach"
-                  "server"
-                  "tailnet-et"
-                ];
-                deploy = {
-                  targetHost = "root@91.99.168.74";
-                };
-              };
-            };
-
-            instances = {
-              # Sets up nix to trust and use the clan cache
-              clan-cache = {
-                module = {
-                  name = "trusted-nix-caches";
-                  input = "clan-core";
-                };
-                roles.default.tags.all = { };
-              };
-
-              # Enables secure remote access to the machine over SSH
-              sshd-basic = {
-                module = {
-                  name = "sshd";
-                  input = "clan-core";
-                };
-                roles.server.tags.all = { };
-              };
-
-              # An instance of this module will create a user account on the added machines
-              # along with a generated password that is constant across machines and user settings.
-              user-mise = {
-                module = {
-                  name = "users";
-                  input = "clan-core";
-                };
-                roles.default.tags = [ "eachtrach" ];
-                roles.default.settings = {
-                  user = "mise";
-                  prompt = false;
-                  groups = [
-                    "wheel"
-                    "networkmanager"
-                  ];
-                };
-              };
-
-              tailnet-et = {
-                module = {
-                  name = "tailscale";
-                  input = "self";
-                };
-                roles.peer = {
-                  tags."tailnet-et" = { };
-                  settings = {
-                    enableSSH = true;
-                    exitNode = true;
-                    enableHostAliases = true;
-                  };
-                };
-              };
-
-              # Convenient administration for the Clan App
-              admin = {
-                roles.default.tags.all = { };
-                roles.default.settings = {
-                  allowedKeys = {
-                    "mise" =
-                      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA6h5RafG9hYqgT3nviJO9P9eEUEAHJlIEqFWfoxFOP6";
-                  };
-                };
-              };
-
-              # Will automatically set the emergency access password if your system fails to boot.
-              emergency-access = {
-                module = {
-                  name = "emergency-access";
-                  input = "clan-core";
-                };
-
-                roles.default.tags.nixos = { };
-              };
-            };
-          };
-        };
-      }
-    );
-}
 ```
 
----
+# Aon clan
 
----
+Using [Clan.lol](https://clan.lol) as an orchestrator.
+Heavily borrowed configs from https://github.com/onixcomputer/onix-core and https://github.com/perstarkse/infra
 
-# Dots
+| Hostname            | Users | System         | What is it?         |
+| ------------------- | ----- | -------------- | ------------------- |
+| abhaile (home)      | df    | x86_64-linux   | Desktop workstation |
+| iompar (carry)      | df    | aarch64-darwin | M1 Macbook Pro      |
+| eachtrach (foreign) | mise  | x86_64-linux   | VS                  |
 
-| Hostname       | Users | System         | What is it?         |
-| -------------- | ----- | -------------- | ------------------- |
-| abhaile (home) | df    | x86_64-linux   | Desktop workstation |
-| iompar (carry) | df    | aarch64-darwin | M1 Macbook Pro      |
-| TODO: qemu     | df    | x86_64-linux   | VM (multiple)       |
+## Nix
 
-These dotfiles try to keep things easy and composable. Everything is driven from the base `flake.nix` using common tooling along with the https://flake.parts/ framework for some autowiring. Some liberal copying from https://github.com/srid/nixos-config and my own previous configs.
+A general good resource is [Awesome Nix](https://github.com/nix-community/awesome-nix) and https://mynixos.com/
 
-A general good resource is https://github.com/nix-community/awesome-nix and https://mynixos.com/
-
-For configuration of Asus ROG Rapture GT-AX6000, look [here](./bin/asus-gt-ax6000/README.md)
+- NixOS options: https://search.nixos.org/options?channel=unstable
+- HM options: https://home-manager-options.extranix.com/?query=&release=master
+- Noogle for Nix options: https://noogle.dev
 
 ## Virtual Machines
 
@@ -300,8 +115,6 @@ Post-install, there are still some additional steps:
 
 - DConf settings
 - Create an iso image with base config already installed
-- Install tooling:
-  - OpenSnitch
 - For dev VMs, use https://github.com/nix-community/nixos-vscode-server
 - Add plymouth theme: https://github.com/adi1090x/plymouth-themes
 - Media keys

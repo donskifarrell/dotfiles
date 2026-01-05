@@ -36,6 +36,12 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    git-hooks = {
+      url = "github:cachix/git-hooks.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    # Private repo
     mono = {
       url = "git+ssh://git@github.com/donskifarrell/mono.git";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -250,6 +256,32 @@
                 pkgs.deadnix
               ];
             };
+
+            # pre-commit = {
+            #   check.enable = true;
+
+            #   settings = {
+            #     hooks = {
+            #       # Core formatting using existing treefmt setup
+            #       treefmt = {
+            #         enable = true;
+            #       };
+
+            #       # Nix-specific linting
+            #       statix.enable = true;
+            #       deadnix.enable = true;
+            #     };
+
+            #     # Exclude files that shouldn't be checked
+            #     excludes = [
+            #       "^vars/" # SOPS-managed secrets
+            #       "^sops/" # SOPS configuration
+            #       "\\.age$" # Age-encrypted files
+            #       "\\.png$|\\.jpg$|\\.svg$" # Images
+            #       "flake\\.lock$" # Generated file
+            #     ];
+            #   };
+            # };
 
             # Flake checks: treefmt (module-provided) + per-host builds
             checks = buildChecks;
