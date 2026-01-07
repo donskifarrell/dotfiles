@@ -15,7 +15,6 @@
     keyboard
     nh
     nix-config
-    nix-virt
     opensnitch
     openssh
     options

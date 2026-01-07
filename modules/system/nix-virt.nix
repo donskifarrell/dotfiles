@@ -56,18 +56,43 @@
                 definition = inputs.NixVirt.lib.domain.writeXML (
                   inputs.NixVirt.lib.domain.templates.linux {
                     name = "vm-bb";
-                    memory = 4096;
-                    vcpu = 4;
+                    uuid = "cc7439ed-36af-4696-a6f2-1f0c4474d87e"; # random
 
-                    volume = {
-                      pool = "clan-vms";
-                      size = 40 * 1024;
+                    memory = {
+                      count = 4;
+                      unit = "GiB";
                     };
 
-                    network = {
-                      network = "clan-nat";
-                      model = "virtio";
-                    };
+                    # Disk: reference a QCOW2 volume by pool+volume name
+                    # storage_vol = {
+                    #   pool = "clan-vms";
+                    #   volume = "vm-bb.qcow2";
+                    # };
+
+                    # Optional base image backing store (set to null if not used)
+                    backing_vol = null;
+
+                    # ISO inserted as CDROM for installation
+                    # install_vol = installIsoPath;
+
+                    # Connect to the bridge created by the NAT network above
+                    # bridge_name = "virbr100";
+
+                    virtio_video = true;
+                    virtio_drive = true;
+
+                    # memory = 4096;
+                    # vcpu = 4;
+
+                    # volume = {
+                    #   pool = "clan-vms";
+                    #   size = 40 * 1024;
+                    # };
+
+                    # network = {
+                    #   network = "clan-nat";
+                    #   model = "virtio";
+                    # };
 
                     nixosConfig = config.clan.machines."vm-bb".nixosConfiguration;
                   }
