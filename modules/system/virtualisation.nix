@@ -55,6 +55,11 @@
           "kvm"
         ];
 
+        networking.firewall = {
+          enable = true;
+          trustedInterfaces = [ "virbr0" ];
+        };
+
         # For virt-manager, helps avoid password pain
         security.polkit.enable = true;
       };

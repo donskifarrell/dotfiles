@@ -91,22 +91,33 @@
 
           inventory = {
             machines = {
+              # For new machines using NixOS iso:
+              #
+              # 1. Set on root first before ssh can work `sudo passwd`
+              # 2. clan machines init-hardware-config <machine> --target-host root@192.168.122.217
+              # 3. clan templates apply disk single-disk short --set mainDisk ""
+              # 4. clan machines install <machine> --target-host root@192.168.122.217
+              #
+
               # eachtrach = {
               #   deploy.targetHost = "root@91.99.168.74";
-              #   tags = [ "server" ];
+              #   tags = [ "server" "tailscale-exit"];
               # };
-              hellovm = {
-                deploy.targetHost = "root@192.168.122.77";
-                tags = [ "vm" ];
-              };
-              abhaile = {
-                deploy.targetHost = "root@192.168.178.26";
-                tags = [ "abhaile" ];
+
+              short = {
+                deploy.targetHost = "nixos@192.168.122.218";
+                tags = [
+                  "vm"
+                  "tailscale"
+                ];
               };
 
-              # Test VM
-              bb = {
-                tags = [ "vm" ];
+              abhaile = {
+                deploy.targetHost = "root@192.168.178.26";
+                tags = [
+                  "abhaile"
+                  "tailscale"
+                ];
               };
             };
 
@@ -115,8 +126,8 @@
                 # roles.default.machines.eachtrach = {
                 #   settings.host = "eachtrach.lan";
                 # };
-                roles.default.machines.hellovm = {
-                  settings.host = "hellovm.lan";
+                roles.default.machines.short = {
+                  settings.host = "short.lan";
                 };
               };
 
@@ -171,7 +182,7 @@
                   input = "self";
                 };
                 roles.peer = {
-                  machines.abhaile = { };
+                  tags.tailscale = { };
                   settings = {
                     enableSSH = true;
                     exitNode = false; # currently breaks iptables on desktop install
