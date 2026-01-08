@@ -63,8 +63,6 @@
             gpst = "git push origin HEAD:staging-test";
 
             cdr = "cd $(git rev-parse --show-toplevel)";
-
-            code = "code-login";
           };
 
           functions = {

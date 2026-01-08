@@ -12,12 +12,6 @@
     in
     {
       config = {
-        # This is to ensure no matter how vscode launches (via desktop of terminal) it uses the same env.
-        home.packages = [
-          (pkgs.writeShellScriptBin "code-login" ''
-            exec ${pkgs.fish}/bin/fish -c 'env GTK_USE_PORTAL=1 code --reuse-window $argv'
-          '')
-        ];
         xdg.desktopEntries.code = {
           name = "Visual Studio Code";
           genericName = "Code Editor";
@@ -47,7 +41,6 @@
               foxundermoon.shell-format
               golang.go
               inferrinizzard.prettier-sql-vscode
-              jetpack-io.devbox
               jgclark.vscode-todo-highlight
               jnoortheen.nix-ide
               jock.svg
@@ -96,7 +89,7 @@
                 "[github-actions-workflow]": {
                   "editor.defaultFormatter": "redhat.vscode-yaml"
                 },
-                "go.formatTool": "gofmt",
+                "go.formatTool": "goimports",
                 "go.toolsManagement.autoUpdate": false,
                 "go.lintTool": "golangci-lint",
                 "go.lintOnSave": "package",
