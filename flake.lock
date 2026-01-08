@@ -220,17 +220,14 @@
         ]
       },
       "locked": {
-        "lastModified": 1766097104,
-        "narHash": "sha256-wtLMZgX391V65fd/vKsGdz7lapsC5TiX/4YHhsKpFKw=",
-        "ref": "refs/heads/main",
-        "rev": "eeeb70b93dcfbf2de60edd2e3c79bc4df085918a",
-        "revCount": 456,
-        "type": "git",
-        "url": "ssh://git@github.com/donskifarrell/mono.git"
+        "lastModified": 1767889248,
+        "narHash": "sha256-dLROEyp1MMhI4taXEEvPGNYP5QnELaJRdSttJYeN0xg=",
+        "path": "/home/df/dev/mono",
+        "type": "path"
       },
       "original": {
-        "type": "git",
-        "url": "ssh://git@github.com/donskifarrell/mono.git"
+        "path": "/home/df/dev/mono",
+        "type": "path"
       }
     },
     "nix-darwin": {

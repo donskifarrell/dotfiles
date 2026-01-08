@@ -48,7 +48,8 @@
 
     # Private repo
     mono = {
-      url = "git+ssh://git@github.com/donskifarrell/mono.git";
+      # url = "git+ssh://git@github.com/donskifarrell/mono.git";
+      url = "path:/home/df/dev/mono";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-parts.follows = "flake-parts";
     };

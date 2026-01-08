@@ -61,16 +61,6 @@
       zoxide
     ];
 
-    home.packages = with pkgs; [
-      curl
-      dig
-      inetutils
-      p7zip
-      unrar
-      unzip
-      wget
-    ];
-
     programs = {
       bat.enable = true;
       btop.enable = true;
@@ -83,6 +73,18 @@
         enable = true;
         enableFishIntegration = true;
       };
+    };
+
+    my.packages = {
+      # Tools
+      curl.enable = true;
+      dig.enable = true;
+      inetutils.enable = true;
+      lsof.enable = true;
+      p7zip.enable = true;
+      unrar.enable = true;
+      unzip.enable = true;
+      wget.enable = true;
     };
 
     home = {

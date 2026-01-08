@@ -115,14 +115,12 @@
     ];
 
     programs = {
+      # Tools
       bat.enable = true;
       btop.enable = true;
-      element-desktop.enable = true;
       fd.enable = true;
       fzf.enable = true;
       jq.enable = true;
-      obsidian.enable = true;
-      onlyoffice.enable = true;
       ripgrep.enable = true;
       trippy.enable = true;
 
@@ -130,6 +128,55 @@
         enable = true;
         enableFishIntegration = true;
       };
+
+      # Apps
+      element-desktop.enable = true;
+      obsidian.enable = true;
+      onlyoffice.enable = true;
+    };
+
+    my.packages = {
+      # Security / Accounts
+      "_1password-cli".enable = true;
+      "_1password-gui".enable = true;
+      authenticator.enable = true;
+
+      # Browsers
+      brave.enable = true;
+      chromium.enable = true;
+      firefox.enable = true;
+      vivaldi.enable = true;
+
+      # Apps
+      "maestral-gui".enable = true;
+      slack.enable = true;
+
+      # Media
+      ffmpeg.enable = true;
+      imagemagick.enable = true;
+      krita.enable = true;
+      vlc.enable = true;
+
+      # Tools
+      curl.enable = true;
+      dig.enable = true;
+      exiftool.enable = true;
+      inetutils.enable = true;
+      lsof.enable = true;
+      p7zip.enable = true;
+      unrar.enable = true;
+      unzip.enable = true;
+      wget.enable = true;
+      "wl-clipboard".enable = true;
+
+      # Dev
+      "android-tools".enable = true;
+      "bore-cli".enable = true;
+      "nixfmt-rfc-style".enable = true;
+      devenv.enable = true;
+      glogg.enable = true;
+      insomnia.enable = true;
+      sqlitebrowser.enable = true;
     };
 
     home = {
