@@ -105,7 +105,7 @@
               # };
 
               short = {
-                deploy.targetHost = "nixos@192.168.122.218";
+                deploy.targetHost = "root@192.168.122.218";
                 tags = [
                   "vm"
                   "tailscale"
