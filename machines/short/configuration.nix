@@ -13,10 +13,10 @@
     openssh
     options
 
-    ynab
+    testbed
   ];
 
-  mono.ynab.enable = true;
+  testbed.enable = true;
 
   time.timeZone = "Europe/Dublin";
 
