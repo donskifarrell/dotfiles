@@ -18,6 +18,7 @@
     opensnitch
     openssh
     options
+    paperless
     printing
     sound
     touchpad
