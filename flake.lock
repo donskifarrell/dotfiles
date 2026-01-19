@@ -220,8 +220,8 @@
         ]
       },
       "locked": {
-        "lastModified": 1767999676,
-        "narHash": "sha256-RhjkQJjsu06q11LKd79jvCgbSVeTbd+w472BCjlOzYU=",
+        "lastModified": 1768168046,
+        "narHash": "sha256-k2xfcd9Dn3977mf/+jI13TbsTdy6Bh1Pq5HAOeGghf0=",
         "path": "/home/df/dev/mono",
         "type": "path"
       },

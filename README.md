@@ -8,6 +8,7 @@ Heavily borrowed configs from https://github.com/onixcomputer/onix-core and http
 | abhaile (home)      | df    | x86_64-linux   | Desktop workstation |
 | iompar (carry)      | df    | aarch64-darwin | M1 Macbook Pro      |
 | eachtrach (foreign) | mise  | x86_64-linux   | VS                  |
+| short               | mise  | x86_64-linux   | VM                  |
 
 ## Nix
 
@@ -16,6 +17,15 @@ A general good resource is [Awesome Nix](https://github.com/nix-community/awesom
 - NixOS options: https://search.nixos.org/options?channel=unstable
 - HM options: https://home-manager-options.extranix.com/?query=&release=master
 - Noogle for Nix options: https://noogle.dev
+- NixOS unofficial book: https://nixos-and-flakes.thiscute.world
+
+## Syncthing
+
+| Folder           | Local Devices         | Remote Devices   | Mode           |
+| ---------------- | --------------------- | ---------------- | -------------- |
+| ~/sync/obsidian  | All                   | All              | Send & Receive |
+| ~/sync/paperless | Abhaile, iompar, fon9 | eachtrach, short | Send → Receive |
+| ~/sync/photos    | Abhaile, iompar, fon9 | eachtrach, short | Send → Receive |
 
 ## Virtual Machines
 
@@ -101,28 +111,12 @@ Post-install, there are still some additional steps:
 
 ## Misc Links
 
-https://nixos-and-flakes.thiscute.world/nixos-with-flakes/nixos-with-flakes-enabled#adding-custom-cache-mirrors
-
-https://github.com/iamadamdev/bypass-paywalls-chrome
-
-https://unix.stackexchange.com/questions/272660/how-to-split-etc-nixos-configuration-nix-into-separate-modules
-
-https://github.com/schuelermine/xhmm
-
-https://github.com/nix-community/nixpkgs-wayland#packages
-
 https://github.com/malob/nixpkgs
 
-https://github.com/mitchellh/nixos-config
+https://github.com/mitchellh/nixos-config (Darwin)
 
-https://github.com/chvp/nixos-config (check out SSH, Secrets)
+https://github.com/chvp/nixos-config (Darwin)
 
 https://github.com/Misterio77/nix-config
-
-https://gist.github.com/ptrfrncsmrph/2d1646fbb035bd76cf8c691c0d5cf47f#file-flake-nix-L72
-
-https://discourse.nixos.org/t/fixing-your-install-after-osx-upgrade/19339
-
-http://ghedam.at/15978/an-introduction-to-nix-shell
 
 https://jeffhandley.com/2021-01-09/family-email-setup

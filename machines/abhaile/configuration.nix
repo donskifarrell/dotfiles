@@ -39,6 +39,13 @@
     flakeHostname = "abhaile";
   };
 
+  # TODO: really should pull this into a dedicated file
+  systemd.tmpfiles.rules = [
+    "d /home/${config.my.mainUser.name}/.config/syncthing 0700 ${config.my.mainUser.name} syncthing -"
+    "d /home/${config.my.mainUser.name}/.local/state/syncthing 0700 ${config.my.mainUser.name} syncthing -"
+    "d /home/${config.my.mainUser.name}/sync 2775 ${config.my.mainUser.name} syncthing -"
+  ];
+
   # Needed on the NixOS system to be set as default user shell
   programs.fish.enable = true;
 
@@ -179,6 +186,8 @@
       insomnia.enable = true;
       sqlitebrowser.enable = true;
     };
+
+    services.syncthing.tray.enable = true;
 
     home = {
       sessionVariables = {

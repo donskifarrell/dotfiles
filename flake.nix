@@ -85,6 +85,7 @@
           meta.domain = "aon.df";
 
           modules."tailscale" = import ./services/tailscale/default.nix;
+          modules."syncthing-custom" = import ./services/syncthing/default.nix;
 
           specialArgs = {
             modules = config.flake;
@@ -123,6 +124,42 @@
             };
 
             instances = {
+
+              syncthing-aon = {
+                module = {
+                  name = "syncthing-custom";
+                  input = "self";
+                };
+
+                roles.peer.machines.short.settings = {
+                  user = "mise";
+                  configDir = "/home/mise/.config/syncthing";
+                  dataDir = "/home/mise/.local/state/syncthing";
+
+                  folders = {
+                    documents = {
+                      path = "/home/mise/sync";
+                      devices = [ "abhaile" ];
+                      type = "receiveonly";
+                    };
+                  };
+                };
+
+                roles.peer.machines.abhaile.settings = {
+                  user = "df";
+                  configDir = "/home/df/.config/syncthing";
+                  dataDir = "/home/df/.local/state/syncthing";
+
+                  folders = {
+                    documents = {
+                      path = "/home/df/sync";
+                      devices = [ "short" ];
+                      type = "sendonly";
+                    };
+                  };
+                };
+              };
+
               internet = {
                 # roles.default.machines.eachtrach = {
                 #   settings.host = "eachtrach.lan";
@@ -203,16 +240,6 @@
                     enableSSH = true;
                     exitNode = true;
                     enableHostAliases = true;
-                  };
-                };
-              };
-
-              # Convenient administration for the Clan App
-              admin = {
-                roles.default.tags.all = { };
-                roles.default.settings = {
-                  allowedKeys = {
-                    "root" = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA6h5RafG9hYqgT3nviJO9P9eEUEAHJlIEqFWfoxFOP6";
                   };
                 };
               };
