@@ -54,12 +54,14 @@
               waderyan.gitblame
 
               # AllowUnfree hack
+              (anthropic.claude-code.override { meta.license = [ ]; })
               (ms-windows-ai-studio.windows-ai-studio.override { meta.license = [ ]; })
               # ms-vscode-remote.remote-ssh
             ];
 
             userSettings = builtins.fromJSON ''
               {
+                "claudeCode.claudeProcessWrapper": "/etc/profiles/per-user/${config.home.username}/bin/claude",
                 "[dockerfile]": {
                   "editor.defaultFormatter": "ms-azuretools.vscode-docker"
                 },

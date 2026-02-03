@@ -18,7 +18,6 @@
     opensnitch
     openssh
     options
-    paperless
     printing
     sound
     touchpad
@@ -100,6 +99,7 @@
   home-manager.users.${config.my.mainUser.name} = {
     imports = with modules.homeModules; [
       atuin
+      claude
       delta
       difftastic
       direnv

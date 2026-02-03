@@ -46,6 +46,8 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    claude-code.url = "github:sadjow/claude-code-nix";
+
     # Private repo
     mono = {
       # url = "git+ssh://git@github.com/donskifarrell/mono.git";
@@ -89,6 +91,7 @@
 
           specialArgs = {
             modules = config.flake;
+            inherit (inputs) claude-code;
           };
 
           inventory = {

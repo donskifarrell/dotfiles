@@ -1,7 +1,7 @@
 { inputs, ... }:
 {
   config.flake.nixosModules.home-mgr-module =
-    { config, ... }:
+    { config, claude-code, ... }:
     {
       imports = [
         inputs.home-manager.nixosModules.home-manager
@@ -13,6 +13,7 @@
         useUserPackages = true;
 
         extraSpecialArgs = {
+          inherit claude-code;
           flakeHostname = config.my.flakeHostname;
         };
       };
