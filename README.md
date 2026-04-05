@@ -3,12 +3,95 @@
 Using [Clan.lol](https://clan.lol) as an orchestrator.
 Heavily borrowed configs from https://github.com/onixcomputer/onix-core and https://github.com/perstarkse/infra
 
-| Hostname            | Users | System         | What is it?         |
-| ------------------- | ----- | -------------- | ------------------- |
-| abhaile (home)      | df    | x86_64-linux   | Desktop workstation |
-| iompar (carry)      | df    | aarch64-darwin | M1 Macbook Pro      |
-| eachtrach (foreign) | mise  | x86_64-linux   | VS                  |
-| short               | mise  | x86_64-linux   | VM                  |
+| Hostname            | Users | System         | What is it?         | Used for?                        |
+| ------------------- | ----- | -------------- | ------------------- | -------------------------------- |
+| abhaile (home)      | df    | x86_64-linux   | Desktop workstation | Primary workstation, misc tasks  |
+| iompar (carry)      | df    | aarch64-darwin | M1 Macbook Pro      | Portable workstation, casual use |
+| eachtrach (foreign) | mise  | x86_64-linux   | VPS                 | VPN exit node                    |
+| short               | mise  | x86_64-linux   | VM                  | local testing                    |
+| nas-storage         | tbd   | x86_64-linux   | NAS                 | local backup                     |
+
+## Desired State
+
+I want to have this final state.
+Services should be exposed on the clan network using dm-dns: https://clan.lol/docs/unstable/services/official/dm-dns
+
+### Borgbackup
+
+borgbackup docs: https://borgbackup.readthedocs.io/en/stable/index.html
+clan.lol docs: https://clan.lol/docs/unstable/services/official/borgbackup
+preferred LAN url: borg.aon.clan
+
+| Machine     | Desired State                                              |
+| ----------- | ---------------------------------------------------------- |
+| abhaile     | send to NAS / use machine as secondary store?              |
+| iompar      | not needed                                                 |
+| eachtrach   | not needed                                                 |
+| short       | send syncthing/paperless/immich backups to NAS on cron job |
+| nas-storage | primary BorgBackup store                                   |
+
+### Syncthing
+
+syncthing docs: https://docs.syncthing.net
+clan.lol docs: https://clan.lol/docs/unstable/services/official/syncthing
+local Clan service: services/syncthing
+preferred LAN url: sync-<machine>.aon.clan
+
+| Machine     | ~/sync/obsidian | ~/sync/paperless | ~/sync/photos |
+| ----------- | --------------- | ---------------- | ------------- |
+| abhaile     | Send & Receive  | Send only        | Send only     |
+| iompar      | Send & Receive  | Send only        | Send only     |
+| eachtrach   | not needed      | not needed       | not needed    |
+| short       | Send & Receive  | Receive only     | Receive only  |
+| nas-storage | not needed      | not needed       | not needed    |
+
+#### Folder setup
+
+Machine "short" is the primary store for Syncthing. It pushes backups to Borgbackup daily.
+
+| Folder           | Syncthing Mode |
+| ---------------- | -------------- |
+| ~/sync/obsidian  | Send & Receive |
+| ~/sync/paperless | Send → Receive |
+| ~/sync/photos    | Send → Receive |
+
+### Paperless
+
+paperless docs: https://docs.paperless-ngx.com
+clan.lol docs: none - standard Nixos packages used.
+preferred LAN url: paperless.aon.clan
+
+| Machine     | Desired State                                                             |
+| ----------- | ------------------------------------------------------------------------- |
+| abhaile     | Connects via web interface. Also has a local backup that can be run       |
+| iompar      | Connects via web interface                                                |
+| eachtrach   | not needed                                                                |
+| short       | Primary store + host for Paperless ng; pushes backups to Borgbackup daily |
+| nas-storage | not needed                                                                |
+
+### Immich
+
+Immich docs: https://docs.immich.app/overview/quick-start/
+clan.lol docs: none - standard Nixos packages used.
+preferred LAN url: photos.aon.clan
+
+| Machine     | Desired State                                                               |
+| ----------- | --------------------------------------------------------------------------- |
+| abhaile     | Connects via web interface. Also has a local backup that can be run (maybe) |
+| iompar      | Connects via web interface                                                  |
+| eachtrach   | not needed                                                                  |
+| short       | Primary store + host for Immich; pushes backups to Borgbackup daily         |
+| nas-storage | not needed                                                                  |
+
+### Tailscale
+
+Each machine is part of the Tailscale network. Certain apps will eventually be exposed outside the network but with strict authentication in place first.
+
+local Clan service: services/tailscale
+
+### Caddy
+
+I will be deploying apps to the "short" machine that will be exposed externally using Caddy.
 
 ## Nix
 
@@ -18,14 +101,6 @@ A general good resource is [Awesome Nix](https://github.com/nix-community/awesom
 - HM options: https://home-manager-options.extranix.com/?query=&release=master
 - Noogle for Nix options: https://noogle.dev
 - NixOS unofficial book: https://nixos-and-flakes.thiscute.world
-
-## Syncthing
-
-| Folder           | Local Devices         | Remote Devices   | Mode           |
-| ---------------- | --------------------- | ---------------- | -------------- |
-| ~/sync/obsidian  | All                   | All              | Send & Receive |
-| ~/sync/paperless | Abhaile, iompar, fon9 | eachtrach, short | Send → Receive |
-| ~/sync/photos    | Abhaile, iompar, fon9 | eachtrach, short | Send → Receive |
 
 ## Virtual Machines
 
@@ -77,14 +152,11 @@ git clone git@github.com:donskifarrell/dotfiles.git ~/.dotfiles
 ```
 
 Post-install, there are still some additional steps:
-(
 
 1. Applications on OSX that still need a manual install:
-
    - Prey (OSX has some trouble installing) https://preyproject.com/download
 
 2. Browser extension that needs to be installed manually:
-
    - Paywall bypass https://github.com/iamadamdev/bypass-paywalls-chrome
      - unzip to a folder: ~/.bypass-paywalls-chrome so it's out of the way (don't delete folder?)
 
