@@ -6,6 +6,7 @@
 }:
 {
   imports = with modules.nixosModules; [
+    appimage
     avahi
     bluetooth
     flatpak
@@ -13,6 +14,7 @@
     home-mgr-module
     i18n
     keyboard
+    ledger
     nh
     nix-config
     opensnitch

@@ -62,6 +62,7 @@
             userSettings = builtins.fromJSON ''
               {
                 "claudeCode.claudeProcessWrapper": "/etc/profiles/per-user/${config.home.username}/bin/claude",
+                "claudeCode.preferredLocation": "panel",
                 "[dockerfile]": {
                   "editor.defaultFormatter": "ms-azuretools.vscode-docker"
                 },
