@@ -99,6 +99,8 @@
   };
 
   home-manager.users.${config.my.mainUser.name} = {
+    nixpkgs.config.allowUnfree = true;
+
     imports = with modules.homeModules; [
       atuin
       claude
@@ -205,9 +207,12 @@
     };
   };
 
+  nixpkgs.config.allowUnfree = true;
+
   environment.systemPackages = with pkgs; [
     eza
     ghostty
+    ollama-rocm
   ];
 
   system.stateVersion = "25.11";

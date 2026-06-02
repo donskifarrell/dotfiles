@@ -44,6 +44,7 @@
         unzip = pkgs.unzip;
         wget = pkgs.wget;
         wl-clipboard = pkgs.wl-clipboard;
+        busybox = pkgs.busybox;
 
         # Dev
         android-tools = pkgs.android-tools;

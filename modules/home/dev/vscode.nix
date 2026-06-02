@@ -1,4 +1,3 @@
-{ inputs, ... }:
 {
   config.flake.homeModules.vscode =
     {
@@ -7,8 +6,7 @@
       ...
     }:
     let
-      vscode-marketplace =
-        inputs.nix-vscode-extensions.extensions.${pkgs.stdenv.hostPlatform.system}.vscode-marketplace;
+      vscode-marketplace = pkgs.nix-vscode-extensions.vscode-marketplace;
     in
     {
       config = {
@@ -52,8 +50,6 @@
               streetsidesoftware.code-spell-checker
               tamasfe.even-better-toml
               waderyan.gitblame
-
-              # AllowUnfree hack
               (anthropic.claude-code.override { meta.license = [ ]; })
               (ms-windows-ai-studio.windows-ai-studio.override { meta.license = [ ]; })
               # ms-vscode-remote.remote-ssh

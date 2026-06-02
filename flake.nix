@@ -104,10 +104,13 @@
               # 4. clan machines install <machine> --target-host root@192.168.122.217
               #
 
-              # eachtrach = {
-              #   deploy.targetHost = "root@91.99.168.74";
-              #   tags = [ "server" "tailscale-exit"];
-              # };
+              eachtrach = {
+                deploy.targetHost = "root@91.99.168.74";
+                tags = [
+                  "server"
+                  "tailscale-exit"
+                ];
+              };
 
               short = {
                 deploy.targetHost = "root@192.168.122.217";
@@ -118,7 +121,7 @@
               };
 
               abhaile = {
-                deploy.targetHost = "root@192.168.178.26";
+                deploy.targetHost = "root@192.168.178.28";
                 tags = [
                   "abhaile"
                   "tailscale"

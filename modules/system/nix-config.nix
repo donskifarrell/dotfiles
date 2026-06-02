@@ -1,3 +1,4 @@
+{ inputs, ... }:
 {
   config.flake.nixosModules.nix-config =
     {
@@ -9,6 +10,10 @@
     {
       config = {
         nixpkgs.config.allowUnfree = true;
+
+        nixpkgs.overlays = [
+          inputs.nix-vscode-extensions.overlays.default
+        ];
 
         nix = {
           settings = {
@@ -26,6 +31,9 @@
               "root"
               config.my.mainUser.name
             ];
+
+            # Allow sandbox to access systemd-resolved for DNS
+            # extra-sandbox-paths = [ "/run/systemd/resolve" ];
           };
 
           optimise.automatic = if pkgs.stdenv.isLinux then true else false;
