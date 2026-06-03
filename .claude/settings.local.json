@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:flake.parts)"
+      "WebFetch(domain:flake.parts)",
+      "Bash(echo \"=== flake.nix 280-345 ===\" && sed -n '280,345p' flake.nix && echo \"=== machines/abhaile ===\" && ls machines/abhaile/ && echo \"=== nested virt? ===\" && grep -rn \"nested\\\\|kvm\" /etc/modprobe.d/ 2>/dev/null | head; echo \"=== short config head ===\" && sed -n '1,40p' machines/short/configuration.nix 2>/dev/null)",
+      "Read(//etc/modprobe.d/**)",
+      "WebFetch(domain:den.denful.dev)"
     ]
   }
 }

@@ -12,12 +12,19 @@
 > **Golden rules**
 >
 > - Work on a `den` branch. `main` stays deployable the whole time.
+> - **VM-first; abhaile last.** `abhaile` is your daily driver — it is the _last_ thing you
+>   touch. Prove every role in a VM before flipping the real host: server/dev roles on `short`,
+>   the **microvm-host + dev-guest stack on `short` with nested KVM**, and the desktop role in a
+>   throwaway desktop-class VM via `nixos-rebuild build-vm`. Only refactor the real abhaile once
+>   the Den config is stable in VMs.
 > - Den is _additive_ — it coexists with your current `import-tree ./modules`. Migrate
 >   aspect-by-aspect; never delete the old path until its replacement builds.
 > - After every change: `nix flake check` must stay green before you commit.
-> - Nix snippets below are **skeletons**. Den is pre-1.0 and evolving — verify exact
->   option names against `nix flake init -t github:denful/den#microvm` and the live docs
->   when you implement each step.
+> - Nix snippets below are **skeletons**. The **core API is verified** against den.denful.dev
+>   (`den.aspects.*`, `den.hosts.<sys>.<name>.intoAttr`, `.microvm.guests`, `den.schema.host`
+>   options all match). Den is still pre-1.0, so verify the **unconfirmed bits** — virtiofs share
+>   syntax (docs only pin `microvm.sharedNixStore`) and the agenix wiring — against
+>   `nix flake init -t github:denful/den#microvm` and the live docs as you implement them.
 > - Den documentation is found at https://den.denful.dev but the github repos at github:denful/den will be useful too.
 
 ---
@@ -28,7 +35,7 @@
 | -------------------- | -------------------------- | ----------------- | ------------------------------- | ------------------------------------------------- |
 | **abhaile**          | Desktop: browse, game, GPU | `nixos`           | **Yes** (MicroVM host)          | Local guests on bridge + tailnet                  |
 | **eachtrach**        | VPS: hosts public sites    | `nixos`           | Yes (or runs services directly) | Staging target + remote dev guest                 |
-| **iompar**           | M1 MacBook Pro             | `darwin`          | **No** (can't host KVM)         | Remote IDE into abhaile/VPS guests over Tailscale |
+| **iompar** _(future)_ | M1 MacBook Pro            | `darwin`          | **No** (can't host KVM)         | Remote IDE into abhaile/VPS guests over Tailscale |
 | **short** + QEMU VMs | Throwaway test targets     | `nixos`           | n/a                             | Validation harness                                |
 | **dev guests**       | Per-project dev sandboxes  | `nixos` (MicroVM) | n/a                             | git + go/ts + claude-code + `/shared` only        |
 
@@ -89,10 +96,25 @@ class blocks. Host-specific leftovers stay in a thin per-host aspect (`abhaile`,
 
 ## Phase 0 — Groundwork & safety nets
 
+- [ ] **0.0 Den API spike (hard gate)**
+  - _Goal:_ confirm the Den option surface this plan assumes _before_ building on it. The core
+    paths are already verified against den.denful.dev (`den.aspects.*` with
+    `includes`/`nixos`/`homeManager`/`darwin`; `den.hosts.<sys>.<name>.intoAttr = []`;
+    `den.hosts.<sys>.<host>.microvm.guests`; `den.schema.host` option extension). The **unverified**
+    bits are the ones the docs don't pin down — confirm these in a scratch flake.
+  - _Sub-steps:_ `nix flake init -t github:denful/den#microvm` in a throwaway dir. Confirm: (a) the
+    exact **virtiofs share** syntax (docs only document `microvm.sharedNixStore`); (b) how an aspect's
+    `microvm.shares` / `microvm.interfaces` get forwarded to the host's guest runner; (c) the agenix
+    schema-extension shape used in 2.3. Note any naming drift against the skeletons below.
+  - _Test:_ the template's own `nix flake check` is green, and you can name the real options for
+    shares + interfaces.
+  - _Done when:_ the unverified option paths are confirmed (or the skeletons are corrected to match).
+
 - [ ] **0.1 Branch + task runner**
   - _Goal:_ safe workspace + memorable commands.
-  - _Sub-steps:_ `git switch -c den`. Add a `justfile` (or keep using `dev.sh`) with targets:
-    `check` (`nix flake check`), `fmt` (treefmt), `build-abhaile`, `deploy-short`, `test`.
+  - _Sub-steps:_ `git switch -c den`. Create a `justfile` (note: no `dev.sh` exists in the repo
+    today) with targets: `check` (`nix flake check`), `fmt` (treefmt), `build-abhaile`,
+    `deploy-short`, `test`. Drop the `dev.sh` references elsewhere in this plan in favour of `just`.
   - _Test:_ `just check` runs your existing checks.
   - _Done when:_ `den` branch exists and `just check` is green.
 
@@ -139,7 +161,9 @@ class blocks. Host-specific leftovers stay in a thin per-host aspect (`abhaile`,
 
 - [ ] **2.1 `core` aspect** (nix settings, locale, base pkgs, shell) — migrate, build all hosts.
 - [ ] **2.2 `security` aspect** (ssh, sudo, sops, 1Password).
-- [ ] **2.3 Secrets split (clan vars + agenix-rekey)**
+- [ ] **2.3 Secrets split (clan vars + agenix-rekey)** — _parallel / optional; not on the
+      dev-guest critical path. This is a large, orthogonal migration: do it alongside the other
+      work, but don't let it block reaching a bootable dev guest (Phase 4)._
   - _Goal:_ move hand-authored shared secrets out of ad-hoc sops-nix into agenix-rekey, while
     clan vars keeps machine-bound generated secrets. They coexist: sops-nix decrypts to
     `/run/secrets`, agenix to `/run/agenix`; the only shared resource is each host's age
@@ -199,17 +223,32 @@ class blocks. Host-specific leftovers stay in a thin per-host aspect (`abhaile`,
   - _Test (each):_ affected hosts build identically or with only the intended diff.
   - _Phase done when:_ `short` is fully Den-composed and the old per-host module is empty.
 
-## Phase 3 — Refactor abhaile (desktop) to Den
+## Phase 3 — Build the desktop role (validate in a VM, don't flip abhaile yet)
+
+> **VM-first:** this phase _composes_ the desktop role and proves it in a throwaway
+> desktop-class VM (`nixos-rebuild build-vm`). The real abhaile is **not** switched here — that
+> happens in **6.6**, after both the desktop role _and_ the microvm/dev-guest stack are green in
+> VMs. GPU passthrough and gaming can only be fully exercised on real hardware; in the VM you're
+> validating that the role _evaluates and boots_ under software/virtio-gpu rendering.
 
 - [ ] **3.1 `desktop` + `gpu` + `gaming` aspects** — migrate abhaile's DE, GPU, Steam, etc.
 - [ ] **3.2 Thin `abhaile` host aspect** for the genuinely host-specific bits (hardware-config,
       disk, hostId).
 - [ ] **3.3 Compose `role-desktop-abhaile`** = role-workstation + gpu + gaming.
-  - _Test:_ `nixos-rebuild build --flake .#abhaile`; closure diff vs. baseline is only
-    refactor noise. **Boot it** (you can also `nixos-rebuild build-vm` first for safety).
-  - _Done when:_ abhaile runs entirely from Den aspects; old desktop modules removed.
+  - _Sub-steps:_ also declare a desktop-class test host (e.g. `abhaile-vm`) that includes the same
+    role minus the bare-metal bits (real GPU passthrough, facter hardware) so it can run under QEMU.
+  - _Test:_ `nixos-rebuild build --flake .#abhaile` — closure diff vs. baseline is only refactor
+    noise (build only, **do not switch**). Then `nixos-rebuild build-vm --flake .#abhaile-vm` and
+    **boot the VM**: DE comes up, login works, dev-tools present.
+  - _Done when:_ the desktop role builds for abhaile and boots cleanly in the VM. (The real abhaile
+    switch is deferred to **6.6**.)
 
-## Phase 4 — MicroVM host + first dev guest
+## Phase 4 — MicroVM host + first dev guest (proven on `short`, not abhaile)
+
+> **VM-first:** the entire microvm-host + dev-guest stack is validated on **`short` with nested
+> KVM enabled** — abhaile is not made a microvm host until **6.6**. This is the heart of the
+> "iterate in a VM until the Den config is stable" goal: you can build, boot, break, and rebuild
+> the guest pattern on a throwaway target without ever risking your daily driver.
 
 - [ ] **4.1 Pull in the MicroVM template pattern**
   - _Goal:_ Den's microvm schema + policies in your repo.
@@ -219,28 +258,34 @@ class blocks. Host-specific leftovers stay in a thin per-host aspect (`abhaile`,
   - _Test:_ `nix flake check` green; the new policies evaluate.
   - _Done when:_ Den knows about `host.microvm.guests`.
 
-- [ ] **4.2 Make abhaile a MicroVM host**
-  - _Sub-steps:_ add `microvm-host` to `role-desktop-abhaile`. Set up a host **bridge**
-    (e.g. `br0`) so guests get LAN-routable IPs the desktop can reach.
+- [ ] **4.2 Make `short` a MicroVM host (nested KVM)**
+  - _Sub-steps:_ enable **nested virtualization** so a QEMU guest (`short`) can itself run KVM
+    guests — set `boot.extraModprobeConfig = "options kvm_intel nested=1";` (or `kvm_amd`) on the
+    QEMU _host_ (abhaile), and confirm `cat /sys/module/kvm_intel/parameters/nested` reads `Y`.
+    Write a reusable `microvm-host` aspect and include it on `short`'s role; set up a host
+    **bridge** (e.g. `br0`) so guests get routable IPs.
     ```nix
     den.aspects.microvm-host.nixos = {
       microvm.host.enable = true;
-      # bridge so guest taps are reachable from abhaile (and routable)
+      # bridge so guest taps are reachable from the host (and routable)
       networking.bridges.br0.interfaces = [];
       networking.firewall.trustedInterfaces = [ "br0" ];
     };
     ```
-  - _Test:_ abhaile builds + boots with `microvm.host.enable`; `systemctl status microvm.target`.
-  - _Done when:_ abhaile is a working host with no guests yet.
+  - _Test:_ `clan machines update short`; `systemctl status microvm.target` is active inside
+    `short`; `kvm-ok`/`/dev/kvm` present in the guest.
+  - _Done when:_ `short` is a working microvm host with no guests yet. (abhaile gets this aspect in
+    **6.6**, reusing the exact same module.)
 
 - [ ] **4.3 Define `role-dev-guest` + first guest `dev`**
   - _Goal:_ a bootable dev sandbox with restricted sharing.
-  - _Sub-steps:_ declare a guest Den host and attach it to abhaile. Skeleton:
+  - _Sub-steps:_ declare a guest Den host and attach it to **`short`** (the VM host — abhaile is
+    re-targeted here only in 6.6). Skeleton:
 
     ```nix
     # the guest is a normal Den host; all aspects work inside it
     den.hosts.x86_64-linux.dev.intoAttr = [];
-    den.hosts.x86_64-linux.abhaile.microvm.guests = [
+    den.hosts.x86_64-linux.short.microvm.guests = [
       den.hosts.x86_64-linux.dev
     ];
 
@@ -270,11 +315,11 @@ class blocks. Host-specific leftovers stay in a thin per-host aspect (`abhaile`,
     `ls /home/df` on the host is **not** visible.
   - _Done when:_ the `dev` guest boots, SSH works, `/shared` is the only host window in.
 
-- [ ] **4.4 Services reachable from the desktop**
+- [ ] **4.4 Services reachable from the host network**
   - _Sub-steps:_ run a test service in the guest (e.g. `python -m http.server 8080`). Confirm
-    `curl http://<guest-ip>:8080` from abhaile, and from a browser. If using Tailscale in the
-    guest, confirm reachability by tailnet name from iompar too.
-  - _Done when:_ a guest service is reachable from desktop terminal + browser (+ tailnet).
+    `curl http://<guest-ip>:8080` from `short` and from abhaile over the bridge/LAN. If using
+    Tailscale in the guest, confirm reachability by tailnet name from another node too.
+  - _Done when:_ a guest service is reachable from the host + LAN/browser (+ tailnet).
 
 - [ ] **4.5 Provider-agnostic secret injection (host-side)**
   - _Goal:_ feed dev-time secrets (GH token, model API key, Claude Code auth) into the guest at
@@ -305,6 +350,10 @@ class blocks. Host-specific leftovers stay in a thin per-host aspect (`abhaile`,
     behind one replaceable host script.
 
 ## Phase 5 — Dev workflow polish
+
+> During validation the `dev` guest lives on **`short`**, so the IDE/SSH targets point at the
+> short-hosted guest (over the bridge or tailnet). After **6.6** the same guest moves to abhaile
+> and these scripts/`~/.ssh/config` entries keep working unchanged — only the guest's host moves.
 
 - [ ] **5.1 One-command spin-up/connect**
   - _Goal:_ `devvm dev` (or `just dev`) ensures the guest is up and drops you in.
@@ -381,6 +430,22 @@ class blocks. Host-specific leftovers stay in a thin per-host aspect (`abhaile`,
   - _Sub-steps:_ GitHub Actions (or clan's test runner) on PR: `nix flake check` (treefmt +
     builds + nixosTests). Optionally a gated deploy-to-`short` job.
   - _Done when:_ PRs are gated on the harness.
+
+- [ ] **6.6 Flip the real abhaile (the daily driver) — VM-validated gate**
+  - _Goal:_ now that the desktop role boots in a VM (3.3) **and** the microvm-host + dev-guest
+    stack is proven on `short` (Phase 4) and covered by nixosTests (6.2), switch the real abhaile
+    onto Den in one deliberate step. This is the _only_ point where the daily driver changes.
+  - _Pre-flight (all must be green):_ 3.3 desktop VM boots; 4.x dev-guest works on `short`; 6.1/6.2
+    checks pass; nested KVM confirmed on abhaile (`/sys/module/kvm_intel/parameters/nested` = `Y`).
+  - _Sub-steps:_ compose `role-desktop-abhaile` = role-workstation + gpu + gaming + **microvm-host**
+    (the same aspect proven on `short`). Attach the `dev` guest to abhaile (move the `microvm.guests`
+    line from `short` to `abhaile`, or include both). `nixos-rebuild build --flake .#abhaile` and
+    closure-diff vs. baseline first; keep the current generation pinned in the bootloader for
+    rollback.
+  - _Test:_ `nh os switch .#abhaile`; DE + GPU + gaming work on real hardware, `microvm.target`
+    active, `systemctl start microvm@dev` + `ssh dev` works, `/shared` is the only host window in.
+  - _Done when:_ abhaile runs entirely from Den aspects, hosts the dev guest, and old desktop
+    modules are removed. Roll back via the pinned generation if anything regresses.
 
 ## Phase 7 — Extend to the fleet (clan.lol + Darwin)
 
