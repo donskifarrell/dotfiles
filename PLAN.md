@@ -27,17 +27,25 @@
 >   `nix flake init -t github:denful/den#microvm` and the live docs as you implement them.
 > - Den documentation is found at https://den.denful.dev but the github repos at github:denful/den will be useful too.
 
+> **Current focus (start here).** Don't try to land the whole architecture at once. The first
+> deliverable is **one machine (`short`) with one user (`df`)** composed from a _minimal_ set of
+> Den aspects (core + a thin `role-server`), booting and deployable via clan. Everything below —
+> multi-user, microvm guests, the desktop role, the fleet — is **iteration from that spine**. The
+> reference for _how to organise the files_ is **`sini-nix`** (see "Repository layout" below); copy
+> its layout and conventions, but **not** its fleet-scale machinery (environments, clusters,
+> access-group ACLs, kubernetes) until you actually need more than one host/user.
+
 ---
 
 ## Target architecture (the end state)
 
-| Host                 | Role                       | Class             | Hosts dev VMs?                  | Dev story                                         |
-| -------------------- | -------------------------- | ----------------- | ------------------------------- | ------------------------------------------------- |
-| **abhaile**          | Desktop: browse, game, GPU | `nixos`           | **Yes** (MicroVM host)          | Local guests on bridge + tailnet                  |
-| **eachtrach**        | VPS: hosts public sites    | `nixos`           | Yes (or runs services directly) | Staging target + remote dev guest                 |
-| **iompar** _(future)_ | M1 MacBook Pro            | `darwin`          | **No** (can't host KVM)         | Remote IDE into abhaile/VPS guests over Tailscale |
-| **short** + QEMU VMs | Throwaway test targets     | `nixos`           | n/a                             | Validation harness                                |
-| **dev guests**       | Per-project dev sandboxes  | `nixos` (MicroVM) | n/a                             | git + go/ts + claude-code + `/shared` only        |
+| Host                  | Role                       | Class             | Hosts dev VMs?                  | Dev story                                         |
+| --------------------- | -------------------------- | ----------------- | ------------------------------- | ------------------------------------------------- |
+| **abhaile**           | Desktop: browse, game, GPU | `nixos`           | **Yes** (MicroVM host)          | Local guests on bridge + tailnet                  |
+| **eachtrach**         | VPS: hosts public sites    | `nixos`           | Yes (or runs services directly) | Staging target + remote dev guest                 |
+| **iompar** _(future)_ | M1 MacBook Pro             | `darwin`          | **No** (can't host KVM)         | Remote IDE into abhaile/VPS guests over Tailscale |
+| **short** + QEMU VMs  | Throwaway test targets     | `nixos`           | n/a                             | Validation harness                                |
+| **dev guests**        | Per-project dev sandboxes  | `nixos` (MicroVM) | n/a                             | git + go/ts + claude-code + `/shared` only        |
 
 **Key decisions**
 
@@ -94,6 +102,96 @@ class blocks. Host-specific leftovers stay in a thin per-host aspect (`abhaile`,
 
 ---
 
+## Repository layout (modeled on sini-nix)
+
+`sini-nix` (`/home/df/dev/sini-nix`) is the prime example of organising many
+machines with Den. Adopt its layout under a single `modules/den/` tree, auto-imported by your
+existing `import-tree ./modules`. Each file is a flake-parts module contributing to `den.*`.
+
+```
+modules/den/
+  aspects/            # the building blocks, grouped by concern
+    core/             #   one leaf file per feature: core/localization/i18n.nix, core/utils.nix …
+    desktop/  apps/  services/  hardware/  virtualization/  secrets/
+    roles/            # roles ARE aspects that `includes` other aspects: roles/server.nix …
+  hosts/<name>.nix    # one file per host (short.nix) — host data + the host's aspect/includes
+  users/<name>.nix    # one file per user (df.nix) — user aspect + registry (identity, uid, groups)
+  schema/             # schema extensions (host.nix, user.nix) — add custom typed options here
+  policies/           # host↔user resolution wiring (FLEET-SCALE — mostly skip for short+df)
+  defaults.nix        # default host/user includes + which batteries every host gets
+```
+
+**Conventions to copy (verbatim patterns from sini-nix):**
+
+- **Leaf aspect** = `den.aspects.<cat>.<name> = { nixos = {…}; homeManager = {…}; };`. Use the
+  `os` class for config shared by nixos+darwin, `nixos` for Linux-only. Example:
+  ```nix
+  # modules/den/aspects/core/localization/i18n.nix
+  { lib, ... }: {
+    den.aspects.core.localization.i18n.nixos = _: {
+      i18n.defaultLocale = "en_US.UTF-8";
+      console.keyMap = "us";
+    };
+  }
+  ```
+- **Role aspect** = an aspect whose only job is to `includes` other aspects:
+  ```nix
+  # modules/den/aspects/roles/server.nix
+  { den, ... }: {
+    den.aspects.roles.server.includes = with den.aspects; [
+      core.nix core.systemd.boot core.localization.i18n core.users core.security.openssh
+      core.security.sudo core.network.networking secrets.agenix
+      services.networking.tailscale
+    ];
+  }
+  ```
+- **Host file** = host data under `den.hosts.<sys>.<name>` + the host's composed aspect under
+  `den.aspects.<name>` (its `includes` list; optional per-user sub-attrs add HM aspects scoped to
+  that user on that host):
+  ```nix
+  # modules/den/hosts/short.nix
+  { den, ... }: {
+    den.hosts.x86_64-linux.short = {
+      system-owner = "df";                 # binds df as the host's primary user
+      # environment / settings / networking … (minimal for now)
+    };
+    den.aspects.short.includes = with den.aspects; [ roles.server ];
+  }
+  ```
+- **User file** = user aspect + `den.users.registry.<name>` (identity, uid, groups, sshKeys):
+  ```nix
+  # modules/den/users/df.nix
+  { den, ... }: {
+    den.aspects.df.includes = [ den.batteries.host-aspects ];
+    den.users.registry.df = {
+      system.uid = 1000;
+      groups = [ "wheel" ];
+      identity = {
+        displayName = "Donal Farrell";
+        email = "donal@donalfarrell.com";
+        sshKeys = [ { tag = "primary"; key = "ssh-ed25519 AAAA…"; } ];
+      };
+    };
+  }
+  ```
+
+**What to borrow vs. skip (for the short + df MVP):**
+
+| sini-nix piece                                                            | short + df now?                                                                                |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `aspects/` (core, roles, …) layout + leaf/role/host/user file conventions | **Borrow**                                                                                     |
+| `hosts/<name>.nix`, `users/<name>.nix` one-file-each                      | **Borrow**                                                                                     |
+| `schema/host.nix` for the odd custom option (e.g. `sshHostPubkey` in 2.3) | Borrow _as needed_                                                                             |
+| `policies/` fleet/env/access-group resolution (`fleet.nix`, `users.nix`)  | **Skip** — rely on Den's built-in `host-to-users` + `system-owner`/`primary-user` for one user |
+| `clusters/`, `environments/`, `groups/`, `kubernetes/`, `quirks/`         | **Skip** until multi-host                                                                      |
+| Per-user-per-host aspect auto-include (`den.aspects.<host>.<user>`)       | Skip until >1 user shares a host                                                               |
+
+> Verify the exact `system-owner`/`primary-user` binding and the `den.batteries.host-aspects`
+> name against sini-nix + the 0.0 spike before relying on them — sini pins a specific Den branch
+> (`github:sini/den/feat/…`), so option names there may lead the `denful/den` release you track.
+
+---
+
 ## Phase 0 — Groundwork & safety nets
 
 - [ ] **0.0 Den API spike (hard gate)**
@@ -110,7 +208,7 @@ class blocks. Host-specific leftovers stay in a thin per-host aspect (`abhaile`,
     shares + interfaces.
   - _Done when:_ the unverified option paths are confirmed (or the skeletons are corrected to match).
 
-- [ ] **0.1 Branch + task runner**
+- [x] **0.1 Branch + task runner**
   - _Goal:_ safe workspace + memorable commands.
   - _Sub-steps:_ `git switch -c den`. Create a `justfile` (note: no `dev.sh` exists in the repo
     today) with targets: `check` (`nix flake check`), `fmt` (treefmt), `build-abhaile`,
@@ -118,14 +216,14 @@ class blocks. Host-specific leftovers stay in a thin per-host aspect (`abhaile`,
   - _Test:_ `just check` runs your existing checks.
   - _Done when:_ `den` branch exists and `just check` is green.
 
-- [ ] **0.2 Fast test target**
+- [X ] **0.2 Fast test target**
   - _Goal:_ a throwaway VM you can rebuild/deploy in seconds for validation.
-  - _Sub-steps:_ confirm `short` (192.168.122.218) boots and `clan machines update short`
+  - _Sub-steps:_ confirm `short` (192.168.122.217) boots and `clan machines update short`
     works. This is your integration target for the whole project.
   - _Test:_ `clan machines update short` succeeds; you can `ssh mise@short`.
   - _Done when:_ you can deploy to `short` on demand.
 
-- [ ] **0.3 Snapshot current state**
+- [X ] **0.3 Snapshot current state**
   - _Goal:_ a known-good baseline to diff against.
   - _Sub-steps:_ `nix flake check` green on `main`; record `nixosConfigurations` list and
     the `flake.lock` hash in the Progress Log.
@@ -143,21 +241,43 @@ class blocks. Host-specific leftovers stay in a thin per-host aspect (`abhaile`,
 - [ ] **1.2 Prove the pipeline with one trivial aspect**
   - _Goal:_ confirm Den → nixosConfiguration works end to end.
   - _Sub-steps:_ pick something harmless (e.g. fonts, or a shell alias). Express it as a Den
-    aspect and include it on `short` only. Skeleton:
+    aspect (using the sini-nix layout) and include it on `short` only. Skeleton:
     ```nix
-    # modules/aspects/fonts.nix  (flake-parts module; Den reads den.aspects.*)
+    # modules/den/aspects/desktop/fonts.nix  (flake-parts module; Den reads den.aspects.*)
     { ... }: {
-      den.aspects.fonts.nixos.fonts.packages = [ /* ... */ ];
+      den.aspects.desktop.fonts.nixos.fonts.packages = [ /* ... */ ];
     }
     ```
   - _Test:_ `nixos-rebuild build --flake .#short`; diff the closure — only fonts changed.
     Then `clan machines update short` and verify on the box.
   - _Done when:_ a Den-defined aspect is live on `short`.
 
-## Phase 2 — Carve config into aspects
+- [ ] **1.3 MVP: `short` + `df` fully composed from minimal Den (the spine)**
+  - _Goal:_ the **current-focus deliverable** — `short` boots and deploys entirely from a minimal
+    Den composition, with `df` as its single user. Everything after this is iteration.
+  - _Sub-steps (follow the "Repository layout" conventions):_
+    1. Create `modules/den/users/df.nix` — `den.users.registry.df` (uid, `wheel`, identity,
+       ssh key) + `den.aspects.df.includes = [ den.batteries.host-aspects ]`.
+    2. Create just enough leaf aspects under `modules/den/aspects/core/` to boot a server (nix
+       settings, locale, openssh, sudo, users, networking) — port them from your existing
+       `modules/system/*` one concern at a time.
+    3. Create `modules/den/aspects/roles/server.nix` that `includes` those core aspects.
+    4. Create `modules/den/hosts/short.nix` — `den.hosts.x86_64-linux.short` with
+       `system-owner = "df"`, and `den.aspects.short.includes = [ roles.server ]`.
+    5. Rely on Den's built-in host→user resolution (`system-owner`/`primary-user`) — **do not**
+       copy sini's `policies/` fleet machinery for one user.
+  - _Test:_ `nixos-rebuild build --flake .#short` builds; closure diff vs. the legacy `short` is
+    only intended changes. `clan machines update short`; `ssh df@short` works; `id df` shows the
+    expected groups; `nix flake check` green.
+  - _Done when:_ `short` is composed from Den aspects with `df` as user, deployable via clan, and
+    the old per-host `machines/short` module is reduced to the irreducible host bits.
+
+## Phase 2 — Carve config into aspects (iterate from the MVP)
 
 > Do this incrementally. One concern per sitting. After each, build the affected hosts and
-> keep `nix flake check` green. Use the taxonomy table above as the checklist.
+> keep `nix flake check` green. Use the taxonomy table above as the checklist. Each new concern
+> is a new leaf file under `modules/den/aspects/<cat>/` that a role `includes` — same pattern as
+> the 1.3 MVP, just more aspects.
 
 - [ ] **2.1 `core` aspect** (nix settings, locale, base pkgs, shell) — migrate, build all hosts.
 - [ ] **2.2 `security` aspect** (ssh, sudo, sops, 1Password).

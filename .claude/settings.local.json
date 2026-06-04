@@ -5,7 +5,14 @@
       "WebFetch(domain:flake.parts)",
       "Bash(echo \"=== flake.nix 280-345 ===\" && sed -n '280,345p' flake.nix && echo \"=== machines/abhaile ===\" && ls machines/abhaile/ && echo \"=== nested virt? ===\" && grep -rn \"nested\\\\|kvm\" /etc/modprobe.d/ 2>/dev/null | head; echo \"=== short config head ===\" && sed -n '1,40p' machines/short/configuration.nix 2>/dev/null)",
       "Read(//etc/modprobe.d/**)",
-      "WebFetch(domain:den.denful.dev)"
+      "WebFetch(domain:den.denful.dev)",
+      "Bash(cd /home/df/dev/sini-nix && echo \"=== top level ===\" && ls -A && echo && echo \"=== tree \\(depth 3, dirs\\) ===\" && find . -maxdepth 3 -type d -not -path '*/.git*' | sort && echo && echo \"=== flake.nix ===\" && cat flake.nix 2>/dev/null | head -120)",
+      "Read(//home/df/dev/sini-nix/**)",
+      "Bash(sed -n '1,80p' modules/den/schema/host.nix)",
+      "Bash(sed -n '1,70p' modules/den/schema/user.nix)",
+      "Bash(timeout 120 nix flake show github:denful/den)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(nix flake *)"
     ]
   }
 }
