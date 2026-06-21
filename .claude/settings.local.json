@@ -12,7 +12,17 @@
       "Bash(sed -n '1,70p' modules/den/schema/user.nix)",
       "Bash(timeout 120 nix flake show github:denful/den)",
       "Bash(echo \"EXIT: $?\")",
-      "Bash(nix flake *)"
+      "Bash(nix flake *)",
+      "Bash(grep -E \"scratchpad/\\(flake|README|modules/den/[^/]+$\\)\")",
+      "Bash(virsh list *)",
+      "Bash(virsh net-dhcp-leases *)",
+      "Bash(virsh domifaddr *)",
+      "Bash(nix --version)",
+      "Bash(nix config *)",
+      "Bash(nix-instantiate --eval -E '1')",
+      "Bash(nix --extra-experimental-features 'pipe-operators' eval --expr '1 |> \\(x: x + 1\\)')",
+      "Bash(nix --extra-experimental-features 'pipe-operator' eval --expr '1')",
+      "Bash(chmod +x vm-deploy.sh)"
     ]
   }
 }

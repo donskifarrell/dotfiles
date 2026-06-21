@@ -13,14 +13,20 @@ modules/den/
                                    define-user); enables home-manager for all users
   aspects/core/
     nix.nix                        nix settings, gc, trusted-users   (← modules/system/nix-config.nix)
-    i18n.nix                       en_GB locale + timezone + keymap   (← i18n.nix / keyboard.nix)
-    openssh.nix                    sshd + ssh-agent                   (← openssh.nix)
-    networking.nix                 NetworkManager                     (← networking.nix)
+    locale.nix                     en_GB locale + timezone + keymap   (← i18n.nix / keyboard.nix)
     shell.nix                      fish system-wide
+    fonts.nix                      system font packages               (← fonts.nix)
     facter.nix                     imports nixos-facter-modules       (reusable)
+    boot/bootlabel.nix             timestamped generation labels      (← bootlabel.nix)
+  aspects/networking/
+    networkmanager.nix             NetworkManager                     (← networking.nix)
+    openssh.nix                    sshd + ssh-agent                   (← openssh.nix)
+    avahi.nix                      mDNS / .local discovery            (← avahi.nix)
+  aspects/storage/
     disko.nix                      imports disko module               (reusable)
+    udisks2.nix                    removable-media automount          (← udisks2.nix)
   aspects/roles/
-    server.nix                     role-server = includes the core.* aspects
+    server.nix                     role-server = includes the core/networking aspects
   hosts/short.nix                  den.hosts.…short.users.df + den.aspects.short (role +
                                    hardware aspects + facter report path + disk layout)
   hosts/short.facter.json          hardware report (← machines/short/facter.json; .json so
@@ -110,19 +116,21 @@ activates nothing on its own — a **role** (or host) `includes` the leaves it w
 
 | Role          | Includes                                                                                              | Wired to a host?                |
 | ------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------- |
-| `server`      | `core.{nix,i18n,openssh,networking,shell,vm-login}`                                                    | **Yes** — `short`               |
+| `server`      | `core.{nix,locale,shell,vm-login}` + `networking.{networkmanager,openssh}`                             | **Yes** — `short`               |
 | `workstation` | server-ish base + shell/dev/cli home apps (fish, ghostty, git, neovim, ssh, direnv, cli, xdg, packages) | No (building block)             |
 | `desktop`     | `workstation` + GNOME, AMD cpu/gpu, sound, bluetooth, printing, libvirt, gaming, vscode/claude, productivity apps, package toggles | No — abhaile target (plan 6.6) |
 
-### Concern leaves
+### Concern leaves (flat, sini-style categories)
 
-- **`core/`** — `nix`, `i18n`, `openssh`, `networking`, `shell`, `nh`, `bootlabel`, `facter`, `disko`, `vm-login`
-- **`desktop/`** — `gnome`, `cosmic`, `fonts`, `keyboard` (xkb), `sound`, `printing`, `touchpad`, `flatpak`, `appimage`, `udisks2`
-- **`hardware/`** — `cpu/amd`, `gpu/amd`, `bluetooth`, `ledger`, `tweaks`
+- **`core/`** — `nix`, `locale`, `shell`, `nh`, `fonts`, `facter`, `vm-login`, `boot/bootlabel`
+- **`networking/`** — `networkmanager`, `openssh` (sshd), `avahi`
+- **`storage/`** — `disko`, `udisks2`
 - **`security/`** — `opensnitch`
-- **`services/`** — `web/caddy`, `networking/avahi`, `storage/paperless`
+- **`hardware/`** — `cpu/amd`, `gpu/amd`, `bluetooth`, `ledger`, `tweaks`
+- **`desktop/`** — `gnome`, `cosmic`, `keyboard` (xkb), `sound`, `printing`, `touchpad`, `flatpak`, `appimage`
+- **`services/`** — `web/caddy`, `storage/paperless`
 - **`virtualization/`** — `libvirt`
-- **`apps/`** (home-manager) — `shell/{fish,atuin,eza,starship,yazi,zellij,zoxide}`, `terminals/ghostty`,
+- **`apps/`** (home-manager) — `shell/{fish,atuin,eza,starship,yazi,zellij,zoxide,fastfetch}`, `terminals/ghostty`,
   `dev/{git,direnv,distrobox,neovim,ssh,vscode,claude}`, `gaming/{steam,alvr}`, `productivity/apps`,
   `desktop/tray`, `cli`, `xdg`, `packages`
 
