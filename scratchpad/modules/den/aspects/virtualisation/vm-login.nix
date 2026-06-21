@@ -28,11 +28,11 @@
       # it room and a virtio GPU with host GL passthrough (virgl) so Shell is
       # hardware-accelerated. Tune cores/memorySize to your host.
       virtualisation.cores = 4;
-      virtualisation.memorySize = 4096; # MiB
+      virtualisation.memorySize = 8192; # MiB
       # Build-vm writes copied closures into a writable overlay on short.qcow2;
       # the ~1 GiB default fills instantly on a GNOME push. qcow2 is sparse, so
       # this cap is virtually free until used. Changing it needs a fresh qcow2.
-      virtualisation.diskSize = 32768; # MiB (32 GiB)
+      virtualisation.diskSize = 65536; # MiB (64 GiB)
       virtualisation.qemu.options = [
         "-vga none" # drop the default emulated std VGA…
         "-device virtio-vga-gl" # …use a virgl-capable virtio GPU instead

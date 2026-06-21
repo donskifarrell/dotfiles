@@ -13,12 +13,10 @@
       core.nix.nixpkgs
       core.security
       core.shell
+      core.shell.utils
       core.stateVersion
       core.systemd
       core.systemd.boot
-
-      # shell.fish
-      # shell.utils.core
     ];
   };
 }

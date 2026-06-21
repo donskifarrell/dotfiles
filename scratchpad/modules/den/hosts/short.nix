@@ -13,19 +13,25 @@ in
   den.aspects.short = {
     includes = with den.aspects; [
       # Hardware
+      hardware.cpu.amd
       hardware.facter
       hardware.firmware
-      hardware.cpu.amd
       hardware.gpu.amd
+      hardware.keyboard
+      hardware.printing
       hardware.storage.disko
       hardware.storage.ssd
+      hardware.touchpad
       hardware.tweaks
 
       roles.default
       roles.desktop
-      apps.shell.zoxide
-      apps.shell.eza
-      apps.dev.shell.bat
+      roles.dev
+
+      # apps.shell.zoxide
+      # apps.shell.eza
+      # apps.dev.shell.bat
+
       # roles.backup
       # roles.dev
       # roles.gaming
