@@ -8,5 +8,9 @@
     };
 
     services.xserver.videoDrivers = [ "amdgpu" ];
+
+    services.lact.enable = true;
+
+    # TODO: ROCm support?
   };
 }
