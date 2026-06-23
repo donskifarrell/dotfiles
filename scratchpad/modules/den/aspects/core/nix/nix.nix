@@ -35,6 +35,16 @@
           automatic = true;
           options = "--delete-older-than 8d";
         };
+
+        # Nullify the registry for purity.
+        # flake-registry = builtins.toFile "empty-flake-registry.json" ''{"flakes":[],"version":2}'';
+        # trusted-users = [
+        #   "root"
+        #   config.my.mainUser.name
+        # ];
+
+        # Allow sandbox to access systemd-resolved for DNS
+        # extra-sandbox-paths = [ "/run/systemd/resolve" ];
       };
     };
 

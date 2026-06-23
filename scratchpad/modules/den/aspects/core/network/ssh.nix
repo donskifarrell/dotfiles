@@ -7,14 +7,20 @@
       programs.ssh = {
         enable = true;
         enableDefaultConfig = false;
+        # startAgent = true;
 
         matchBlocks."*" = {
           addKeysToAgent = "confirm";
+
           forwardAgent = false;
           compression = false;
+
           serverAliveCountMax = 3;
+
           hashKnownHosts = true;
           userKnownHostsFile = "~/.ssh/known_hosts";
+
+          # Multiplexing
           controlMaster = "auto";
           controlPath = "~/.ssh/master-%r@%n:%p";
           controlPersist = "10m";
@@ -22,6 +28,7 @@
 
         matchBlocks."root@localhost root@127.0.0.1 root@::1".forwardAgent = true;
 
+        # macOS compatibility / keychain integration
         extraConfig = lib.mkMerge [
           ''
             Include ~/.ssh/sshconfig.local

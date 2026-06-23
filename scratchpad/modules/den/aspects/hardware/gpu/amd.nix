@@ -7,6 +7,8 @@
       enable32Bit = true;
     };
 
+    # amdgpu.initrd.enable = true;
+
     services.xserver.videoDrivers = [ "amdgpu" ];
 
     services.lact.enable = true;

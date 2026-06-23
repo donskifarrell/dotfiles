@@ -9,6 +9,9 @@
 
         xdg = {
           enable = true;
+
+          # TODO: enable?
+          # autostart.enable = true;
           userDirs.enable = true;
         };
       };

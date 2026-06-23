@@ -1,3 +1,4 @@
+# delta — git pager (modules/home/delta.nix)
 {
   config.flake.homeModules.delta = {
     config = {

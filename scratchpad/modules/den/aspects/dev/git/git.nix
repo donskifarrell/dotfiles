@@ -62,21 +62,5 @@
 
       lfs.enable = true;
     };
-
-    # delta — git pager (modules/home/delta.nix)
-    programs.delta = {
-      enable = true;
-      options = {
-        navigate = true;
-        features = "decorations";
-        whitespace-error-style = "22 reverse";
-      };
-    };
-
-    # difftastic — structural diffs in git (modules/home/difftastic.nix)
-    programs.difftastic = {
-      enable = true;
-      git.enable = true;
-    };
   };
 }

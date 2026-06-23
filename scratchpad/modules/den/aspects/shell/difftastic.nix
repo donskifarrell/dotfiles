@@ -1,3 +1,4 @@
+# difftastic — structural diffs in git (modules/home/difftastic.nix)
 {
   config.flake.homeModules.difftastic = {
     config = {

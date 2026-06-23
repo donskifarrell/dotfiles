@@ -24,7 +24,9 @@
           ".." = "cd ..";
           "..." = "cd ../..";
 
+          # TODO: Revisit
           os-switch = "nh os switch ~/.dotfiles";
+          # os-switch = "nh os switch ~/.dotfiles -H ${flakeHostname}";
           os-list-gens = "nix profile history --profile /nix/var/nix/profiles/system";
           os-wipe-gens = "sudo nix profile wipe-history --profile /nix/var/nix/profiles/system --older-than 14d";
         };
