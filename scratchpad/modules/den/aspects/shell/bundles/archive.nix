@@ -3,7 +3,7 @@
 # Some of these overlap the my.packages catalog toggles (unzip/unrar/p7zip);
 # home.packages dedupes identical store paths, so the overlap is harmless.
 {
-  den.aspects.apps.shell.bundles.archive.homeManager =
+  den.aspects.shell.bundles.archive.homeManager =
     { pkgs, ... }:
     {
       home.packages = [

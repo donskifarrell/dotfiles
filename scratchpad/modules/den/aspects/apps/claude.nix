@@ -4,7 +4,7 @@
 # (added to flake.nix).
 { inputs, ... }:
 {
-  den.aspects.apps.dev.claude.homeManager =
+  den.aspects.apps.claude.homeManager =
     { pkgs, ... }:
     {
       home.packages = [ inputs.claude-code.packages.${pkgs.system}.default ];

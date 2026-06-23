@@ -1,7 +1,7 @@
 # apps/productivity/zathura — keyboard-driven PDF/document viewer. Ported from
 # sini-nix modules/den/aspects/apps/productivity/zathura.nix.
 {
-  den.aspects.apps.productivity.zathura.homeManager = {
+  den.aspects.apps.zathura.homeManager = {
     programs.zathura = {
       enable = true;
       options = {

@@ -1,7 +1,7 @@
 # Ported from modules/home/ssh.nix. Client config + agent. Includes the
 # clan-managed `sshconfig.local` (materialised by the secrets layer, plan 2.3).
 {
-  den.aspects.apps.dev.ssh.homeManager =
+  den.aspects.core.network.ssh.homeManager =
     { lib, pkgs, ... }:
     {
       programs.ssh = {

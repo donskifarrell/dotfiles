@@ -13,7 +13,9 @@ in
   den.aspects.short = {
     includes = with den.aspects; [
       # Hardware
+      hardware.bluetooth
       hardware.cpu.amd
+      hardware.cpu.auto-cpufreq
       hardware.facter
       hardware.firmware
       hardware.gpu.amd
@@ -23,23 +25,12 @@ in
       hardware.storage.ssd
       hardware.touchpad
       hardware.tweaks
+      hardware.utils
 
       roles.default
       roles.desktop
       roles.dev
-
-      # apps.shell.zoxide
-      # apps.shell.eza
-      # apps.dev.shell.bat
-
-      # roles.backup
-      # roles.dev
-      # roles.gaming
-      # roles.productivity
-      # roles.sync # src
-      # roles.virtualisation
-
-      # core.shell
+      roles.workstation
 
       virtualisation.vm-login # test-only
     ];

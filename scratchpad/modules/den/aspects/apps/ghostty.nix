@@ -1,6 +1,6 @@
 # Ported from modules/home/ghostty.nix.
 {
-  den.aspects.apps.terminals.ghostty = {
+  den.aspects.apps.ghostty = {
     homeManager = {
       programs.ghostty = {
         enable = true;
@@ -11,13 +11,15 @@
       };
     };
 
-    nixos = {
-      # xterm-ghostty terminfo for root.
-      environment.sessionVariables.TERMINFO_DIRS = "/run/current-system/sw/share/terminfo";
+    nixos =
+      { pkgs, ... }:
+      {
+        # xterm-ghostty terminfo for root.
+        environment.sessionVariables.TERMINFO_DIRS = "/run/current-system/sw/share/terminfo";
 
-      environment.systemPackages = with pkgs; [
-        ghostty
-      ];
-    };
+        environment.systemPackages = with pkgs; [
+          ghostty
+        ];
+      };
   };
 }

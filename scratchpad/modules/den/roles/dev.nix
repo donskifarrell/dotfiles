@@ -8,7 +8,11 @@
     dev.lang.nix
     dev.lang.python
 
-    dev.utils
-    dev.vscode
+    dev.apps
+
+    dev.tools.devenv
+    dev.tools.direnv
+    dev.tools.distrobox
+    dev.tools.trippy
   ];
 }

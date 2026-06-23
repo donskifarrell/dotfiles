@@ -12,11 +12,12 @@
       core.nix.nh
       core.nix.nixpkgs
       core.security
-      core.shell
-      core.shell.utils
       core.stateVersion
       core.systemd
       core.systemd.boot
+
+      shell
+      shell.bundles.base
     ];
   };
 }

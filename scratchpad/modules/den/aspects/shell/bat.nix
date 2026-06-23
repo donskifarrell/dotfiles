@@ -6,7 +6,7 @@
 # intentionally NOT redefined here (a second `cat` key would collide). This is a
 # richer superset of the bare `bat.enable` in apps.cli (they merge fine).
 {
-  den.aspects.apps.dev.shell.bat.homeManager =
+  den.aspects.shell.bat.homeManager =
     { pkgs, ... }:
     {
       programs.bat = {

@@ -5,13 +5,12 @@
 #
 # Reconstructed from machines/abhaile/configuration.nix (its system imports +
 # its home-manager block).
-{ den, ... }:
+{ den, pkgs, ... }:
 {
   den.aspects.roles.desktop = {
     includes = with den.aspects; [
       core.desktop.fonts
       core.desktop.xdg
-      core.apps.appimage
 
       services.flatpak
       services.gnome
@@ -19,8 +18,7 @@
       services.sound
       services.udisks2
 
-      # Security / discovery
-      # services.opensnitch
+      apps.appimage
     ];
 
     home.sessionVariables = {

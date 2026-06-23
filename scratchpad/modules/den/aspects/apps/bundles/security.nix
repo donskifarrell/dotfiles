@@ -1,5 +1,5 @@
 {
-  den.aspects.apps.bundles.media = {
+  den.aspects.apps.bundles.security = {
     homeManager =
       { pkgs, ... }:
       {
