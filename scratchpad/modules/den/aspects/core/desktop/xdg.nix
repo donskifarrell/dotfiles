@@ -1,7 +1,7 @@
 {
   den.aspects.core.desktop.xdg = {
     homeManager =
-      { pkgs, ... }:
+      { config, pkgs, ... }:
       {
         home.packages = [
           pkgs.xdg-utils
@@ -12,7 +12,14 @@
 
           # TODO: enable?
           # autostart.enable = true;
-          userDirs.enable = true;
+          userDirs = {
+            enable = true;
+            music = "${config.home.homeDirectory}/music";
+            documents = "${config.home.homeDirectory}/documents";
+            desktop = "${config.home.homeDirectory}/desktop";
+            pictures = "${config.home.homeDirectory}/pictures";
+            download = "${config.home.homeDirectory}/download";
+          };
         };
       };
   };

@@ -32,6 +32,7 @@ in
       roles.dev
       roles.workstation
 
+      virtualization.libvirt
       virtualisation.vm-login # test-only
     ];
 

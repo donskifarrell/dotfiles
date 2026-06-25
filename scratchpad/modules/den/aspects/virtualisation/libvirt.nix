@@ -14,12 +14,16 @@
         qemu = {
           package = pkgs.qemu_kvm;
           runAsRoot = false;
+
+          # To run Windows VMs with TPM 2.0 via libvirt
           swtpm.enable = true;
         };
       };
 
+      # Enable USB redirection (optional)
       virtualisation.spiceUSBRedirection.enable = true;
 
+      # For virt-manager, helps avoid password pain
       security.polkit.enable = true;
 
       networking.firewall = {
@@ -33,5 +37,11 @@
         quickemu
         virt-manager
       ];
+
+      # boot.kernelModules = [ "kvm-amd" ];
+      # users.users.${cfg.user}.extraGroups = [
+      #   "libvirtd"
+      #   "kvm"
+      # ];
     };
 }
