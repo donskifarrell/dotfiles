@@ -45,4 +45,5 @@
   # Same shape as the real dotfiles: flake-parts + import-tree auto-imports
   # every file under ./modules. Den's flakeModule is wired in modules/den/den.nix.
   outputs = inputs: inputs.flake-parts.lib.mkFlake { inherit inputs; } (inputs.import-tree ./modules);
+
 }

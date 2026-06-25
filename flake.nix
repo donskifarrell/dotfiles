@@ -48,6 +48,11 @@
 
     claude-code.url = "github:sadjow/claude-code-nix";
 
+    den.url = "github:denful/den";
+    nix-index-database = {
+      url = "github:nix-community/nix-index-database";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     # Private repo
     mono = {
       # url = "git+ssh://git@github.com/donskifarrell/mono.git";
@@ -87,7 +92,6 @@
           meta.domain = "aon.df";
 
           modules."tailscale" = import ./services/tailscale/default.nix;
-          modules."syncthing-custom" = import ./services/syncthing/default.nix;
 
           specialArgs = {
             modules = config.flake;
@@ -130,42 +134,6 @@
             };
 
             instances = {
-
-              syncthing-aon = {
-                module = {
-                  name = "syncthing-custom";
-                  input = "self";
-                };
-
-                roles.peer.machines.short.settings = {
-                  user = "mise";
-                  configDir = "/home/mise/.config/syncthing";
-                  dataDir = "/home/mise/.local/state/syncthing";
-
-                  folders = {
-                    documents = {
-                      path = "/home/mise/sync";
-                      devices = [ "abhaile" ];
-                      type = "receiveonly";
-                    };
-                  };
-                };
-
-                roles.peer.machines.abhaile.settings = {
-                  user = "df";
-                  configDir = "/home/df/.config/syncthing";
-                  dataDir = "/home/df/.local/state/syncthing";
-
-                  folders = {
-                    documents = {
-                      path = "/home/df/sync";
-                      devices = [ "short" ];
-                      type = "sendonly";
-                    };
-                  };
-                };
-              };
-
               internet = {
                 # roles.default.machines.eachtrach = {
                 #   settings.host = "eachtrach.lan";

@@ -6,7 +6,6 @@
       defaultEditor = true;
     };
 
-    editor = "nvim";
-    # home.sessionVariables.EDITOR = "nvim";
+    home.sessionVariables.EDITOR = "nvim";
   };
 }
