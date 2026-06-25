@@ -20,6 +20,7 @@
     shell.bat
     shell.eza
     shell.fish
+    shell.neovim
     shell.starship
     shell.yazi
     shell.zellij
