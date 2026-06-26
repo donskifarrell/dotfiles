@@ -108,35 +108,36 @@
               # 4. clan machines install <machine> --target-host root@192.168.122.217
               #
 
-              eachtrach = {
-                deploy.targetHost = "root@91.99.168.74";
-                tags = [
-                  "server"
-                  "tailscale-exit"
-                ];
-              };
+              # eachtrach = {
+              #   deploy.targetHost = "root@91.99.168.74";
+              #   tags = [
+              #     "server"
+              #     "tailscale-exit"
+              #   ];
+              # };
 
-              short = {
-                deploy.targetHost = "root@192.168.122.217";
-                tags = [
-                  "vm"
-                  "tailscale"
-                ];
-              };
+              # short = {
+              #   deploy.targetHost = "root@192.168.122.217";
+              #   tags = [
+              #     "vm"
+              #     "tailscale"
+              #   ];
+              # };
 
-              abhaile = {
-                deploy.targetHost = "root@192.168.178.28";
-                tags = [
-                  "abhaile"
-                  "tailscale"
-                ];
-              };
+              # abhaile = {
+              #   deploy.targetHost = "root@192.168.178.28";
+              #   tags = [
+              #     "abhaile"
+              #     "tailscale"
+              #   ];
+              # };
 
               try = {
                 deploy.targetHost = "root@192.168.122.102";
-                tags = [
-                  "vm"
-                ];
+                # No `vm` tag: keep clan's interactive `user-mise` off this
+                # throwaway. den provides the `df` user; tags.all services
+                # (sshd, clan-cache, emergency-access) still apply.
+                tags = [ ];
               };
             };
 

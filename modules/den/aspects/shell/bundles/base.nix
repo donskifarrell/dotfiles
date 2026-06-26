@@ -1,5 +1,10 @@
+{ den, ... }:
 {
   den.aspects.shell.bundles.base = {
+    includes = with den.aspects; [
+      shell.fastfetch
+    ];
+
     os =
       { pkgs, ... }:
       {

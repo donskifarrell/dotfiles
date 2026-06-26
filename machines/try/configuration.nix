@@ -5,12 +5,12 @@
 # this machine dir's disko.nix + facter.json (generated via `clan machines
 # init-hardware-config` / `clan templates apply disk`), so they aren't imported
 # here.
-{ modules, ... }:
+{ modules, lib, ... }:
 {
   imports = [ modules.nixosModules.try-den ];
 
-  # clan normally gets this from the machine's facter.json (generated at
-  # install time via `clan machines init-hardware-config`). Set it explicitly so
-  # the config evaluates/builds before the VM exists; facter sets the same value.
-  nixpkgs.hostPlatform = "x86_64-linux";
+  # Lets the config evaluate/build before facter.json exists. Once
+  # `clan machines init-hardware-config` writes machines/try/facter.json, the
+  # facter module sets the real value and overrides this default.
+  nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
 }

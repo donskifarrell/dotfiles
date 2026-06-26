@@ -6,9 +6,10 @@
 # CHANGING this configuration requires wiping and reinstalling the machine
 {
 
-  boot.loader.grub.efiSupport = true;
-  boot.loader.grub.efiInstallAsRemovable = true;
-  boot.loader.grub.enable = true;
+  # Bootloader is now den's core/systemd/boot aspect (systemd-boot), pulled in
+  # via abhaile-den. The old grub lines were removed for the den migration; the
+  # EF02 "boot" partition below is now unused but kept (removing it would change
+  # the layout and require a wipe). systemd-boot installs to the ESP (/boot).
   disko.devices = {
     disk = {
       main = {
