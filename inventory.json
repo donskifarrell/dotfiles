@@ -1,13 +1,7 @@
 {
   "machines": {
-    "eachtrach": {
-      "installedAt": 1761518867
-    },
-    "abhaile": {
-      "installedAt": 1766968087
-    },
-    "short": {
-      "installedAt": 1767829305
+    "try": {
+      "installedAt": 1782466829
     }
   }
 }
