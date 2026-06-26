@@ -22,7 +22,29 @@
       "Bash(nix-instantiate --eval -E '1')",
       "Bash(nix --extra-experimental-features 'pipe-operators' eval --expr '1 |> \\(x: x + 1\\)')",
       "Bash(nix --extra-experimental-features 'pipe-operator' eval --expr '1')",
-      "Bash(chmod +x vm-deploy.sh)"
+      "Bash(chmod +x vm-deploy.sh)",
+      "Bash(python3 -c 'import json,sys; d=json.load\\(sys.stdin\\); *)",
+      "Read(//nix/store/**)",
+      "Bash(command -v virsh)",
+      "Bash(virsh net-list *)",
+      "Bash(command -v clan)",
+      "Bash(clan --version)",
+      "Bash(ping -c1 -W1 192.168.122.217)",
+      "Bash(ping -c1 -W1 192.168.122.102)",
+      "Bash(clan --help)",
+      "Bash(sed -n '1,40p')",
+      "Bash(clan vms *)",
+      "Bash(sed -n '1,30p')",
+      "Bash(clan machines *)",
+      "Bash(git mv *)",
+      "Bash(git rm *)",
+      "Bash(git add *)",
+      "Bash(nix eval *)",
+      "Bash(clan vars *)",
+      "Bash(virsh -c qemu:///system uri)",
+      "Bash(virsh -c qemu:///system net-list --all)",
+      "Bash(virsh -c qemu:///system list --all)",
+      "Bash(ip -br addr show)"
     ]
   }
 }

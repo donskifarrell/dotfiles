@@ -131,6 +131,13 @@
                   "tailscale"
                 ];
               };
+
+              try = {
+                deploy.targetHost = "root@192.168.122.102";
+                tags = [
+                  "vm"
+                ];
+              };
             };
 
             instances = {
