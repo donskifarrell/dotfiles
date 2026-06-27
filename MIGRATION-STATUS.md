@@ -2,12 +2,12 @@
 Branch: migrate/off-clan   ·   Plan: clan-to-den-migration-prompt.md (the task prompt)   ·   Updated: 2026-06-27
 
 ## Resume here
-Next action: Finish Phase 0 baseline build + Phase B bootloader record, then STOP and report at the Phase B gate.
-Blocked on: nothing yet (Phase 2 will need the user's template bundle).
+Next action: Phase 1 — extract abhaile + shared secret plaintext via clan-cli into .migration-staging/plaintext/, write INVENTORY.md. (STOPPED at Phase B gate to report; awaiting go-ahead.)
+Blocked on: user go-ahead to continue past Phase B gate. Phase 2 will additionally need the user's template bundle.
 
 ## Phases
-- [ ] 0  Branch + baseline
-- [ ] B  Bootloader pre-flight        (CONFIRMED by user: UEFI, grub→systemd-boot pending)
+- [x] 0  Branch + baseline            (0d6932b scaffolding; baseline built)
+- [x] B  Bootloader pre-flight        (CONFIRMED: UEFI, grub→systemd-boot pending; see .migration-staging/bootloader.md)
 - [ ] 1  Extract secrets (clan-cli)
 - [ ] 2  sops-nix  (needs template files from user)
 - [ ] 3  Den builds nixosConfigurations
@@ -46,8 +46,10 @@ Mark each `[x]` with its commit sha when done.
 - Does the user want `try` migrated too, or only abhaile? (Plan focuses on abhaile; try is a test host.)
 
 ## Log
-- 2026-06-27 · phase 0 · created branch migrate/off-clan, gitignored .migration-staging/, wrote tracker · <sha>
-- 2026-06-27 · phase B · recorded bootloader state (see .migration-staging/bootloader.md) · <sha>
+- 2026-06-27 · phase 0 · created branch migrate/off-clan, gitignored .migration-staging/, wrote tracker · 0d6932b
+- 2026-06-27 · phase 0 · baseline build OK = /nix/store/vm0m0znxxly1fg3yh1igbchj3k69vcvg-nixos-system-abhaile-26.11.20260531.331800d (saved to .migration-staging/baseline-abhaile + /tmp/baseline-abhaile)
+- 2026-06-27 · phase B · recorded bootloader state; UEFI + grub-via-removable-fallback, systemd-boot not yet installed; ESP 60% full · see .migration-staging/bootloader.md
+- 2026-06-27 · STOPPED at Phase B gate to report before continuing.
 
 ## Final hand-off notes (fill during Phase 7)
 - Deploy commands · rollback per host · where the host age identity comes from
