@@ -2,8 +2,25 @@
 Branch: migrate/off-clan   ·   Plan: clan-to-den-migration-prompt.md (the task prompt)   ·   Updated: 2026-06-27
 
 ## Resume here
-Next action: Phase 2 — apply the user's template bundle, then populate+encrypt secrets/{shared,abhaile}.yaml from .migration-staging/plaintext per the decided secret set, wire aspects, round-trip verify, `nix flake check`.
-Blocked on: WAITING for the user to PASTE the Phase-2 template bundle (.sops.yaml + modules/den/aspects/secrets/{sops,abhaile}.nix + rewritten modules/system/secrets-user.nix + SECRETS-MIGRATION.md). User confirmed they have it.
+Next action: Phase 3 — make Den the SOLE builder of nixosConfigurations.abhaile (flip intoAttr, import machine dir, drop clan injection), THEN wire the consumers conflict-free: df/root hashedPasswordFile -> sops secrets, secretsUser.enable + import secrets-user, include services.tailscale, boot.initrd.systemd.emergencyAccess literal, nix substituters. Build + closure-diff.
+Blocked on: nothing. (Phase 3 also needs the host-key install at /etc/ssh/ssh_host_ed25519_key before any SWITCH — a sudo step for the user, but NOT before build/diff.)
+
+## Phase 2 facts (verified, don't re-derive)
+- inputs.sops-nix == clan-core.inputs.sops-nix → SAME store path (/nix/store/xkbln7rg…). Importing
+  sops-nix.nixosModules.sops dedupes with clan's; NO double-declaration conflict while clan still builds.
+- abhaile boot.initrd.systemd.enable = true (systemd-initrd) → emergency-access = one-liner
+  `boot.initrd.systemd.emergencyAccess = "<$6$ hash>"` (literal; option takes a string, not a file).
+- abhaile: LUKS device "cryptroot"; root has NO hashedPasswordFile today (key-only); df hashedPasswordFile
+  = clan path. systemd-boot declared (grub.enable=false in new cfg).
+- try.nix includes roles.default → DO NOT put secrets.sops in roles.default (would hit try, which is not a
+  .sops.yaml recipient). Scope secrets.sops/secrets.abhaile to the abhaile HOST includes instead.
+- clan's user-df sets df.hashedPasswordFile on abhaile → overriding it needs lib.mkForce during the
+  clan+den transition (Phase 2–4). Drops out naturally once Den is the sole builder (Phase 3).
+- No NixOS tailscale aspect exists yet (services/tailscale.nix is homeModule-only). Build the de-clanned
+  NixOS aspect; inline host-sync from services/tailscale/host-sync.nix.
+- secrets-sops.nix (clan ssh/git generators) is imported NOWHERE → dormant; safe to delete.
+- FLAKES GOTCHA: new untracked files are invisible to `nixos-rebuild --flake` (evaluates the git
+  tree). Always `git add` new aspect/secret files before building or den.aspects.<new> is undefined.
 
 ## Decisions locked (2026-06-27)
 - Scope: abhaile only (try stays on clan / disposable).
@@ -16,7 +33,7 @@ Blocked on: WAITING for the user to PASTE the Phase-2 template bundle (.sops.yam
 - [x] 0  Branch + baseline            (0d6932b scaffolding; baseline built)
 - [x] B  Bootloader pre-flight        (1c0fb20; CONFIRMED UEFI, grub→systemd-boot pending; .migration-staging/bootloader.md)
 - [x] 1  Extract secrets (clan-cli)   (secrets staged: 36/36 OK; .migration-staging/INVENTORY.md)
-- [ ] 2  sops-nix  (needs template files from user)
+- [x] 2  sops-nix  (templates applied; secrets encrypted; flake check green — Phase 2 commit below)
 - [ ] 3  Den builds nixosConfigurations
 - [ ] 4  Build + closure diff
 - [ ] 5  Cut over abhaile
@@ -58,6 +75,8 @@ Mark each `[x]` with its commit sha when done.
 - 2026-06-27 · phase B · recorded bootloader state; UEFI + grub-via-removable-fallback, systemd-boot not yet installed; ESP 60% full · see .migration-staging/bootloader.md
 - 2026-06-27 · STOPPED at Phase B gate; user approved continue, scope = abhaile only.
 - 2026-06-27 · phase 1 · staged 36/36 secrets+values for abhaile+shared via sops -d (df key); host key→age1ggl… verified; df hash valid $6$; built-config consumes only host key + df password (+ public host cert). INVENTORY.md written. STOPPED at Phase 1 gate to report.
+- 2026-06-27 · phase 2 · applied template bundle (.sops.yaml + secrets aspects + secrets-user.nix); built+encrypted secrets/{shared,abhaile}.yaml (17+2 secrets, recipients admin_df+host_abhaile, round-trip verified; ssh privkeys parse, ff/uf passphrase-protected); deleted clan secrets-sops.nix; created de-clanned tailscale NixOS aspect; included secrets.sops+secrets.abhaile on abhaile (declaration-only, consumer wiring deferred to Phase 3). abhaile builds (h9ckq8h…); manifests list all new secrets. `nix flake check` GREEN after a separate hygiene commit (ce896a9) fixed pre-existing treefmt. Phase 2 commit next.
+- NOTE: treefmt wrapper (`nix fmt`) is lenient (leaves `_:\n{}` expanded) but the flake's treefmt-CHECK is strict (wants `_: {}` collapsed). Hand-collapse the lambda + `nix fmt`; the collapsed form survives. The repo was treefmt-dirty on baseline (pre-commit is disabled in flake.nix).
 
 ## Final hand-off notes (fill during Phase 7)
 - Deploy commands · rollback per host · where the host age identity comes from

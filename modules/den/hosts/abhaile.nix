@@ -41,6 +41,14 @@ in
       roles.workstation
       roles.dev
       roles.desktop
+
+      # sops-nix secrets (Phase 2). secrets.sops = shared home ssh/git + tailscale
+      # auth key; secrets.abhaile = df/root password-hash secrets. Declared here so
+      # they evaluate inside abhaile's build; the CONSUMER wiring (password files,
+      # emergencyAccess, secretsUser, tailscale) lands in Phase 3 once Den is the
+      # sole builder and clan's injections no longer collide.
+      secrets.sops
+      secrets.abhaile
     ];
 
     nixos = _: {
