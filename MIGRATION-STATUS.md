@@ -2,8 +2,15 @@
 Branch: migrate/off-clan   ·   Plan: clan-to-den-migration-prompt.md (the task prompt)   ·   Updated: 2026-06-27
 
 ## Resume here
-Next action: Phase 2 — stand up sops-nix. FIRST ask the user for the prepared template bundle (.sops.yaml + Den secrets aspects + rewritten secrets-user.nix + SECRETS-MIGRATION.md). STOPPED at Phase 1 gate to report.
-Blocked on: user must (a) confirm Phase-1 inventory + the Section-C decisions, (b) provide the Phase-2 template bundle.
+Next action: Phase 2 — apply the user's template bundle, then populate+encrypt secrets/{shared,abhaile}.yaml from .migration-staging/plaintext per the decided secret set, wire aspects, round-trip verify, `nix flake check`.
+Blocked on: WAITING for the user to PASTE the Phase-2 template bundle (.sops.yaml + modules/den/aspects/secrets/{sops,abhaile}.nix + rewritten modules/system/secrets-user.nix + SECRETS-MIGRATION.md). User confirmed they have it.
+
+## Decisions locked (2026-06-27)
+- Scope: abhaile only (try stays on clan / disposable).
+- sops-nix secret set for abhaile = host key + df password (mandatory) + ~/.ssh & ~/.config/git home
+  secrets (re-enable secrets-user.nix) + root password + emergency-access. (Syncthing deferred.)
+- Tailscale: RE-ADD as a Den aspect on abhaile + mint a FRESH auth key (staged keys ~6mo old, expired).
+- Templates: user will paste the bundle (do not author from scratch).
 
 ## Phases
 - [x] 0  Branch + baseline            (0d6932b scaffolding; baseline built)
@@ -38,18 +45,12 @@ Mark each `[x]` with its commit sha when done.
 - Bootloader: UEFI confirmed; grub→systemd-boot transition happens on first abhaile switch (Phase 5).
 
 ## Open questions for the user
-- DECIDED: abhaile only (try left on clan / disposable). [2026-06-27]
-- Host-key materialization (the WRINKLE above): confirm approach — install abhaile's staged private host
-  key at /etc/ssh/ssh_host_ed25519_key{,.pub} before cutover so the age1ggl… identity is preserved.
-  (Needs a sudo/root step on abhaile.) Staged at .migration-staging/plaintext/abhaile/openssh/.
-- Phase 2 template bundle: when ready, paste/attach .sops.yaml + Den secrets aspects + rewritten
-  secrets-user.nix + SECRETS-MIGRATION.md.
-- From Phase-1 INVENTORY Section C — confirm dispositions:
-  - Tailscale on abhaile? (currently dropped in flake; live gen logged out). Re-add aspect + mint fresh key?
-  - Re-enable the ~/.ssh + ~/.config/git home secrets (secrets-user.nix is currently orphaned)?
-  - root password: keep root key-only, or migrate the staged root hash?
-  - emergency-access: replicate or drop?
-  - HostCertificate / openssh-ca: keep host cert (public) or drop?
+- Host-key materialization (the WRINKLE): install abhaile's staged private host key at
+  /etc/ssh/ssh_host_ed25519_key{,.pub} before cutover so the age1ggl… identity is preserved.
+  Needs a sudo/root step on abhaile; staged at .migration-staging/plaintext/abhaile/openssh/. Confirm
+  timing in Phase 3/5. (Agent has no non-interactive sudo — user runs this step.)
+- HostCertificate / openssh-ca: keep the host cert (public) or drop? Default plan = drop for abhaile-only
+  unless user objects (no secret risk either way).
 
 ## Log
 - 2026-06-27 · phase 0 · created branch migrate/off-clan, gitignored .migration-staging/, wrote tracker · 0d6932b
