@@ -1,13 +1,15 @@
-# modules/system/secrets-user.nix  (rewritten for sops-nix)
+# modules/den/aspects/secrets/user.nix
 #
-# Replaces the Clan-vars version. Symlinks the runtime secrets that sops-nix
-# materialises under /run/secrets into df's ~/.ssh and ~/.config/git, exactly as
-# before - but the source paths now come from `config.sops.secrets.<name>.path`
-# instead of the old /run/secrets/vars/<generator>/<file> convention.
+# Den aspect form of the old modules/system/secrets-user.nix. Symlinks the
+# sops-nix runtime secrets (declared in secrets/sops.nix) into df's ~/.ssh and
+# ~/.config/git. Made a Den aspect (not a flake.nixosModule) so the Den-built
+# host can `includes` it directly - no flake self-import, no clan `modules`
+# specialArg. Enable per-host with `secretsUser.enable = true`.
 #
-# Pairs with modules/den/aspects/secrets/sops.nix (which declares the secrets).
+# Defaults to user `df` (the only user with home secrets); the old
+# `config.my.mainUser.name` default is gone with options.nix.
 {
-  config.flake.nixosModules.secrets-user =
+  den.aspects.secrets.user.nixos =
     { lib, config, ... }:
     let
       cfg = config.secretsUser;
@@ -48,11 +50,11 @@
         enable = lib.mkEnableOption "Symlink sops-nix runtime secrets into the user's home";
         user = lib.mkOption {
           type = lib.types.str;
-          default = config.my.mainUser.name;
+          default = "df";
         };
         home = lib.mkOption {
           type = lib.types.str;
-          default = "/home/${config.my.mainUser.name}";
+          default = "/home/df";
         };
       };
 

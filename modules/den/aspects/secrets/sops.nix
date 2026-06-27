@@ -114,8 +114,11 @@ in
     {
       imports = [ inputs.sops-nix.nixosModules.sops ];
 
-      # Decrypt using the host's existing SSH host key.
+      # Decrypt using the host's existing SSH host key (age, ed25519).
       sops.age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
+      # Age is the only method; drop sops-nix's default gnupg-via-rsa fallback so
+      # activation doesn't depend on /etc/ssh/ssh_host_rsa_key or attempt GPG.
+      sops.gnupg.sshKeyPaths = [ ];
 
       # Group used by secrets-user.nix symlinks + file ownership.
       users.groups.secrets = { };

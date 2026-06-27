@@ -49,6 +49,17 @@
     claude-code.url = "github:sadjow/claude-code-nix";
 
     den.url = "github:denful/den";
+
+    # Den's facter/disko aspects expect these as ROOT inputs (den's own flake is
+    # input-less). Added for Phase 3: Den emits nixosConfigurations.abhaile and
+    # imports the machine's disko layout + facter hardware report directly,
+    # replacing clan's machine-dir auto-import.
+    disko = {
+      url = "github:nix-community/disko";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    nixos-facter-modules.url = "github:nix-community/nixos-facter-modules";
+
     nix-index-database = {
       url = "github:nix-community/nix-index-database";
       inputs.nixpkgs.follows = "nixpkgs";

@@ -1,14 +1,13 @@
-# den → clan bridge.
+# den → clan bridge (try only).
 #
-# A den host (hosts/<m>.nix) composes its aspects into `mainModule`, a plain
-# `{ imports = [ ... ]; }` NixOS module. We surface it as a normal flake
-# nixosModule so each clan machine config can import it the same way the old
-# configs imported `modules.nixosModules.*`. clan remains the builder/deployer.
+# `try` is still clan-built: den composes its aspects into `mainModule` and we
+# surface that as a flake nixosModule so machines/try/configuration.nix can
+# import it. abhaile is no longer here — Den emits nixosConfigurations.abhaile
+# directly (see hosts/abhaile.nix), so it needs no bridge.
 { config, ... }:
 let
   hosts = config.den.hosts."x86_64-linux";
 in
 {
   flake.nixosModules.try-den = hosts.try.mainModule;
-  flake.nixosModules.abhaile-den = hosts.abhaile.mainModule;
 }
