@@ -10,6 +10,10 @@
 
     dev.apps
 
+    dev.git
+    dev.git.github
+    dev.git.lazygit
+
     dev.tools.devenv
     dev.tools.direnv
     dev.tools.distrobox
