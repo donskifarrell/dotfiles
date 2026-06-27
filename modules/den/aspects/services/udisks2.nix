@@ -3,16 +3,12 @@
 # modules/system/udisks2.nix; relocated from `desktop` into `storage`.
 {
   den.aspects.services.udisks2 = {
-    nixos =
-      { host, ... }:
-      {
-        services.udisks2.enable = true;
-      };
+    nixos = _: {
+      services.udisks2.enable = true;
+    };
 
-    homeManager =
-      { host, ... }:
-      {
-        services.udiskie.enable = true;
-      };
+    homeManager = _: {
+      services.udiskie.enable = true;
+    };
   };
 }

@@ -1,15 +1,11 @@
 {
   den.aspects.services.opensnitch = {
-    nixos =
-      { host, ... }:
-      {
-        services.opensnitch.enable = true;
-      };
+    nixos = _: {
+      services.opensnitch.enable = true;
+    };
 
-    homeManager =
-      { host, ... }:
-      {
-        services.opensnitch-ui.enable = true;
-      };
+    homeManager = _: {
+      services.opensnitch-ui.enable = true;
+    };
   };
 }

@@ -1,14 +1,12 @@
 {
   den.aspects.core.security.tpm2 = {
-    nixos =
-      { pkgs, ... }:
-      {
-        security.tpm2 = {
-          enable = true;
-          abrmd.enable = true;
-          pkcs11.enable = true;
-          tctiEnvironment.enable = true;
-        };
+    nixos = _: {
+      security.tpm2 = {
+        enable = true;
+        abrmd.enable = true;
+        pkcs11.enable = true;
+        tctiEnvironment.enable = true;
       };
+    };
   };
 }

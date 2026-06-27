@@ -1,7 +1,7 @@
 {
   den.aspects.core.network.avahi = {
     nixos =
-      { host, ... }:
+      _:
       # let
       #   interfaces = builtins.attrNames host.networking.interfaces;
       # in

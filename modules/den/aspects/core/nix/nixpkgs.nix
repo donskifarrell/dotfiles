@@ -1,8 +1,4 @@
-{
-  inputs,
-  self,
-  ...
-}:
+_:
 let
   config = {
     allowUnfree = true;
