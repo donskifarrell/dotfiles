@@ -48,7 +48,7 @@ Blocked on: nothing. (Phase 6 needs a new eachtrach VM to provision; user-driven
 - [x] 3  Den builds nixosConfigurations  (Den emits abhaile; consumers wired; flake check green)
 - [x] 4  Build + closure diff  (.migration-staging/phase4-closure-diff.txt; safety set verified)
 - [x] 5  Cut over abhaile  (switched + rebooted 2026-06-28; gen 92, systemd-boot, 0 failed units, sops+tailscale OK)
-- [ ] 5b Flake update (separate)
+- [~] 5b Flake update (d5b046b lock; built + flake-check green; SWITCH pending user)
 - [ ] 6  Fresh eachtrach (nixos-anywhere)
 - [ ] 7  Remove Clan + doc cleanup
 - [ ] 8  (optional) agenix
