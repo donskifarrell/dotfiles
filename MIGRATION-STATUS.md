@@ -49,8 +49,8 @@ Blocked on: nothing. (Phase 6 needs a new eachtrach VM to provision; user-driven
 - [x] 4  Build + closure diff  (.migration-staging/phase4-closure-diff.txt; safety set verified)
 - [x] 5  Cut over abhaile  (switched + rebooted 2026-06-28; gen 92, systemd-boot, 0 failed units, sops+tailscale OK)
 - [~] 5b Flake update (d5b046b lock; built + flake-check green; SWITCH pending user)
-- [ ] 6  Fresh eachtrach (nixos-anywhere)
-- [ ] 7  Remove Clan + doc cleanup
+- [ ] 6  Fresh eachtrach (nixos-anywhere)        (when a new VM is ready)
+- [x] 7  Remove Clan + doc cleanup  (clan-core/flake.clan/vars/sops/try removed; docs rewritten; build+check green)
 - [ ] 8  (optional) agenix
 Mark each `[x]` with its commit sha when done.
 
@@ -99,5 +99,15 @@ Mark each `[x]` with its commit sha when done.
   decrypt, tailscale re-registered & connected (100.94.23.80; staged authkey not even needed). Both failed
   switch attempts were SAFE (bootloader install is before activation; runtime untouched until success).
 
-## Final hand-off notes (fill during Phase 7)
-- Deploy commands · rollback per host · where the host age identity comes from
+## Final hand-off notes
+- Stack: Den builds nixosConfigurations (modules/den/hosts/<host>.nix); sops-nix secrets; deploy-rs +
+  nixos-anywhere in the dev shell. Clan fully removed.
+- abhaile = only machine. Build+switch: `sudo nixos-rebuild switch --flake .#abhaile`.
+- Rollback: pick previous generation in the systemd-boot menu at boot, or `sudo nixos-rebuild switch --rollback`.
+- Host age identity = the host's own /etc/ssh/ssh_host_ed25519_key (ssh-to-age => the .sops.yaml recipient).
+  abhaile = age1ggl…; df editor key = ~/.config/sops/age/keys.txt (age1awmgr…).
+- Edit secrets: `sops secrets/{shared,abhaile}.yaml`. New host: add its ssh-to-age recipient to .sops.yaml,
+  then `sops updatekeys secrets/<file>.yaml`.
+- Backups in .migration-staging/ (gitignored): plaintext/ (incl. abhaile's host key), INVENTORY.md,
+  bootloader.md, closure diffs. Safe to delete once you're confident; the host key also lives at /etc/ssh.
+- Phase 6 (eachtrach) + Phase 8 (agenix) remain optional/when-ready.

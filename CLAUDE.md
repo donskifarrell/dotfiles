@@ -1,177 +1,64 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code working in this repo.
 
-## Overview
+## Stack
 
-NixOS dotfiles repository using [Clan.lol](https://clan.lol) as an orchestrator and [flake-parts](https://flake.parts) for modular flake structure. Follows the **dendritic design pattern** for bottom-up, feature-based configuration.
+NixOS dotfiles on a **dendritic** flake-parts flake. Configs are built by **[Den](https://github.com/denful/den)**
+(bottom-up, feature-based aspects), secrets by **sops-nix**, day-2 remote deploys by **deploy-rs**, and new-host
+provisioning by **nixos-anywhere**. (Clan was the previous orchestrator; it has been removed.)
 
-**References:**
-- Dendritic Design Guide: https://github.com/Doc-Steve/dendritic-design-with-flake-parts
-- Flake-parts: https://flake.parts
+Dendritic principle: **importing a module activates it** — no `enable` flags. Compose reusable *aspects* into
+*roles*, then into per-host configs. Every file under `./modules` is auto-imported (`import-tree`).
 
-## Common Commands
+## Repo layout
 
-```bash
-# Rebuild local machine (uses nh which is configured in modules)
-nh os switch .#<hostname>
-
-# Deploy to remote machine
-clan machines install <machine> --target-host root@<ip>
-
-# Update the flake
-nix flake update
-
-# Format all nix files (uses treefmt with nixfmt, statix, deadnix)
-nix fmt
-
-# Enter dev shell with clan-cli and formatters
-nix develop
 ```
+flake.nix              flake-parts; imports home-manager + treefmt + (import-tree ./modules)
+modules/den/           the whole config (auto-imported)
+  den.nix              wires inputs.den.flakeModule
+  hosts/<host>.nix     emits nixosConfigurations.<host> (composes aspects + machine data)
+  aspects/             feature modules by category: core, hardware, shell, dev,
+                       services, secrets, apps, gaming, virtualisation
+  roles/               aspect bundles: default, workstation, dev, desktop
+  users/df.nix         the df user aspect (home-manager)
+hosts/<host>/          machine data imported by that host: disko.nix + facter.json
+secrets/*.yaml         sops-nix encrypted secrets (shared.yaml = multi-host, <host>.yaml = per-host)
+.sops.yaml             sops recipients + creation rules
+```
+
+An aspect is `den.aspects.<path>.{nixos|homeManager|darwin} = <module>`; reference it in an `includes` list as
+`<path>` (e.g. `core.network.openssh`). Files/dirs prefixed `_` are excluded from auto-import.
 
 ## Machines
 
-| Hostname | User | System | Role |
-|----------|------|--------|------|
-| [abhaile](machines/abhaile/README.md) | df | x86_64-linux | Desktop workstation |
-| eachtrach | mise | x86_64-linux | VPS (frozen - exit node) |
-| short | mise | x86_64-linux | Test VM → service host |
-| nas-storage | tbd | x86_64-linux | Future - backup storage |
+| Host | System | Role |
+|------|--------|------|
+| abhaile | x86_64-linux | df's AMD desktop workstation (LUKS root, systemd-boot) |
+| eachtrach | x86_64-linux | Hetzner VPS, tailscale exit node — disposable, reprovision fresh |
 
-## Architecture
+## Common commands
 
-### Dendritic Design Pattern
-
-This repo follows a **bottom-up, feature-based** approach rather than top-down host assignment. Features are reusable units that can be applied across different configuration contexts (NixOS, Home-Manager, Darwin).
-
-Key principles:
-- **Features over hosts** - Create reusable features, then compose them per-machine
-- **Importing activates** - No `enable = true` flags; importing a module activates it
-- **Context separation** - Each feature defines aspects for relevant contexts (nixos, homeManager)
-
-### Dendritic Aspects (Design Patterns)
-
-When creating or modifying features, consider which patterns apply:
-
-| Aspect | Use When |
-|--------|----------|
-| **Simple** | Feature works independently across contexts without dependencies |
-| **Multi-Context** | Main context (NixOS) needs mandatory nested context config (Home-Manager) |
-| **Inheritance** | Extending or modifying an existing parent feature |
-| **Conditional** | Different behavior needed per system type (Linux vs Darwin) |
-| **Collector** | Gathering config contributions from multiple features (e.g., syncthing peers) |
-| **Constants** | Sharing values/functions across multiple features |
-| **DRY** | Reusable components for repeated attribute patterns |
-| **Factory** | Parameterized features generating multiple variants |
-
-### Flake-Parts Module Structure
-
-Modules are auto-imported via `import-tree` and exposed under `config.flake`:
-
-```nix
-# Module classes used in this repo:
-config.flake.nixosModules.<name>   # NixOS system modules
-config.flake.homeModules.<name>    # Home-manager modules
+```bash
+nixos-rebuild switch --flake .#abhaile      # build + activate locally (nh also configured)
+nix flake check                              # eval + per-host toplevel build + treefmt
+nix fmt                                       # nixfmt + statix + deadnix (treefmt)
+nix flake update                              # update inputs (commit flake.lock on its own)
+deploy .#<host>                               # deploy-rs remote day-2 (once a deploy node is wired)
+nixos-anywhere --flake .#<host> root@<ip>     # provision a new host
 ```
 
-Standard module file pattern:
-```nix
-{
-  config.flake.nixosModules.featurename = { lib, pkgs, config, ... }: {
-    # Feature implementation for NixOS context
-  };
-}
-```
+## Secrets (sops-nix)
 
-For multi-context features, define aspects for each context in the same or separate files.
+- Edit:  `sops secrets/shared.yaml` / `sops secrets/abhaile.yaml` — decrypts with the df age key at
+  `~/.config/sops/age/keys.txt` (recipient `age1awmgr…`).
+- Each host decrypts with its **own SSH host key**: `sops.age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ]`;
+  its recipient is `ssh-to-age < /etc/ssh/ssh_host_ed25519_key.pub`.
+- New host: add its ssh-to-age recipient to `.sops.yaml`, then `sops updatekeys secrets/<file>.yaml`.
+- Password hashes use `neededForUsers = true`; home ssh/git files are symlinked by the `secrets.user` aspect.
 
-### Directory Structure
+## Conventions
 
-- `machines/<hostname>/` - Per-machine configuration.nix and disko.nix
-- `modules/system/` - NixOS feature modules (`nixosModules.*`)
-- `modules/home/` - Home-manager feature modules (`homeModules.*`)
-- `services/` - Custom Clan service modules (syncthing, tailscale)
-- `sops/` - Age-encrypted secrets
-- `vars/` - Clan vars (per-machine generated values like syncthing device IDs)
-- `lib/` - Helper functions (e.g., mkClanSecretGenerators)
-
-Files prefixed with `_` are excluded from auto-import (useful for WIP code).
-
-### Adding New Features
-
-1. Create module file in appropriate directory (`modules/system/` or `modules/home/`)
-2. Use the flake-parts module pattern with `config.flake.<moduleClass>.<name>`
-3. Import the feature in machine's `configuration.nix` via `modules.nixosModules.<name>` or `modules.homeModules.<name>`
-4. For multi-context features, create aspects for each context
-
-### Custom Options
-
-Global options defined in `modules/system/options.nix`:
-- `my.mainUser.name` - Primary user for the system
-- `my.flakeHostname` - Hostname used for `nh os switch`
-
-Package catalog in `modules/home/packages.nix` enables per-package toggles:
-```nix
-my.packages.firefox.enable = true;
-```
-
-### Clan Inventory
-
-Machine deployment and service instances are configured in `flake.nix` under `flake.clan.inventory`. Services like syncthing and tailscale use Clan's role-based configuration with tags for grouping machines.
-
-### Secrets Management
-
-Uses both SOPS-nix and Clan's vars system:
-- SOPS secrets in `sops/secrets/` (age-encrypted)
-- Clan-generated vars in `vars/per-machine/` (e.g., syncthing certificates)
-- Secret file mappings defined in `modules/system/secrets-sops.nix`
-
-## Service Status
-
-Target: Services exposed on clan network via dm-dns (e.g., `paperless.aon.clan`)
-
-| Service | Module | abhaile | short | Status |
-|---------|--------|---------|-------|--------|
-| Syncthing | `services/syncthing` | sendonly | receiveonly | Partial - needs folder restructure |
-| Paperless | `modules/system/paperless.nix` | client | host | Module exists, not deployed |
-| Immich | - | client | host | Not started |
-| BorgBackup | - | backup source | backup source | Not started |
-| Caddy | `modules/system/caddy.nix` | - | reverse proxy | Basic setup, needs dm-dns |
-| Tailscale | `services/tailscale` | peer | peer | Working |
-| dm-dns | - | - | - | Not started |
-
-**Machine roles:**
-- `short`: Primary service host (Paperless, Immich, Syncthing receive). Test VM before VPS deployment.
-- `abhaile`: Desktop client, Syncthing send-only for paperless/photos
-- `eachtrach`: VPS, commented out until changes validated on short
-- `nas-storage`: Future - BorgBackup primary store
-
-## TODO
-
-### Syncthing
-- [ ] Restructure folders: `obsidian` (send/receive), `paperless` (send→receive), `photos` (send→receive)
-- [ ] Update `flake.nix` inventory with new folder config
-
-### Paperless (short)
-- [ ] Import `paperless` module in `machines/short/configuration.nix`
-- [ ] Configure Caddy reverse proxy route
-- [ ] Setup dm-dns for `paperless.aon.clan`
-
-### Immich (short)
-- [ ] Create `modules/system/immich.nix`
-- [ ] Configure Caddy reverse proxy route
-- [ ] Setup dm-dns for `photos.aon.clan`
-
-### BorgBackup
-- [ ] Create borgbackup module or use clan's official module
-- [ ] Configure short as backup source (syncthing/paperless/immich data)
-- [ ] Daily cron job to NAS
-
-### dm-dns
-- [ ] Setup clan dm-dns service for LAN URLs
-- [ ] Configure: `sync-<machine>.aon.clan`, `paperless.aon.clan`, `photos.aon.clan`, `borg.aon.clan`
-
-### Infrastructure
-- [ ] Validate changes on `short` VM
-- [ ] Re-enable `eachtrach` in inventory after validation
-- [ ] Acquire NAS/storage device
+- treefmt: `nix flake check` runs a strict nixfmt; if `nix fmt` leaves `_:\n{}` expanded, hand-collapse to
+  `_: {}` (what the check wants) and re-run `nix fmt`.
+- Keep `nix flake update` as its own commit so it can be reverted independently.

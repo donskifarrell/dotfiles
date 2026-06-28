@@ -13,9 +13,6 @@
 
             allow-import-from-derivation = true;
             auto-optimise-store = true;
-            # mkDefault so clan-core's nix-settings (connect-timeout = 5) wins
-            # when den is composed into a clan flake; den's value still applies
-            # standalone.
             connect-timeout = lib.mkDefault 10;
             http-connections = 128;
             max-jobs = "auto";

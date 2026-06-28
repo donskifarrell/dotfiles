@@ -1,20 +1,16 @@
 # modules/den/aspects/secrets/sops.nix
 #
-# Base secrets aspect. Replaces Clan's `clan.core.vars` for SHARED secrets
-# (df's home ssh/git files + tailscale auth keys). Include it on every host that
-# needs the shared secrets; the actual shared secrets only decrypt on hosts
-# listed as recipients in .sops.yaml.
-#
-# NOTE: included via the abhaile host (not roles.default) for now, because
-# roles.default is also pulled by `try`, which is not a .sops.yaml recipient.
-# Promote to roles.default once try is gone / made a recipient.
+# Base secrets aspect for SHARED secrets (df's home ssh/git files + tailscale
+# auth key). Include it on every host that needs them; each only decrypts on
+# hosts listed as recipients in .sops.yaml. Currently included via the abhaile
+# host; promote to roles.default if/when more hosts should carry the shared set.
 #
 # Host identity = the machine's own /etc/ssh/ssh_host_ed25519_key (via
 # age.sshKeyPaths). Nothing to provision: abhaile already has the key, and a
 # freshly-installed host has it after first boot. This is the anti-lockout choice.
 #
-# Modes/owners below mirror the old generators in modules/system/secrets-sops.nix
-# (owner root, group "secrets"; .pub + gitconfig are 0644, private material 0640).
+# Modes/owners: owner root, group "secrets"; .pub + gitconfig are 0644, private
+# material 0640 (mirrors how these were deployed before).
 { inputs, ... }:
 let
   sharedFile = inputs.self + "/secrets/shared.yaml";

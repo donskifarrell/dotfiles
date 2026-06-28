@@ -1,5 +1,9 @@
 # Den + MicroVM Migration Plan
 
+> **NOTE (2026-06-28):** The Clan phase described below is retired. The repo has migrated off Clan to
+> Den + sops-nix + deploy-rs; that migration (see `MIGRATION-STATUS.md`) replaced the clan.lol fleet step.
+> The rest of this document is kept for historical context.
+
 > Living plan for refactoring `donskifarrell/dotfiles` to the **Den** aspect-oriented
 > pattern, adding **MicroVM.nix** dev guests, a remote IDE + Claude agent workflow, and
 > a validation harness — then extending across the fleet with clan.lol.

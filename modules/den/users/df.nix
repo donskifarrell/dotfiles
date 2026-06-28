@@ -10,13 +10,11 @@ in
       (den.batteries.user-shell "fish") # default shell + enable fish at OS/HM
 
       # df gets its home apps by including the same roles the host composes.
-      # We deliberately do NOT use `den.batteries.host-aspects` here: its
-      # host->user homeManager projection is a fleet-level step that only runs
-      # during den's full `instantiate`, which our clan bridge (intoAttr=[] +
-      # mainModule, see modules/den/bridge.nix) skips. Including the roles on
-      # the user resolves their `homeManager` keys onto df through the path the
-      # bridge DOES capture — den ignores the roles' `nixos` keys for a user, so
-      # there's no duplication and apps stay defined once in the roles.
+      # We deliberately do NOT use `den.batteries.host-aspects` here (its
+      # host->user homeManager projection). Including the roles directly on the
+      # user resolves their `homeManager` keys onto df; den ignores the roles'
+      # `nixos` keys for a user, so there's no duplication and apps stay defined
+      # once in the roles.
       roles.workstation
       roles.dev
       roles.desktop

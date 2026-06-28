@@ -1,18 +1,10 @@
 {
-  description = "Clan configuration";
+  description = "NixOS configuration — Den + sops-nix + deploy-rs (dendritic, flake-parts)";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
-    flake-parts = {
-      url = "github:hercules-ci/flake-parts";
-    };
-
-    clan-core = {
-      url = "git+https://git.clan.lol/clan/clan-core";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.flake-parts.follows = "flake-parts";
-    };
+    flake-parts.url = "github:hercules-ci/flake-parts";
 
     sops-nix = {
       url = "github:Mic92/sops-nix";
@@ -50,10 +42,9 @@
 
     den.url = "github:denful/den";
 
-    # Den's facter/disko aspects expect these as ROOT inputs (den's own flake is
-    # input-less). Added for Phase 3: Den emits nixosConfigurations.abhaile and
-    # imports the machine's disko layout + facter hardware report directly,
-    # replacing clan's machine-dir auto-import.
+    # Den's facter/disko aspects expect these as root inputs (Den's own flake is
+    # input-less). Den emits nixosConfigurations.<host> and imports each machine's
+    # disko layout + facter hardware report directly.
     disko = {
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -75,19 +66,19 @@
 
   outputs =
     inputs@{
-      clan-core,
       flake-parts,
       home-manager,
       ...
     }:
     flake-parts.lib.mkFlake { inherit inputs; } (
-      { config, ... }:
+      { ... }:
       {
         imports = [
           home-manager.flakeModules.home-manager
-          inputs.clan-core.flakeModules.default
           inputs.treefmt-nix.flakeModule
 
+          # Auto-import every feature module under ./modules (dendritic pattern).
+          # Den (modules/den/**) emits nixosConfigurations.<host> from hosts/<host>.nix.
           (inputs.import-tree ./modules)
 
           (
@@ -97,167 +88,6 @@
             }
           )
         ];
-
-        flake.clan = {
-          meta.name = "aon";
-          meta.domain = "aon.df";
-
-          modules."tailscale" = import ./services/tailscale/default.nix;
-
-          specialArgs = {
-            modules = config.flake;
-            inherit (inputs) claude-code;
-          };
-
-          inventory = {
-            machines = {
-              # For new machines using NixOS iso:
-              #
-              # 1. Set on root first before ssh can work `sudo passwd`
-              # 2. clan machines init-hardware-config <machine> --target-host root@192.168.122.217
-              # 3. clan templates apply disk single-disk short --set mainDisk ""
-              # 4. clan machines install <machine> --target-host root@192.168.122.217
-              #
-
-              # eachtrach = {
-              #   deploy.targetHost = "root@91.99.168.74";
-              #   tags = [
-              #     "server"
-              #     "tailscale-exit"
-              #   ];
-              # };
-
-              # short = {
-              #   deploy.targetHost = "root@192.168.122.217";
-              #   tags = [
-              #     "vm"
-              #     "tailscale"
-              #   ];
-              # };
-
-              # abhaile = {
-              #   deploy.targetHost = "root@192.168.178.28";
-              #   tags = [
-              #     "abhaile"
-              #     "tailscale"
-              #   ];
-              # };
-
-              try = {
-                deploy.targetHost = "root@192.168.122.102";
-                # No `vm` tag: keep clan's interactive `user-mise` off this
-                # throwaway. den provides the `df` user; tags.all services
-                # (sshd, clan-cache, emergency-access) still apply.
-                tags = [ ];
-              };
-            };
-
-            instances = {
-              internet = {
-                # roles.default.machines.eachtrach = {
-                #   settings.host = "eachtrach.lan";
-                # };
-                roles.default.machines.short = {
-                  settings.host = "short.lan";
-                };
-              };
-
-              # Enables secure remote access to the machine over SSH
-              sshd-basic = {
-                module = {
-                  name = "sshd";
-                  input = "clan-core";
-                };
-                roles.server.tags.all = { };
-              };
-
-              # An instance of this module will create a user account on the added machines
-              # along with a generated password that is constant across machines and user settings.
-              user-mise = {
-                module = {
-                  name = "users";
-                  input = "clan-core";
-                };
-
-                roles.default.tags.vm = { };
-
-                roles.default.settings = {
-                  user = "mise";
-                  prompt = true;
-                  groups = [
-                    "networkmanager"
-                    "wheel"
-                  ];
-                };
-              };
-
-              user-df = {
-                module = {
-                  name = "users";
-                  input = "clan-core";
-                };
-                roles.default.machines.abhaile = { };
-                roles.default.settings = {
-                  user = "df";
-                  prompt = true;
-                  groups = [
-                    "networkmanager"
-                    "wheel"
-                  ];
-                };
-              };
-
-              aon-tailnet = {
-                module = {
-                  name = "tailscale";
-                  input = "self";
-                };
-                roles.peer = {
-                  tags.tailscale = { };
-                  settings = {
-                    enableSSH = true;
-                    exitNode = false; # currently breaks iptables on desktop install
-                    enableHostAliases = true;
-                  };
-                };
-              };
-
-              aon-tailnet-exit = {
-                module = {
-                  name = "tailscale";
-                  input = "self";
-                };
-                roles.peer = {
-                  machines.eachtrach = { };
-                  settings = {
-                    enableSSH = true;
-                    exitNode = true;
-                    enableHostAliases = true;
-                  };
-                };
-              };
-
-              # Sets up nix to trust and use the clan cache
-              clan-cache = {
-                module = {
-                  name = "trusted-nix-caches";
-                  input = "clan-core";
-                };
-                roles.default.tags.all = { };
-              };
-
-              # Will automatically set the emergency access password if your system fails to boot.
-              emergency-access = {
-                module = {
-                  name = "emergency-access";
-                  input = "clan-core";
-                };
-
-                roles.default.tags.all = { };
-              };
-            };
-          };
-        };
 
         systems = [
           "x86_64-linux"
@@ -292,40 +122,20 @@
 
             devShells.default = pkgs.mkShell {
               packages = [
-                clan-core.packages.${system}.clan-cli
                 config.treefmt.build.wrapper
                 pkgs.statix
                 pkgs.deadnix
+
+                # Deploy + secrets tooling.
+                pkgs.deploy-rs
+                pkgs.nixos-anywhere
+                pkgs.sops
+                pkgs.ssh-to-age
+                pkgs.age
               ];
             };
 
-            # pre-commit = {
-            #   check.enable = true;
-
-            #   settings = {
-            #     hooks = {
-            #       # Core formatting using existing treefmt setup
-            #       treefmt = {
-            #         enable = true;
-            #       };
-
-            #       # Nix-specific linting
-            #       statix.enable = true;
-            #       deadnix.enable = true;
-            #     };
-
-            #     # Exclude files that shouldn't be checked
-            #     excludes = [
-            #       "^vars/" # SOPS-managed secrets
-            #       "^sops/" # SOPS configuration
-            #       "\\.age$" # Age-encrypted files
-            #       "\\.png$|\\.jpg$|\\.svg$" # Images
-            #       "flake\\.lock$" # Generated file
-            #     ];
-            #   };
-            # };
-
-            # Flake checks: treefmt (module-provided) + per-host builds
+            # Flake checks: treefmt (module-provided) + per-host toplevel builds.
             checks = buildChecks;
           };
       }
