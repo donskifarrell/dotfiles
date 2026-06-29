@@ -34,6 +34,14 @@
     };
 
     inputs = {
+      # Private repo
+      # mono = {
+      #   # url = "git+ssh://git@github.com/donskifarrell/mono.git";
+      #   url = "path:/home/df/dev/mono";
+      #   inputs.nixpkgs.follows = "nixpkgs";
+      #   inputs.flake-parts.follows = "flake-parts";
+      # };
+
       den.url = "github:denful/den";
 
       devshell = {
@@ -147,6 +155,11 @@
       stylix = {
         url = "github:nix-community/stylix";
         inputs.nixpkgs.follows = "nixpkgs-unstable";
+      };
+
+      sops-nix = {
+        url = "github:Mic92/sops-nix";
+        inputs.nixpkgs.follows = "nixpkgs";
       };
 
       treefmt-nix = {

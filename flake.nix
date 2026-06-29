@@ -10,14 +10,6 @@
     accept-flake-config = true;
     allow-import-from-derivation = true;
     auto-optimise-store = true;
-    extra-deprecated-features = [
-      "or-as-identifier"
-      "broken-string-escape"
-    ];
-    extra-experimental-features = [
-      "pipe-operator"
-      "pipe-operators"
-    ];
     extra-substituters = [
       "https://nix-community.cachix.org"
       "https://install.determinate.systems"
@@ -105,6 +97,10 @@
     nixos-hardware.url = "github:nixos/nixos-hardware";
     nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
+    sops-nix = {
+      url = "github:Mic92/sops-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     statix = {
       url = "github:oppiliappan/statix";
       inputs = {
