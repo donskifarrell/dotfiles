@@ -6,7 +6,7 @@
 }:
 {
   # Wire Den in. This works under flake-parts (it brings its own schema/policies).
-  imports = [ inputs.den.flakeModule ];
+  # imports = [ inputs.den.flakeModule ];
 
   # Global static defaults applied to every host/user in this flake.
   den.default = {

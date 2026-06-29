@@ -79,15 +79,6 @@ in
 
         # df's home ssh/git symlinks (secrets.user aspect).
         secretsUser.enable = true;
-
-        # clan binary cache (replaces clan's trusted-nix-caches; merges with the
-        # community caches from core/nix). Keeps build-cache parity post-clan.
-        nix.settings = {
-          substituters = [ "https://cache.clan.lol" ];
-          trusted-public-keys = [
-            "cache.clan.lol-1:3KztgSAB5R1M+Dz7vzkBGzXdodizbgLXGXKXlcQLA28="
-          ];
-        };
       };
   };
 }
