@@ -120,7 +120,8 @@
       "Bash(git commit -q -m 'docs\\(tracker\\): phase 5b lock committed, switch pending *)",
       "Bash(grep -vE '^\\\\.\\(git|direnv\\)$|^\\\\.\\\\.?$|result')",
       "Bash(grep -vE '^\\\\s*$')",
-      "Bash(git commit -q -m 'migrate\\(phase7\\): remove Clan; docs + devShell to new stack *)"
+      "Bash(git commit -q -m 'migrate\\(phase7\\): remove Clan; docs + devShell to new stack *)",
+      "Bash(git check-ignore *)"
     ],
     "additionalDirectories": [
       "/tmp"

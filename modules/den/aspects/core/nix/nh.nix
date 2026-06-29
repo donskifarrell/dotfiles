@@ -9,6 +9,8 @@
         enable = true;
         clean.enable = true;
         clean.extraArgs = "--keep-since 1m --keep 7";
+
+        flake = "/home/df/.dotfiles";
       };
 
       nix.gc.automatic = lib.mkForce false;

@@ -14,17 +14,22 @@ Dendritic principle: **importing a module activates it** — no `enable` flags. 
 ## Repo layout
 
 ```
-flake.nix              flake-parts; imports home-manager + treefmt + (import-tree ./modules)
-modules/den/           the whole config (auto-imported)
-  den.nix              wires inputs.den.flakeModule
-  hosts/<host>.nix     emits nixosConfigurations.<host> (composes aspects + machine data)
-  aspects/             feature modules by category: core, hardware, shell, dev,
-                       services, secrets, apps, gaming, virtualisation
-  roles/               aspect bundles: default, workstation, dev, desktop
-  users/df.nix         the df user aspect (home-manager)
+flake.nix              just description + inputs + `mkFlake { imports = [ (import-tree ./modules) ]; }`
+modules/                everything else, auto-imported as flake-parts modules
+  flake/                the flake's own plumbing (NOT Den config):
+                          systems.nix, home-manager.nix (HM flakeModule), treefmt.nix,
+                          devshell.nix, checks.nix (per-host toplevel builds), nixos-modules.nix
+  den/                  the whole NixOS/HM config Den builds:
+    den.nix              wires inputs.den.flakeModule
+    hosts/<host>.nix     emits nixosConfigurations.<host> (composes aspects + machine data)
+    aspects/             feature modules by category: core, hardware, shell, dev,
+                         services, secrets, apps, gaming, virtualisation
+    roles/               aspect bundles: default, workstation, dev, desktop
+    users/df.nix         the df user aspect (home-manager)
 hosts/<host>/          machine data imported by that host: disko.nix + facter.json
 secrets/*.yaml         sops-nix encrypted secrets (shared.yaml = multi-host, <host>.yaml = per-host)
 .sops.yaml             sops recipients + creation rules
+.mcp.json              Claude Code MCP servers for this repo (nixos = mcp-nixos via `nix run`)
 ```
 
 An aspect is `den.aspects.<path>.{nixos|homeManager|darwin} = <module>`; reference it in an `includes` list as

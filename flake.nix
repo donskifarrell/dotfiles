@@ -64,80 +64,13 @@
     };
   };
 
+  # Everything else is an auto-imported flake-parts module under ./modules
+  # (dendritic pattern): modules/den/** is the config Den builds into
+  # nixosConfigurations.<host>; modules/flake/** is the flake's own plumbing
+  # (systems, dev shell, formatter, checks, home-manager + mono wiring).
   outputs =
-    inputs@{
-      flake-parts,
-      home-manager,
-      ...
-    }:
-    flake-parts.lib.mkFlake { inherit inputs; } (
-      { ... }:
-      {
-        imports = [
-          home-manager.flakeModules.home-manager
-          inputs.treefmt-nix.flakeModule
-
-          # Auto-import every feature module under ./modules (dendritic pattern).
-          # Den (modules/den/**) emits nixosConfigurations.<host> from hosts/<host>.nix.
-          (inputs.import-tree ./modules)
-
-          (
-            { inputs, ... }:
-            {
-              flake.nixosModules = inputs.mono.nixosModules;
-            }
-          )
-        ];
-
-        systems = [
-          "x86_64-linux"
-          "aarch64-darwin"
-        ];
-
-        perSystem =
-          {
-            pkgs,
-            system,
-            config,
-            ...
-          }:
-          let
-            inherit (pkgs) lib;
-            nixosConfigs = config.flake.nixosConfigurations or { };
-            buildChecks = lib.mapAttrs (_: cfg: cfg.config.system.build.toplevel) (
-              lib.filterAttrs (_: cfg: (cfg.pkgs.stdenv.hostPlatform.system or null) == system) nixosConfigs
-            );
-          in
-          {
-            treefmt = {
-              projectRootFile = "flake.nix";
-              programs = {
-                nixfmt.enable = true;
-                statix.enable = true;
-                deadnix.enable = true;
-              };
-            };
-
-            formatter = config.treefmt.build.wrapper;
-
-            devShells.default = pkgs.mkShell {
-              packages = [
-                config.treefmt.build.wrapper
-                pkgs.statix
-                pkgs.deadnix
-
-                # Deploy + secrets tooling.
-                pkgs.deploy-rs
-                pkgs.nixos-anywhere
-                pkgs.sops
-                pkgs.ssh-to-age
-                pkgs.age
-              ];
-            };
-
-            # Flake checks: treefmt (module-provided) + per-host toplevel builds.
-            checks = buildChecks;
-          };
-      }
-    );
+    inputs:
+    inputs.flake-parts.lib.mkFlake { inherit inputs; } {
+      imports = [ (inputs.import-tree ./modules) ];
+    };
 }
