@@ -1,7 +1,7 @@
 { den, ... }:
 {
   den.aspects.dev.apps = {
-    includes = with den.aspects; [
+    includes = [
       den.aspects.dev.vscode
     ];
 

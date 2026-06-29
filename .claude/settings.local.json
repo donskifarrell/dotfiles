@@ -123,8 +123,6 @@
       "Bash(git commit -q -m 'migrate\\(phase7\\): remove Clan; docs + devShell to new stack *)",
       "Bash(git check-ignore *)"
     ],
-    "additionalDirectories": [
-      "/tmp"
-    ]
+    "additionalDirectories": ["/tmp"]
   }
 }

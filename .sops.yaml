@@ -17,12 +17,10 @@
 #   ssh-to-age < /etc/ssh/ssh_host_ed25519_key.pub
 #   # or from a stored pub value:
 #   echo 'ssh-ed25519 AAAA...' | ssh-to-age
-
 keys:
-  - &admin_df       age1awmgrhav72rx0dluch3ztj0ku6xkrg2utnrkva2qhm8sdw76sf7qqc9c5t
-  - &host_abhaile   age1gglfnksmkvjlvnzunt6lmvzngam66cpwrek73t3dnn5l05qlq3ls4pcjdn
+  - &admin_df age1awmgrhav72rx0dluch3ztj0ku6xkrg2utnrkva2qhm8sdw76sf7qqc9c5t
+  - &host_abhaile age1gglfnksmkvjlvnzunt6lmvzngam66cpwrek73t3dnn5l05qlq3ls4pcjdn
   # - &host_eachtrach age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-
 creation_rules:
   # Shared secrets: anything consumed on more than one host (df's home ssh/git
   # files, tailscale auth keys). Must list EVERY host that reads them + admin.
@@ -32,7 +30,6 @@ creation_rules:
           - *admin_df
           - *host_abhaile
           # - *host_eachtrach   # uncomment + updatekeys once eachtrach exists
-
   # abhaile-only secrets (password hashes, machine services).
   - path_regex: secrets/abhaile\.yaml$
     key_groups:
@@ -40,9 +37,9 @@ creation_rules:
           - *admin_df
           - *host_abhaile
 
-  # Template for the fresh eachtrach (Phase 6); leave commented until it exists.
-  # - path_regex: secrets/eachtrach\.yaml$
-  #   key_groups:
-  #     - age:
-  #         - *admin_df
-  #         - *host_eachtrach
+# Template for the fresh eachtrach (Phase 6); leave commented until it exists.
+# - path_regex: secrets/eachtrach\.yaml$
+#   key_groups:
+#     - age:
+#         - *admin_df
+#         - *host_eachtrach
