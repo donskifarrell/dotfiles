@@ -92,7 +92,38 @@
       "Bash(awk '{print $1, $2}')",
       "Bash(grep -iA2 \"host-key\\\\|key-check\")",
       "Bash(ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o BatchMode=yes root@192.168.122.102 ' *)",
-      "Bash(ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o BatchMode=yes df@192.168.122.102 ' *)"
+      "Bash(ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o BatchMode=yes df@192.168.122.102 ' *)",
+      "Bash(nix run *)",
+      "Bash(nix shell *)",
+      "Read(//etc/ssh/**)",
+      "Bash(git checkout *)",
+      "Bash(git commit -q -m 'migrate\\(phase0\\): branch scaffolding + status tracker *)",
+      "Bash(nixos-rebuild build *)",
+      "Bash(cd /home/df/.dotfiles *)",
+      "Read(//tmp/**)",
+      "Bash(git commit -q -m 'migrate\\(phaseB\\): bootloader pre-flight + baseline recorded *)",
+      "Bash(git commit -q -m 'migrate\\(phase1\\): extract abhaile + shared secrets; inventory *)",
+      "Bash(git commit -q -m 'migrate\\(phase1\\): record Phase-2 decisions, await template bundle *)",
+      "Bash(break)",
+      "Bash(nix fmt *)",
+      "Bash(grep '\\\\.nix$')",
+      "Bash(git reset *)",
+      "Bash(git commit -q -m 'chore: treefmt pre-existing files *)",
+      "Bash(git commit -q -m 'migrate\\(phase2\\): stand up sops-nix; de-clan tailscale *)",
+      "Bash(grep -nE 'disko|facter|nixos-facter|url =' __TRACKED_VAR__/flake.nix)",
+      "Bash(bootctl status *)",
+      "Bash(systemctl --failed --no-legend)",
+      "Read(//run/secrets.d/1/**)",
+      "Bash(sed 's/^/system secrets: /')",
+      "Bash(git commit -q -m 'migrate\\(phase5\\): abhaile cut over to Den + sops-nix \\(rebooted OK\\) *)",
+      "Bash(git commit -q -m 'migrate\\(phase5b\\): nix flake update \\(isolated\\) *)",
+      "Bash(git commit -q -m 'docs\\(tracker\\): phase 5b lock committed, switch pending *)",
+      "Bash(grep -vE '^\\\\.\\(git|direnv\\)$|^\\\\.\\\\.?$|result')",
+      "Bash(grep -vE '^\\\\s*$')",
+      "Bash(git commit -q -m 'migrate\\(phase7\\): remove Clan; docs + devShell to new stack *)"
+    ],
+    "additionalDirectories": [
+      "/tmp"
     ]
   }
 }

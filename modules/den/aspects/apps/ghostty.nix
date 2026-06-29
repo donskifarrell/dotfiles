@@ -7,7 +7,13 @@
         enableFishIntegration = true;
         installBatSyntax = true;
         systemd.enable = true;
-        settings.shell-integration-features = "ssh-terminfo";
+
+        settings = {
+          shell-integration-features = "ssh-terminfo";
+          clipboard-read = "allow";
+          clipboard-write = "allow";
+          copy-on-select = "clipboard";
+        };
       };
     };
 
