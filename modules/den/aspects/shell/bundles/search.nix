@@ -20,6 +20,9 @@
       fzf = {
         enable = true;
         enableFishIntegration = true;
+        # HM now defaults nushell integration on and asserts fzf >= 0.73.0, but
+        # nixpkgs 26.05 ships 0.72.0 and we use fish, not nushell. Opt out.
+        enableNushellIntegration = false;
       };
 
       ripgrep = {

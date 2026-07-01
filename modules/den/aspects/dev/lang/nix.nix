@@ -12,7 +12,6 @@
         nixfmt
         nixpkgs-review
         npins
-        pkgs.nixfmt-rfc-style
       ];
 
       programs.nix-your-shell.enable = true;

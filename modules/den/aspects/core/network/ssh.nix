@@ -9,24 +9,27 @@
         enableDefaultConfig = false;
         # startAgent = true;
 
-        matchBlocks."*" = {
-          addKeysToAgent = "confirm";
+        # `settings` replaced the now-deprecated `matchBlocks` alias; keys are
+        # OpenSSH directive names, and the `"*"` default block is rendered last
+        # (so the specific root@localhost block below wins on ForwardAgent).
+        settings."*" = {
+          AddKeysToAgent = "confirm";
 
-          forwardAgent = false;
-          compression = false;
+          ForwardAgent = false;
+          Compression = false;
 
-          serverAliveCountMax = 3;
+          ServerAliveCountMax = 3;
 
-          hashKnownHosts = true;
-          userKnownHostsFile = "~/.ssh/known_hosts";
+          HashKnownHosts = true;
+          UserKnownHostsFile = "~/.ssh/known_hosts";
 
           # Multiplexing
-          controlMaster = "auto";
-          controlPath = "~/.ssh/master-%r@%n:%p";
-          controlPersist = "10m";
+          ControlMaster = "auto";
+          ControlPath = "~/.ssh/master-%r@%n:%p";
+          ControlPersist = "10m";
         };
 
-        matchBlocks."root@localhost root@127.0.0.1 root@::1".forwardAgent = true;
+        settings."root@localhost root@127.0.0.1 root@::1".ForwardAgent = true;
 
         # macOS compatibility / keychain integration
         extraConfig = lib.mkMerge [

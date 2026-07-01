@@ -12,7 +12,7 @@
     apps.bundles.security
     apps.bundles.social
 
-    apps.claude
+    apps.ai-tools
     apps.ghostty
 
     shell

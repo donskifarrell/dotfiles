@@ -24,7 +24,10 @@
   };
 
   inputs = {
-    den.url = "github:denful/den";
+    den = {
+      url = "github:denful/den";
+      inputs.nixpkgs.follows = "nixpkgs-unstable";
+    };
     devshell = {
       url = "github:numtide/devshell";
       inputs.nixpkgs.follows = "nixpkgs-unstable";
@@ -60,7 +63,10 @@
       url = "github:microvm-nix/microvm.nix";
       inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
-    nix-ai-tools.url = "github:numtide/nix-ai-tools";
+    nix-ai-tools = {
+      url = "github:numtide/nix-ai-tools";
+      inputs.nixpkgs.follows = "nixpkgs-unstable";
+    };
     nix-darwin = {
       url = "github:LnL7/nix-darwin";
       inputs.nixpkgs.follows = "nixpkgs-unstable";
@@ -87,7 +93,6 @@
       url = "github:numtide/nixos-anywhere";
       inputs = {
         disko.follows = "disko";
-        flake-parts.follows = "flake-parts";
         nixos-stable.follows = "nixpkgs";
         nixpkgs.follows = "nixpkgs-unstable";
         treefmt-nix.follows = "treefmt-nix";
@@ -95,11 +100,11 @@
     };
     nixos-facter-modules.url = "github:numtide/nixos-facter-modules";
     nixos-hardware.url = "github:nixos/nixos-hardware";
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
-    nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixpkgs.url = "https://flakehub.com/f/DeterminateSystems/nixpkgs-26.05-chilled/0.1";
+    nixpkgs-unstable.url = "https://flakehub.com/f/DeterminateSystems/nixpkgs-weekly/0.1";
     sops-nix = {
       url = "github:Mic92/sops-nix";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
     statix = {
       url = "github:oppiliappan/statix";
