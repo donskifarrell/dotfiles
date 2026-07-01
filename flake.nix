@@ -24,10 +24,7 @@
   };
 
   inputs = {
-    den = {
-      url = "github:denful/den";
-      inputs.nixpkgs.follows = "nixpkgs-unstable";
-    };
+    den.url = "github:denful/den";
     devshell = {
       url = "github:numtide/devshell";
       inputs.nixpkgs.follows = "nixpkgs-unstable";
