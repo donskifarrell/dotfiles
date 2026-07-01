@@ -2,7 +2,7 @@
 {
   den.aspects.shell.zellij.homeManager = {
     programs.zellij = {
-      enable = false;
+      enable = true;
       enableFishIntegration = true;
       exitShellOnExit = true;
       attachExistingSession = true;
