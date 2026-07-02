@@ -28,6 +28,7 @@ in
       hardware.cpu.auto-cpufreq
       hardware.firmware
       hardware.gpu.amd
+      hardware.gpu.rocm # GPU-compute diagnostics (rocminfo/vulkaninfo/…)
       hardware.keyboard
       hardware.printing
       hardware.storage.ssd
@@ -54,6 +55,7 @@ in
       secrets.home # df's ~/.ssh + ~/.config/git files from shared.yaml
 
       services.tailscale # tailscale peer (declares its own authkey secret)
+      services.llm # llama.cpp vulkan+rocm on the RX 9070 (benchmarked on-box)
     ];
 
     nixos =

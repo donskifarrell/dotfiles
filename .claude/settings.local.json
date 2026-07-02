@@ -136,7 +136,26 @@
       "Bash(echo \"exit=$?\")",
       "Bash(python3 -c \"import json,sys; rules=json.load\\(sys.stdin\\); [print\\(r\\) for r in rules if '/home/df' in r]\")",
       "Bash(python3 -)",
-      "Bash(git -C /home/df/.dotfiles log --oneline -3 -- modules/flake-parts/home-manager.nix modules/flake/home-manager.nix)"
+      "Bash(git -C /home/df/.dotfiles log --oneline -3 -- modules/flake-parts/home-manager.nix modules/flake/home-manager.nix)",
+      "Bash(sudo nixos-rebuild switch --flake /home/df/.dotfiles#abhaile)",
+      "Bash(rocminfo)",
+      "Bash(vulkaninfo --summary)",
+      "Read(//var/lib/llm/models/**)",
+      "Bash(curl -sfLO 'https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf')",
+      "Bash(curl -sfLO 'https://huggingface.co/unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF/resolve/main/Qwen3-30B-A3B-Instruct-2507-Q4_K_M.gguf')",
+      "Bash(llama-cli-vulkan --list-devices)",
+      "Bash(llama-cli-rocm --list-devices)",
+      "Bash(llama-bench-vulkan --help)",
+      "Bash(llama-bench-vulkan --version)",
+      "Bash(ssh -T git@github.com)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(systemctl is-active *)",
+      "Read(//run/secrets.d/5/**)",
+      "Bash(sudo ls -l /run/secrets/)",
+      "Read(//home/df/.ssh/**)",
+      "Bash(sudo stat -c '%U:%G %a' /run/secrets/ssh-df_gh)",
+      "Bash(journalctl -u llama-cpp.service --no-pager -n 8)",
+      "Bash(git commit -m ' *)"
     ],
     "additionalDirectories": ["/tmp"]
   }

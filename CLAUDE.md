@@ -94,6 +94,27 @@ Gotchas (easy to forget):
 - Tailscale auth keys expire (~90d). Already-joined nodes stay connected; mint a fresh key only for new joins.
 - Flakes gotcha: `git add` new files before building/evaluating, or the flake won't see them.
 
+## Local LLM inference (abhaile)
+
+RX 9070 (RDNA4/**gfx1201**, 16GB VRAM). Aspects: `hardware.gpu.rocm` (rocminfo/rocm-smi/amdgpu_top/vulkan-tools) +
+`services.llm` (both llama.cpp backends + the default server). Benchmarked on-box 2026-07-03 — numbers + protocol in the
+`services/llm.nix` header. **Vulkan (RADV) won token generation by ~24%** over ROCm on this GPU; ROCm won MoE
+prompt-processing. Default: `services.llama-cpp` = llama-server + `llama-cpp-vulkan`, OpenAI-compatible API on
+`127.0.0.1:8080`.
+
+- Both backends always installed as `llama-{server,bench,cli}-vulkan` / `-rocm` — A/B test without rebuilding:
+  `llama-bench-<b> -m /var/lib/llm/models/<m>.gguf -dev {Vulkan0|ROCm0} -fa 0,1 -r 3`.
+- Models live in `/var/lib/llm/models` (df-owned) — **not** `$HOME`: the service is DynamicUser + `ProtectHome=true`.
+- Device 0 = RX 9070, device 1 = Raphael iGPU in both stacks — always pin (`--device Vulkan0` / `-dev ROCm0`).
+- `/dev/kfd` + `/dev/dri/renderD*` are 0666 → no video/render group plumbing needed, even for DynamicUser services.
+- ROCm ≥7.x has **native gfx1201** kernels (no `HSA_OVERRIDE_GFX_VERSION`); `llama-cpp-rocm` is binary-cached.
+- **Dual-nixpkgs gotcha**: NixOS _modules_ come from `inputs.nixpkgs` (Den's lock, older) while _packages_ come from
+  `nixpkgs-unstable` (FlakeHub weekly). E.g. `services.llama-cpp` here is the old `extraFlags` shape; newer nixpkgs uses
+  freeform `settings`. Check option shapes against `inputs.nixpkgs`'s module, not master/search.nixos.org.
+- Re-benchmark after `nix flake update` (RDNA4 ROCm/mesa/llama.cpp all move fast); vLLM skipped — RDNA4 kernel gap still
+  open (vllm-project/vllm#28649). See TODO.md.
+- Service holds ~7GiB VRAM at 16k ctx; `systemctl stop llama-cpp` frees it (e.g. before gaming).
+
 ## Conventions
 
 - treefmt: `nix flake check` runs a strict nixfmt; if `nix fmt` leaves `_:\n{}` expanded, hand-collapse to `_: {}` (what

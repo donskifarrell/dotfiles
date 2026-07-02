@@ -13,6 +13,6 @@
 
     services.lact.enable = true;
 
-    # TODO: ROCm support?
+    # ROCm/compute diagnostics live in hardware.gpu.rocm (rocm.nix).
   };
 }
