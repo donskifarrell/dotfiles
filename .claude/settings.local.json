@@ -155,7 +155,12 @@
       "Read(//home/df/.ssh/**)",
       "Bash(sudo stat -c '%U:%G %a' /run/secrets/ssh-df_gh)",
       "Bash(journalctl -u llama-cpp.service --no-pager -n 8)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(sudo nixos-rebuild boot --flake /home/df/.dotfiles#abhaile)",
+      "Bash(curl -s http://127.0.0.1:8080/v1/models)",
+      "Bash(python3 -c \"import json,sys; print\\(json.load\\(sys.stdin\\)['data'][0]['id']\\)\")",
+      "Bash(nix log *)",
+      "Bash(git commit -m 'settings.local: session permission grants *)"
     ],
     "additionalDirectories": ["/tmp"]
   }
