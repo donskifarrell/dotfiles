@@ -1,8 +1,8 @@
 # .sops.yaml - sops-nix creation rules for the post-Clan repo.
 #
 # Recipients:
-#   admin_df       = my personal age key (lets ME decrypt/edit). Public half is in
-#                    sops/users/df/key.json. The private half is my
+#   admin_df       = my personal age key (lets ME decrypt/edit). The public half
+#                    is the &admin_df value below; the private half is my
 #                    ~/.config/sops/age/keys.txt (keep it; it is the editor identity).
 #   host_abhaile   = ssh-to-age of abhaile's EXISTING /etc/ssh/ssh_host_ed25519_key.
 #                    Verified: ssh-to-age of

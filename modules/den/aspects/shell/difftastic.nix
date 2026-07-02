@@ -1,11 +1,9 @@
-# difftastic — structural diffs in git (modules/home/difftastic.nix)
+# difftastic — structural diffs in git
 {
-  config.flake.homeModules.difftastic = {
-    config = {
-      programs.difftastic = {
-        enable = true;
-        git.enable = true;
-      };
+  den.aspects.shell.difftastic.homeManager = {
+    programs.difftastic = {
+      enable = true;
+      git.enable = true;
     };
   };
 }

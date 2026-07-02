@@ -1,5 +1,5 @@
 # Ported from modules/home/ssh.nix. Client config + agent. Includes
-# `sshconfig.local`, materialised into ~/.ssh by the sops secrets.user aspect.
+# `sshconfig.local`, materialised into ~/.ssh by the sops secrets.home aspect.
 {
   den.aspects.core.network.ssh.homeManager =
     { lib, pkgs, ... }:

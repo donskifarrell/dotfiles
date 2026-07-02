@@ -31,7 +31,7 @@
         pull.rebase = true;
         help.autocorrect = 1;
         grep.lineNumber = true;
-        merge.conflictstyle = "diff3";
+        merge.conflictstyle = "zdiff3";
         diff.colorMoved = "default";
         url."git@github.com:".insteadOf = "https://github.com/";
       };

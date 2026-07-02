@@ -4,11 +4,12 @@
 # services/tailscale/default.nix). abhaile joins the aon tailnet as a plain peer
 # with Tailscale SSH and /etc/hosts alias sync; it is NOT an exit node.
 #
-# The auth key comes from sops (declared in aspects/secrets/sops.nix as
-# "tailscale-aon_tailnet-authkey"), so including this aspect requires secrets.sops
-# to be included on the same host. Auth keys expire (~90d): for an already-joined
+# The auth key secret is declared HERE (next to its consumer) from
+# secrets/shared.yaml, so including this aspect requires the secrets.sops base
+# aspect on the same host. Auth keys expire (~90d): for an already-joined
 # node it isn't needed to stay connected; mint a fresh one and
 # `sops secrets/shared.yaml` for new joins.
+{ inputs, ... }:
 {
   den.aspects.services.tailscale = {
     nixos =
@@ -24,6 +25,12 @@
         enableHostAliases = true;
       in
       {
+        sops.secrets."tailscale-aon_tailnet-authkey" = {
+          sopsFile = inputs.self + "/secrets/shared.yaml";
+          key = "tailscale/aon_tailnet_authkey";
+          mode = "0400";
+        };
+
         services.tailscale = {
           enable = true;
           useRoutingFeatures = "both";

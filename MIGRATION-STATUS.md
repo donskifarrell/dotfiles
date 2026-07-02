@@ -57,7 +57,11 @@ update (isolated), Phase 6 fresh eachtrach (nixos-anywhere + deploy-rs), Phase 7
 - [~] 5b Flake update (d5b046b lock; built + flake-check green; SWITCH pending user)
 - [ ] 6 Fresh eachtrach (nixos-anywhere) (when a new VM is ready)
 - [x] 7 Remove Clan + doc cleanup (clan-core/flake.clan/vars/sops/try removed; docs rewritten; build+check green)
-- [ ] 8 (optional) agenix Mark each `[x]` with its commit sha when done.
+- [x] 8 (optional) agenix — RESOLVED 2026-07-02: staying on sops-nix (same age identity model, working setup,
+      neededForUsers + multi-secret YAML in use); plumbing simplified instead (single-map secrets/home.nix, secrets
+      declared next to consumers). Remaining work tracked in TODO.md (abhaile switch, eachtrach, key backup).
+
+Mark each `[x]` with its commit sha when done.
 
 ## Key facts (don't re-derive)
 

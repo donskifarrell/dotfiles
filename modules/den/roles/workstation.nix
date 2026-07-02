@@ -18,6 +18,8 @@
     shell
     shell.atuin
     shell.bat
+    shell.delta
+    shell.difftastic
     shell.eza
     shell.fish
     shell.neovim

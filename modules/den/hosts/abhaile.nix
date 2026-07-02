@@ -49,10 +49,11 @@ in
       roles.desktop
 
       # sops-nix secrets + consumers.
-      secrets.sops # shared home ssh/git + tailscale auth key
+      secrets.sops # base decryption wiring (host ssh key -> age)
       secrets.abhaile # df/root password-hash secrets
-      secrets.user # ~/.ssh + ~/.config/git home symlinks
-      services.tailscale # de-clanned tailscale peer (authKeyFile from sops)
+      secrets.home # df's ~/.ssh + ~/.config/git files from shared.yaml
+
+      services.tailscale # tailscale peer (declares its own authkey secret)
     ];
 
     nixos =
@@ -76,9 +77,6 @@ in
         # Emergency console access (replaces clan emergency-access). abhaile uses
         # systemd-initrd, so this is the supported one-liner.
         boot.initrd.systemd.emergencyAccess = emergencyHash;
-
-        # df's home ssh/git symlinks (secrets.user aspect).
-        secretsUser.enable = true;
       };
   };
 }

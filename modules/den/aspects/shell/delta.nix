@@ -1,15 +1,16 @@
-# delta — git pager (modules/home/delta.nix)
+# delta — git pager
 {
-  config.flake.homeModules.delta = {
-    config = {
-      programs.delta = {
-        enable = true;
+  den.aspects.shell.delta.homeManager = {
+    programs.delta = {
+      enable = true;
 
-        options = {
-          navigate = true;
-          features = "decorations";
-          whitespace-error-style = "22 reverse";
-        };
+      options = {
+        dark = true;
+        features = "decorations";
+        line-numbers = true;
+        navigate = true;
+        side-by-side = true;
+        whitespace-error-style = "22 reverse";
       };
     };
   };

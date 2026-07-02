@@ -27,6 +27,8 @@
           pkgs.nil
           pkgs.nixd
           pkgs.sops
+          pkgs.ssh-to-age
+          pkgs.age
         ]
         ++ lib.optionals pkgs.stdenv.buildPlatform.isDarwin [
           pkgs.coreutils-full # Include GNU coreutils for darwin systems

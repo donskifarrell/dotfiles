@@ -16,9 +16,9 @@ then into per-host configs. Every file under `./modules` is auto-imported (`impo
 ```
 flake.nix              just description + inputs + `mkFlake { imports = [ (import-tree ./modules) ]; }`
 modules/                everything else, auto-imported as flake-parts modules
-  flake/                the flake's own plumbing (NOT Den config):
-                          systems.nix, home-manager.nix (HM flakeModule), treefmt.nix,
-                          devshell.nix, checks.nix (per-host toplevel builds), nixos-modules.nix
+  flake-parts/          the flake's own plumbing (NOT Den config): flake-file.nix (inputs →
+                          `nix run .#write-flake` regenerates flake.nix), devshell.nix, treefmt.nix,
+                          pre-commit.nix, pkgs.nix (auto-wires pkgs/by-name), den-tree.nix
   den/                  the whole NixOS/HM config Den builds:
     den.nix              wires inputs.den.flakeModule
     hosts/<host>.nix     emits nixosConfigurations.<host> (composes aspects + machine data)
@@ -46,7 +46,10 @@ An aspect is `den.aspects.<path>.{nixos|homeManager|darwin} = <module>`; referen
 
 ```bash
 nixos-rebuild switch --flake .#abhaile      # build + activate locally (nh also configured)
-nix flake check                              # eval + per-host toplevel build + treefmt
+nix flake check                              # treefmt + flake-file check ONLY (per-host toplevel
+                                             #   checks were lost in cleanup — see TODO.md); to
+                                             #   really verify a host, build its toplevel:
+nix build .#nixosConfigurations.abhaile.config.system.build.toplevel
 nix fmt                                       # nixfmt + statix + deadnix (treefmt)
 nix flake update                              # update inputs (commit flake.lock on its own)
 deploy .#<host>                               # deploy-rs remote day-2 (once a deploy node is wired)
@@ -55,12 +58,41 @@ nixos-anywhere --flake .#<host> root@<ip>     # provision a new host
 
 ## Secrets (sops-nix)
 
-- Edit: `sops secrets/shared.yaml` / `sops secrets/abhaile.yaml` — decrypts with the df age key at
-  `~/.config/sops/age/keys.txt` (recipient `age1awmgr…`).
+Layout — secrets are declared **next to their consumers**; the base aspect is wiring only:
+
+- `modules/den/aspects/secrets/sops.nix` — base aspect: imports sops-nix + sets the decryption identity. No secrets.
+  Include it on every host that consumes any secret.
+- `modules/den/aspects/secrets/home.nix` — df's home ssh/git files, **one map line per secret** (yaml key → `$HOME`
+  dest); sops.secrets entries, modes, owner and symlinks are all derived from that map.
+- `modules/den/aspects/secrets/<host>.nix` — host-only secrets (e.g. abhaile password hashes).
+- Service secrets live in the service's own aspect (e.g. `services/tailscale.nix` declares its authkey).
+
+Identities:
+
+- Editing: df's age key at `~/.config/sops/age/keys.txt` (recipient `&admin_df` in `.sops.yaml`). Edit with
+  `sops secrets/shared.yaml` / `sops secrets/abhaile.yaml`.
 - Each host decrypts with its **own SSH host key**: `sops.age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ]`; its
-  recipient is `ssh-to-age < /etc/ssh/ssh_host_ed25519_key.pub`.
-- New host: add its ssh-to-age recipient to `.sops.yaml`, then `sops updatekeys secrets/<file>.yaml`.
-- Password hashes use `neededForUsers = true`; home ssh/git files are symlinked by the `secrets.user` aspect.
+  recipient is `ssh-to-age < /etc/ssh/ssh_host_ed25519_key.pub` (ssh-to-age + age are in the devshell).
+- **Recovery**: if the editor key is lost, any recipient host can still produce a working identity:
+  `ssh-to-age -private-key < /etc/ssh/ssh_host_ed25519_key` (run as root on that host).
+
+Recipes:
+
+- **Add a home secret** (2 steps): add the key/value via `sops secrets/shared.yaml`, then one line in the `homeFiles`
+  map in `secrets/home.nix`. Derivation: `/run/secrets` name = key with `/`→`-`; `ssh/*` without `_pub` → mode 0600,
+  else 0644; owner df.
+- **Add a service secret**: declare `sops.secrets.<name> = { sopsFile; key; … }` in the consuming aspect.
+- **Add a host**: `ssh-to-age` its host key → add recipient + (if per-host secrets) creation rule to `.sops.yaml` →
+  `sops updatekeys secrets/<file>.yaml` for every file it must read → include `secrets.sops` in the host.
+
+Gotchas (easy to forget):
+
+- Password hashes need `neededForUsers = true` (decrypted early to `/run/secrets-for-users`; owner/mode forced to root).
+- `boot.initrd.systemd.emergencyAccess` takes a **literal hash string** baked into the initrd — it cannot be a sops path
+  (lives in `hosts/abhaile.nix`).
+- NEVER manage a host's own `/etc/ssh/ssh_host_ed25519_key` via sops — it's the key sops-nix decrypts with.
+- Tailscale auth keys expire (~90d). Already-joined nodes stay connected; mint a fresh key only for new joins.
+- Flakes gotcha: `git add` new files before building/evaluating, or the flake won't see them.
 
 ## Conventions
 

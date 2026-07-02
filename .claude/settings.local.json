@@ -132,7 +132,11 @@
       "Bash(echo \"rc=$?\")",
       "Bash(direnv allow *)",
       "Bash(timeout 300 direnv exec . true)",
-      "Bash(timeout 60 direnv exec . menu)"
+      "Bash(timeout 60 direnv exec . menu)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(python3 -c \"import json,sys; rules=json.load\\(sys.stdin\\); [print\\(r\\) for r in rules if '/home/df' in r]\")",
+      "Bash(python3 -)",
+      "Bash(git -C /home/df/.dotfiles log --oneline -3 -- modules/flake-parts/home-manager.nix modules/flake/home-manager.nix)"
     ],
     "additionalDirectories": ["/tmp"]
   }
