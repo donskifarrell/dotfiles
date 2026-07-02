@@ -57,6 +57,26 @@
             package = pkgs.nix-output-monitor;
             help = "Nix Output Monitor (a drop-in alternative for `nix` which shows a build graph)";
           }
+          {
+            package = config.packages.nix-flake-write;
+            name = "nix-flake-write";
+            help = "Regenerate flake.nix from the flake-file modules (nix run .#write-flake)";
+          }
+          {
+            package = config.packages.nix-flake-update;
+            name = "nix-flake-update";
+            help = "Update flake inputs (gh access token; -e/--exclude INPUT to skip)";
+          }
+          {
+            package = config.packages.nix-flake-build;
+            name = "nix-flake-build";
+            help = "Build or activate a host with nh (auto os/darwin/home; --switch, --on user@host)";
+          }
+          {
+            package = config.packages.den-tree;
+            name = "den-tree";
+            help = "Print the Den aspect tree applied to each host and user";
+          }
         ];
 
         devshell.startup.pre-commit.text = config.pre-commit.installationScript;

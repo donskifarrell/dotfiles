@@ -121,7 +121,18 @@
       "Bash(grep -vE '^\\\\.\\(git|direnv\\)$|^\\\\.\\\\.?$|result')",
       "Bash(grep -vE '^\\\\s*$')",
       "Bash(git commit -q -m 'migrate\\(phase7\\): remove Clan; docs + devShell to new stack *)",
-      "Bash(git check-ignore *)"
+      "Bash(git check-ignore *)",
+      "Bash(nh --version)",
+      "Bash(nh os *)",
+      "Bash(nh home *)",
+      "Bash(nh darwin *)",
+      "Bash(/nix/store/62n6g900k9scmwfn73377qqifbxysb2z-nix-flake-build/bin/nix-flake-build --help)",
+      "Bash(timeout 280 /nix/store/62n6g900k9scmwfn73377qqifbxysb2z-nix-flake-build/bin/nix-flake-build abhaile -- -n)",
+      "Bash(/nix/store/62n6g900k9scmwfn73377qqifbxysb2z-nix-flake-build/bin/nix-flake-build nosuchhost *)",
+      "Bash(echo \"rc=$?\")",
+      "Bash(direnv allow *)",
+      "Bash(timeout 300 direnv exec . true)",
+      "Bash(timeout 60 direnv exec . menu)"
     ],
     "additionalDirectories": ["/tmp"]
   }
