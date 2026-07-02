@@ -59,7 +59,12 @@ in
     ];
 
     nixos =
-      { config, lib, ... }:
+      {
+        config,
+        lib,
+        pkgs,
+        ...
+      }:
       {
         imports = [
           # disko.devices layout + the 172K facter hardware report.
@@ -68,6 +73,12 @@ in
 
         facter.reportPath = inputs.self + "/hosts/abhaile/facter.json";
         nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
+
+        # Latest kernel (7.0.x) over the default LTS: newer amdgpu/KFD for the
+        # RDNA4 dGPU. Staged with `nixos-rebuild boot` 2026-07-03; re-bench the
+        # LLM backends after the reboot (TODO.md item 1) and revert this line
+        # alone if anything regresses.
+        boot.kernelPackages = pkgs.linuxPackages_latest;
 
         users.users.root.openssh.authorizedKeys.keys = [ authorizedKey ];
 
