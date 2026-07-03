@@ -96,24 +96,34 @@ Gotchas (easy to forget):
 
 ## Local LLM inference (abhaile)
 
-RX 9070 (RDNA4/**gfx1201**, 16GB VRAM). Aspects: `hardware.gpu.rocm` (rocminfo/rocm-smi/amdgpu_top/vulkan-tools) +
-`services.llm` (both llama.cpp backends + the default server). Benchmarked on-box 2026-07-03 — numbers + protocol in the
-`services/llm.nix` header. **Vulkan (RADV) won token generation by ~24%** over ROCm on this GPU; ROCm won MoE
-prompt-processing. Default: `services.llama-cpp` = llama-server + `llama-cpp-vulkan`, OpenAI-compatible API on
-`127.0.0.1:8080`.
+**Full reference: [docs/llm.md](docs/llm.md)** — benchmark numbers + what they mean per use case, llama-server parameter
+research, model recommendations, re-bench protocol. Config: `services.llm` aspect (+ `hardware.gpu.rocm` diagnostics).
+Summary: llama-server + **Vulkan** backend (won on-box benches; ROCm kept installed — wins MoE prompt processing),
+router mode serving multiple models on `127.0.0.1:8080` (OpenAI-compatible), models in `/var/lib/llm/models`. Ollama
+dropped (slower, measured); vLLM skipped (RDNA4 kernel gap, vllm-project/vllm#28649).
 
-- Both backends always installed as `llama-{server,bench,cli}-vulkan` / `-rocm` — A/B test without rebuilding:
-  `llama-bench-<b> -m /var/lib/llm/models/<m>.gguf -dev {Vulkan0|ROCm0} -fa 0,1 -r 3`.
-- Models live in `/var/lib/llm/models` (df-owned) — **not** `$HOME`: the service is DynamicUser + `ProtectHome=true`.
+Gotchas (easy to forget):
+
+- Models must NOT live in `$HOME` — the service is DynamicUser + `ProtectHome=true`.
 - Device 0 = RX 9070, device 1 = Raphael iGPU in both stacks — always pin (`--device Vulkan0` / `-dev ROCm0`).
 - `/dev/kfd` + `/dev/dri/renderD*` are 0666 → no video/render group plumbing needed, even for DynamicUser services.
 - ROCm ≥7.x has **native gfx1201** kernels (no `HSA_OVERRIDE_GFX_VERSION`); `llama-cpp-rocm` is binary-cached.
-- **Dual-nixpkgs gotcha**: NixOS _modules_ come from `inputs.nixpkgs` (Den's lock, older) while _packages_ come from
-  `nixpkgs-unstable` (FlakeHub weekly). E.g. `services.llama-cpp` here is the old `extraFlags` shape; newer nixpkgs uses
-  freeform `settings`. Check option shapes against `inputs.nixpkgs`'s module, not master/search.nixos.org.
-- Re-benchmark after `nix flake update` (RDNA4 ROCm/mesa/llama.cpp all move fast); vLLM skipped — RDNA4 kernel gap still
-  open (vllm-project/vllm#28649). See TODO.md.
-- Service holds ~7GiB VRAM at 16k ctx; `systemctl stop llama-cpp` frees it (e.g. before gaming).
+- Re-benchmark after `nix flake update` (protocol in docs/llm.md; follow-ups in TODO.md).
+- Free VRAM before gaming: `systemctl restart llama-cpp` (router unloads until next request).
+
+## nixpkgs wiring (single source since 2026-07-03)
+
+Hosts build **entirely** from `inputs.nixpkgs` (Den does `pkgs = inputs.nixpkgs.legacyPackages`, and nixosSystem modules
+come from the same node). `nixpkgs` and `nixpkgs-unstable` both point at the **FlakeHub weekly**
+(`DeterminateSystems/nixpkgs-weekly` — nixpkgs-unstable snapshots with a supply-chain cooldown), so host
+modules/packages and every input's `follows` come from one source; the host runs a 26.11-pre release string. Before
+2026-07-03 `nixpkgs` was 26.05-chilled, which made host _module shapes_ stable-era while docs/search showed unstable —
+that skew is gone. Two gotchas:
+
+- flake-file cannot render a root-level `follows` (`url` is non-nullable), so the weekly URL is **duplicated** in
+  `flake-file.nix`; a full `nix flake update` keeps both nodes in lockstep — never update one alone.
+- search.nixos.org's "unstable" index lags the FlakeHub weekly; verify option shapes against the locked store path
+  (`nix eval --raw --impure --expr 'toString (builtins.getFlake "/path").inputs.nixpkgs'`) when it matters.
 
 ## Conventions
 

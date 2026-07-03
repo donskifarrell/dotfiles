@@ -160,8 +160,31 @@
       "Bash(curl -s http://127.0.0.1:8080/v1/models)",
       "Bash(python3 -c \"import json,sys; print\\(json.load\\(sys.stdin\\)['data'][0]['id']\\)\")",
       "Bash(nix log *)",
-      "Bash(git commit -m 'settings.local: session permission grants *)"
+      "Bash(git commit -m 'settings.local: session permission grants *)",
+      "Read(//home/df/.ollama/**)",
+      "WebSearch",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s 'https://huggingface.co/api/models/unsloth/Qwen3.6-35B-A3B-GGUF/tree/main?recursive=true')",
+      "Bash(curl -sfLO 'https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/resolve/main/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf')",
+      "Bash(curl -sfLO 'https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/resolve/main/Qwen3.6-35B-A3B-UD-Q3_K_XL.gguf')",
+      "Bash(systemctl cat *)",
+      "Bash(curl -sfL -C - -O 'https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/resolve/main/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf')",
+      "Bash(curl -sfL -C - -O 'https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/resolve/main/Qwen3.6-35B-A3B-UD-Q3_K_XL.gguf')",
+      "Bash(sudo systemctl stop llama-cpp.service)",
+      "Bash(llama-bench-vulkan -m /var/lib/llm/models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf -dev Vulkan0 -fa 1 -r 3 -o md)",
+      "Bash(llama-bench-rocm -m /var/lib/llm/models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf -dev ROCm0 -fa 1 -r 3 -o md)",
+      "Bash(sudo systemctl start llama-cpp.service)",
+      "Bash(llama-server-vulkan --help)",
+      "Bash(llama-bench-vulkan -m /var/lib/llm/models/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf -dev Vulkan0 -ngl 99 -ncmoe 16 -fa 1 -r 2 -n 0 -o md)",
+      "Bash(llama-bench-rocm -m /var/lib/llm/models/Qwen3.6-35B-A3B-UD-Q3_K_XL.gguf -dev ROCm0 -ngl 99 -ncmoe 12 -fa 1 -r 2 -o md)",
+      "Bash(python3 -c \"import json,sys; print\\([m['id'] for m in json.load\\(sys.stdin\\)['data']]\\)\")",
+      "Bash(curl -s http://127.0.0.1:8080/v1/chat/completions -H 'Content-Type: application/json' -d '{\"model\":\"llama-3.1-8b\",\"messages\":[{\"role\":\"user\",\"content\":\"Reply with one word: ready\"}],\"max_tokens\":5}')",
+      "Bash(python3 -c \"import json,sys; r=json.load\\(sys.stdin\\); print\\('8b:', r['choices'][0]['message']['content']\\)\")",
+      "Bash(curl -s http://127.0.0.1:8080/v1/chat/completions -H 'Content-Type: application/json' -d '{\"model\":\"qwen3.6-35b-a3b\",\"messages\":[{\"role\":\"user\",\"content\":\"Write a fish shell one-liner that lists the 5 largest files under the current directory.\"}],\"max_tokens\":600}')",
+      "Bash(pgrep -af 'curl.*Qwen' || echo \"no live curls\"; rm /var/lib/llm/models/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf /var/lib/llm/models/Qwen3.6-35B-A3B-UD-Q3_K_XL.gguf && echo removed)",
+      "Bash(curl -sfL --retry 20 --retry-all-errors --retry-delay 3 -C - -O 'https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/resolve/main/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf')",
+      "Bash(curl -sfL --retry 20 --retry-all-errors --retry-delay 3 -C - -O 'https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/resolve/main/Qwen3.6-35B-A3B-UD-Q3_K_XL.gguf')"
     ],
-    "additionalDirectories": ["/tmp"]
+    "additionalDirectories": ["/tmp", "/var/lib/llm/models"]
   }
 }

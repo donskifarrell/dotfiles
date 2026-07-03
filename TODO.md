@@ -7,12 +7,12 @@ history/context lives in MIGRATION-STATUS.md; day-to-day conventions in CLAUDE.m
 
 ### 1. Re-benchmark LLM backends after kernel 7.0 reboot
 
-2026-07-03: `boot.kernelPackages = linuxPackages_latest` (7.0.12, newer amdgpu/KFD for RDNA4) staged with
-`nixos-rebuild boot` — takes effect at next reboot. After rebooting:
+2026-07-03: `boot.kernelPackages = linuxPackages_latest` (7.0.x, newer amdgpu/KFD for RDNA4) is in the current
+generation but the machine still runs 6.18.35 — takes effect at next reboot. After rebooting:
 
 - Re-run: `llama-bench-vulkan -m /var/lib/llm/models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf -dev Vulkan0 -fa 1 -r 3` and
-  the same with `llama-bench-rocm … -dev ROCm0`. Baselines on 6.18.35 (fa=1): vulkan pp512 3160 / tg128 108.6; rocm
-  pp512 3284 / tg128 87.8. Update the header table in `modules/den/aspects/services/llm.nix` if numbers move.
+  the same with `llama-bench-rocm … -dev ROCm0`. Baselines on 6.18.35 + llama.cpp b9608 (fa=1): vulkan tg128 108.3; rocm
+  tg128 88.3. Update the header table in `modules/den/aspects/services/llm.nix` if numbers move.
 - If anything regresses or misbehaves: revert the kernel commit (`git log --oneline -- modules/den/hosts/abhaile.nix`),
   rebuild, reboot — the previous generation is also in the boot menu.
 
@@ -22,19 +22,11 @@ RDNA4 (gfx1201) perf shifts with every llama.cpp/mesa/ROCm bump. Protocol + curr
 `modules/den/aspects/services/llm.nix` header; the winner is `services.llama-cpp.package` in the same file (currently
 `llama-cpp-vulkan`; ROCm was already ahead on MoE prompt-processing, so the verdict may flip). Also re-check vLLM RDNA4
 kernel support (vllm-project/vllm#28649) — if native gfx1201 kernels merge, vLLM becomes worth evaluating (it was
-skipped 2026-07-03 because the gap was open).
+skipped 2026-07-03 because the gap was open; Ollama was measured slower than llama-server on the same weights and
+dropped as a candidate). Also worth testing then: Qwen3.6-35B-A3B **MTP** GGUF + llama-server speculative decoding
+(`--spec-type draft-mtp`) for a possible large tg boost.
 
-### 3. Migrate services.llama-cpp to the `settings`-style module when inputs.nixpkgs catches up
-
-NixOS modules come from `inputs.nixpkgs` (Den's own lock — no `follows`), packages from `nixpkgs-unstable` (FlakeHub
-weekly). Newer nixpkgs replaced `services.llama-cpp.{model,extraFlags,host,port}` with a freeform `settings` attrset
-(renames exist for model/host/port; `extraFlags` is **removed**). When `inputs.nixpkgs` updates past that change,
-`modules/den/aspects/services/llm.nix` must move its flags into
-`settings = { model = …; device = "Vulkan0"; n-gpu-layers = 99; flash-attn = "on"; ctx-size = 16384; jinja = true; }`.
-Consider adding `den.inputs.nixpkgs.follows = "nixpkgs-unstable"` in `modules/flake-parts/flake-file.nix` to kill the
-skew entirely (then `nix run .#write-flake`; check Den still evaluates).
-
-### 4. Provision eachtrach (migration Phase 6)
+### 3. Provision eachtrach (migration Phase 6)
 
 Fresh Hetzner VPS, tailscale exit node, disposable. Full recipe:
 
@@ -52,7 +44,7 @@ Fresh Hetzner VPS, tailscale exit node, disposable. Full recipe:
    `tailscale/eachtrach_authkey` to shared.yaml or eachtrach.yaml and declare it in the exit-node aspect.
 6. Wire deploy-rs for day-2 (`deploy .#eachtrach`).
 
-### 5. Back up the sops editor identity
+### 4. Back up the sops editor identity
 
 `~/.config/sops/age/keys.txt` is the only copy of the editing key (`&admin_df`). Losing it doesn't lose data (any
 recipient host can decrypt: `ssh-to-age -private-key < /etc/ssh/ssh_host_ed25519_key` as root), but fix it properly:
@@ -61,13 +53,13 @@ recipient host can decrypt: `ssh-to-age -private-key < /etc/ssh/ssh_host_ed25519
 - generate a second admin age key kept offline, add it as a recipient in `.sops.yaml`, then
   `sops updatekeys secrets/*.yaml`.
 
-### 6. (Optional) Rename clan-era secret names
+### 5. (Optional) Rename clan-era secret names
 
 `ssh/aon_clan` (+`_pub`) → post-clan name. Touches encrypted data, so do as its own change: `sops secrets/shared.yaml`
 (rename keys) → update the `homeFiles` map in `secrets/home.nix` → update whatever references `~/.ssh/aon.clan` inside
 the encrypted `sshconfig.local`. Verify with the eval-diff method from MIGRATION-STATUS.md / plan notes.
 
-### 7. Restore per-host toplevel build checks
+### 6. Restore per-host toplevel build checks
 
 `nix flake check` currently runs only treefmt + check-flake-file — the old `checks.nix` (per-host
 `nixosConfigurations.<h>.config.system.build.toplevel` as a check) was lost in the flake-parts cleanup. Re-add a
@@ -75,7 +67,7 @@ the encrypted `sshconfig.local`. Verify with the eval-diff method from MIGRATION
 `checks.<system>.host-<host>` (guard cross-system hosts), so `nix flake check` catches config breakage again. Until
 then, verify hosts with `nix build .#nixosConfigurations.<host>.config.system.build.toplevel`.
 
-### 8. Wire up (or delete) the delta/difftastic shell aspects
+### 7. Wire up (or delete) the delta/difftastic shell aspects
 
 2026-07-02: `shell/delta.nix` + `shell/difftastic.nix` were dead `flake.homeModules` leftovers that broke
 `nix flake check` (no `flake.homeModules` option exists since the HM flakeModule was removed); they're now proper Den
@@ -84,7 +76,7 @@ Either add them to `shell.bundles.base` / `dev.git` (verify the home-manager opt
 they were never evaluated while dead) or delete them (the `dev.git` header claims they were merged there, but git.nix
 contains no delta/difftastic config).
 
-### 9. Port `nix-flake-install` from sini-nix
+### 8. Port `nix-flake-install` from sini-nix
 
 Excluded in `modules/flake-parts/pkgs.nix` because it needs:
 
@@ -96,6 +88,12 @@ Source: `/home/df/dev/sini-nix/pkgs/by-name/nix-flake-install/` (+ its `.sh`). U
 `modules/flake-parts/pkgs.nix` once it builds.
 
 ## Done
+
+- 2026-07-03 — **nixpkgs converged on the FlakeHub weekly** (was TODO item 3, resolved differently): root `nixpkgs` now
+  points at the same `DeterminateSystems/nixpkgs-weekly` URL as `nixpkgs-unstable` (flake-file can't render a root-level
+  `follows`), so host modules+packages and all input `follows` share one cooldown-protected source; host release string
+  is now 26.11-pre. `services.llama-cpp` migrated to the freeform `settings` module shape in the same change. See
+  CLAUDE.md "nixpkgs wiring".
 
 - 2026-07-03 — **abhaile switched onto the simplified secrets plumbing** (was TODO item 1): activation diff matched
   expectations (df:users ownership, 0600 private keys, `secrets` group gone). Smoke-tested: `ssh -T git@github.com`
@@ -110,4 +108,4 @@ Source: `/home/df/dev/sini-nix/pkgs/by-name/nix-flake-install/` (+ its `.sh`). U
   `secrets/home.nix` (was 3 declarations per secret across 2–3 files), tailscale secret moved next to its consumer,
   `secretsUser.enable` flag removed (dendritic), stale docs fixed, ssh-to-age/age added to devshell. Verified: eval-diff
   of `sops.secrets` + tmpfiles vs pre-refactor baseline (only intended owner/group/mode deltas), abhaile toplevel
-  builds, `nix flake check` green (after fixing the pre-existing homeModules breakage, see item 8).
+  builds, `nix flake check` green (after fixing the pre-existing homeModules breakage, see item 7).
