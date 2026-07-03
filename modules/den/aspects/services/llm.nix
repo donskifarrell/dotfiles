@@ -59,7 +59,9 @@
 
           ; quality lane: coding + document/financial analysis (~51 t/s;
           ; fit offloads ~16 layers of experts to CPU; q8 KV halves the
-          ; 32k-context cache cost)
+          ; 32k-context cache cost). Hybrid thinking is OFF by default —
+          ; measured 2.5k+ hidden tokens (~50s) before any answer; re-enable
+          ; per request with "chat_template_kwargs":{"enable_thinking":true}.
           [qwen3.6-35b-a3b]
           model = ${modelsDir}/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf
           device = Vulkan0
@@ -68,6 +70,7 @@
           cache-type-k = q8_0
           cache-type-v = q8_0
           jinja = on
+          reasoning = off
         '';
       in
       {

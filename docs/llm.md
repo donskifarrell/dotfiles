@@ -45,9 +45,13 @@ Protocol: `llama-bench-<backend> -m <model> -dev {Vulkan0|ROCm0} -fa 1 -r 3` (pp
 | Qwen3.6-35B-A3B UD-Q3_K_XL, ncmoe=12          | Vulkan     |        975 |      54.0 |  ~14.8GiB |
 | Qwen3.6-35B-A3B UD-Q3_K_XL, ncmoe=12          | ROCm       |   **1473** |      49.5 |         — |
 
-Served config (router, `--fit` auto-placement, 32k ctx + q8 KV): Qwen3.6 Q4_K_M measures **tg ~51 / pp ~800 at the API**
-— i.e. the quality lane writes code at ~2.5× reading speed and ingests a 50-page document in ~30s; the 8B fast lane
-stays at ~108 t/s for extraction/file-org calls.
+Served config (router, `--fit` auto-placement, 32k ctx + q8 KV): Qwen3.6 Q4_K_M measures **tg ~50 / pp ~800 at the API**
+(re-verified on the hash-checked file) — i.e. the quality lane writes code at ~2.5× reading speed and ingests a 50-page
+document in ~30s; the 8B fast lane stays at ~108 t/s for extraction/file-org calls.
+
+Qwen3.6 hybrid **thinking is disabled server-side** (`reasoning = off` in the preset): with it on, the model burned
+2.5k+ hidden tokens (~50s of invisible latency) before answering even trivial prompts. Re-enable per request for deep
+analysis with `"chat_template_kwargs": {"enable_thinking": true}` and give it `max_tokens` ≥ 4096.
 
 Qwen3.6-35B-A3B replaced Qwen3-30B-A3B (2026-07-03): +34% tg (51.6 vs 38.6) at higher quality — strictly better. In
 practice: Q4_K_M is the served quant (quality); Q3_K_XL trades ~4% quality benchmarks for +10% tg — kept on disk for

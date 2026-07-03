@@ -183,7 +183,14 @@
       "Bash(curl -s http://127.0.0.1:8080/v1/chat/completions -H 'Content-Type: application/json' -d '{\"model\":\"qwen3.6-35b-a3b\",\"messages\":[{\"role\":\"user\",\"content\":\"Write a fish shell one-liner that lists the 5 largest files under the current directory.\"}],\"max_tokens\":600}')",
       "Bash(pgrep -af 'curl.*Qwen' || echo \"no live curls\"; rm /var/lib/llm/models/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf /var/lib/llm/models/Qwen3.6-35B-A3B-UD-Q3_K_XL.gguf && echo removed)",
       "Bash(curl -sfL --retry 20 --retry-all-errors --retry-delay 3 -C - -O 'https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/resolve/main/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf')",
-      "Bash(curl -sfL --retry 20 --retry-all-errors --retry-delay 3 -C - -O 'https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/resolve/main/Qwen3.6-35B-A3B-UD-Q3_K_XL.gguf')"
+      "Bash(curl -sfL --retry 20 --retry-all-errors --retry-delay 3 -C - -O 'https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/resolve/main/Qwen3.6-35B-A3B-UD-Q3_K_XL.gguf')",
+      "Bash(sudo systemctl restart llama-cpp.service)",
+      "Bash(time curl -s http://127.0.0.1:8080/v1/chat/completions -H 'Content-Type: application/json' -d '{\"model\":\"qwen3.6-35b-a3b\",\"messages\":[{\"role\":\"user\",\"content\":\"Write a fish shell one-liner that lists the 5 largest files under the current directory.\"}],\"max_tokens\":800}')",
+      "Bash(curl -s http://127.0.0.1:8080/v1/chat/completions -H 'Content-Type: application/json' -d '{\"model\":\"qwen3.6-35b-a3b\",\"messages\":[{\"role\":\"user\",\"content\":\"Write a fish shell one-liner that lists the 5 largest files under the current directory.\"}],\"max_tokens\":400}')",
+      "Bash(curl -s http://127.0.0.1:8080/v1/chat/completions -H 'Content-Type: application/json' -d '{\"model\":\"qwen3.6-35b-a3b\",\"messages\":[{\"role\":\"user\",\"content\":\"Write a fish shell one-liner that lists the 5 largest files under the current directory.\"}],\"max_tokens\":2500}')",
+      "Bash(curl -s http://127.0.0.1:8080/v1/chat/completions -H 'Content-Type: application/json' -d '{\"model\":\"qwen3.6-35b-a3b\",\"messages\":[{\"role\":\"user\",\"content\":\"Write a fish shell one-liner that lists the 5 largest files under the current directory.\"}],\"max_tokens\":400,\"chat_template_kwargs\":{\"enable_thinking\":false}}')",
+      "Bash(curl -s http://127.0.0.1:8080/v1/chat/completions -H 'Content-Type: application/json' -d '{\"model\":\"qwen3.6-35b-a3b\",\"messages\":[{\"role\":\"user\",\"content\":\"In one sentence: what is a NixOS generation?\"}],\"max_tokens\":100}')",
+      "Bash(llama-bench-vulkan -m /var/lib/llm/models/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf -dev Vulkan0 -ngl 99 -ncmoe 16 -fa 1 -r 2 -p 0 -o md)"
     ],
     "additionalDirectories": ["/tmp", "/var/lib/llm/models"]
   }
