@@ -14,3 +14,4 @@
     programs.gamemode.enable = true;
   };
 }
+#  NOte: Worth knowing: the service holds that VRAM while running — systemctl stop llama-cpp frees it before gaming.
