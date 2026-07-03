@@ -104,7 +104,14 @@
       nixos-hardware.url = "github:nixos/nixos-hardware";
 
       nixpkgs-unstable.url = "https://flakehub.com/f/DeterminateSystems/nixpkgs-weekly/0.1";
-      nixpkgs.url = "https://flakehub.com/f/DeterminateSystems/nixpkgs-26.05-chilled/0.1";
+      # Hosts build from `nixpkgs` (Den uses inputs.nixpkgs.legacyPackages).
+      # Same FlakeHub weekly as nixpkgs-unstable so host modules+packages and
+      # every input's `follows` come from ONE cooldown-protected source; was
+      # 26.05-chilled, which made host modules stable-shaped while everything
+      # else tracked the weekly. (flake-file can't render a root-level
+      # `follows` — url is a non-nullable option — so the URL is duplicated;
+      # `nix flake update` keeps both nodes in lockstep.)
+      nixpkgs.url = "https://flakehub.com/f/DeterminateSystems/nixpkgs-weekly/0.1";
 
       sops-nix.inputs.nixpkgs.follows = "nixpkgs-unstable";
       sops-nix.url = "github:Mic92/sops-nix";
