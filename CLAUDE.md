@@ -2,6 +2,19 @@
 
 Guidance for Claude Code working in this repo.
 
+## Rules:
+
+1. Update CLAUDE.md file as you learn more about the system and architecture. Pay attention to easily forgot details for
+   example, how to add or edit secrets.
+2. Branch off to a separate document file in docs/ if information is niche or too verbose.
+3. Maintain a file that tracks TODOs. Each TODO should contain enough detail (or link somewhere with more detail) on
+   exactly what needs to be done. It should be good enough to hand off to another model to execute. The TODO file should
+   contain a table with a prioritised list of items to action, along with their status. Many models/humans may interact
+   with this file.
+4. Start in PLAN mode and only write once ready.
+5. Do NOT ask for permissions to read any file and run any script/program that will read files too. You are allowed. You
+   can write to any .md file as needed. Only ask for permission to execute Write commands outside the repo.
+
 ## Stack
 
 NixOS dotfiles on a **dendritic** flake-parts flake. Configs are built by **[Den](https://github.com/denful/den)**
