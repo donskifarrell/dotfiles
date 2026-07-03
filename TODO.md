@@ -5,18 +5,7 @@ history/context lives in MIGRATION-STATUS.md; day-to-day conventions in CLAUDE.m
 
 ## Open
 
-### 1. Re-benchmark LLM backends after kernel 7.0 reboot
-
-2026-07-03: `boot.kernelPackages = linuxPackages_latest` (7.0.x, newer amdgpu/KFD for RDNA4) is in the current
-generation but the machine still runs 6.18.35 — takes effect at next reboot. After rebooting:
-
-- Re-run: `llama-bench-vulkan -m /var/lib/llm/models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf -dev Vulkan0 -fa 1 -r 3` and
-  the same with `llama-bench-rocm … -dev ROCm0`. Baselines on 6.18.35 + llama.cpp b9608 (fa=1): vulkan tg128 108.3; rocm
-  tg128 88.3. Update the header table in `modules/den/aspects/services/llm.nix` if numbers move.
-- If anything regresses or misbehaves: revert the kernel commit (`git log --oneline -- modules/den/hosts/abhaile.nix`),
-  rebuild, reboot — the previous generation is also in the boot menu.
-
-### 2. Re-benchmark LLM backends after each `nix flake update`
+### 1. Re-benchmark LLM backends after each `nix flake update`
 
 RDNA4 (gfx1201) perf shifts with every llama.cpp/mesa/ROCm bump. Protocol + current numbers live in the
 `modules/den/aspects/services/llm.nix` header; the winner is `services.llama-cpp.package` in the same file (currently
@@ -26,7 +15,7 @@ skipped 2026-07-03 because the gap was open; Ollama was measured slower than lla
 dropped as a candidate). Also worth testing then: Qwen3.6-35B-A3B **MTP** GGUF + llama-server speculative decoding
 (`--spec-type draft-mtp`) for a possible large tg boost.
 
-### 3. Provision eachtrach (migration Phase 6)
+### 2. Provision eachtrach (migration Phase 6)
 
 Fresh Hetzner VPS, tailscale exit node, disposable. Full recipe:
 
@@ -44,7 +33,7 @@ Fresh Hetzner VPS, tailscale exit node, disposable. Full recipe:
    `tailscale/eachtrach_authkey` to shared.yaml or eachtrach.yaml and declare it in the exit-node aspect.
 6. Wire deploy-rs for day-2 (`deploy .#eachtrach`).
 
-### 4. Back up the sops editor identity
+### 3. Back up the sops editor identity
 
 `~/.config/sops/age/keys.txt` is the only copy of the editing key (`&admin_df`). Losing it doesn't lose data (any
 recipient host can decrypt: `ssh-to-age -private-key < /etc/ssh/ssh_host_ed25519_key` as root), but fix it properly:
@@ -53,13 +42,13 @@ recipient host can decrypt: `ssh-to-age -private-key < /etc/ssh/ssh_host_ed25519
 - generate a second admin age key kept offline, add it as a recipient in `.sops.yaml`, then
   `sops updatekeys secrets/*.yaml`.
 
-### 5. (Optional) Rename clan-era secret names
+### 4. (Optional) Rename clan-era secret names
 
 `ssh/aon_clan` (+`_pub`) → post-clan name. Touches encrypted data, so do as its own change: `sops secrets/shared.yaml`
 (rename keys) → update the `homeFiles` map in `secrets/home.nix` → update whatever references `~/.ssh/aon.clan` inside
 the encrypted `sshconfig.local`. Verify with the eval-diff method from MIGRATION-STATUS.md / plan notes.
 
-### 6. Restore per-host toplevel build checks
+### 5. Restore per-host toplevel build checks
 
 `nix flake check` currently runs only treefmt + check-flake-file — the old `checks.nix` (per-host
 `nixosConfigurations.<h>.config.system.build.toplevel` as a check) was lost in the flake-parts cleanup. Re-add a
@@ -67,7 +56,7 @@ the encrypted `sshconfig.local`. Verify with the eval-diff method from MIGRATION
 `checks.<system>.host-<host>` (guard cross-system hosts), so `nix flake check` catches config breakage again. Until
 then, verify hosts with `nix build .#nixosConfigurations.<host>.config.system.build.toplevel`.
 
-### 7. Wire up (or delete) the delta/difftastic shell aspects
+### 6. Wire up (or delete) the delta/difftastic shell aspects
 
 2026-07-02: `shell/delta.nix` + `shell/difftastic.nix` were dead `flake.homeModules` leftovers that broke
 `nix flake check` (no `flake.homeModules` option exists since the HM flakeModule was removed); they're now proper Den
@@ -76,7 +65,7 @@ Either add them to `shell.bundles.base` / `dev.git` (verify the home-manager opt
 they were never evaluated while dead) or delete them (the `dev.git` header claims they were merged there, but git.nix
 contains no delta/difftastic config).
 
-### 8. Port `nix-flake-install` from sini-nix
+### 7. Port `nix-flake-install` from sini-nix
 
 Excluded in `modules/flake-parts/pkgs.nix` because it needs:
 
@@ -88,6 +77,10 @@ Source: `/home/df/dev/sini-nix/pkgs/by-name/nix-flake-install/` (+ its `.sh`). U
 `modules/flake-parts/pkgs.nix` once it builds.
 
 ## Done
+
+- 2026-07-03 — **Kernel 7.1.0 re-bench** (was item 1): rebooted onto `linuxPackages_latest` from the weekly; full matrix
+  re-run (8B + Qwen3.6 both backends). No regression, no verdict change — all numbers within a few % of 6.18.35 (tables
+  in docs/llm.md). Kernel bump kept.
 
 - 2026-07-03 — **nixpkgs converged on the FlakeHub weekly** (was TODO item 3, resolved differently): root `nixpkgs` now
   points at the same `DeterminateSystems/nixpkgs-weekly` URL as `nixpkgs-unstable` (flake-file can't render a root-level
