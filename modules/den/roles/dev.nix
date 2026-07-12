@@ -17,6 +17,7 @@
     dev.tools.devenv
     dev.tools.direnv
     dev.tools.distrobox
+    dev.tools.sandvm
     dev.tools.trippy
   ];
 }

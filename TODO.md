@@ -65,7 +65,34 @@ Either add them to `shell.bundles.base` / `dev.git` (verify the home-manager opt
 they were never evaluated while dead) or delete them (the `dev.git` header claims they were merged there, but git.nix
 contains no delta/difftastic config).
 
-### 7. Port `nix-flake-install` from sini-nix
+### 7. `sandvm` phase 2: agent harness + LLM wiring + git auth
+
+`sandvm` (per-folder sandboxed microVMs, `docs/microvm-sandbox.md`) landed 2026-07-03 with the core sandbox only:
+lifecycle, filesystem isolation, devenv/direnv/git, SSH + VSCode access, host-only port forwarding. Left open, each
+independent enough to pick up separately:
+
+1. **Package Pi and/or oh-my-pi for the guest.** Neither is in nixpkgs yet (earendil-works/pi, and a fork of
+   can1357/oh-my-pi — check which fork is canonical before packaging). Check whether either ships its own
+   `flake.nix`/`packages` output first (add as a flake input + reference its package directly) before hand-rolling a
+   derivation. Add to `modules/den/aspects/virtualisation/microvm-guest.nix`'s `environment.systemPackages` once
+   packaged.
+2. **Wire LLM access into the guest.** Local: abhaile's llama-server is already reachable from any sandvm guest at
+   `http://10.0.2.2:8080/v1` (qemu usermode networking forwards the guest's gateway address to the host's loopback —
+   verified, no `llm.nix` change needed). Cloud: BYOK key needs to reach the guest at runtime without landing in the
+   world-readable `/nix/store` — pass it via a runtime-written share or systemd credential, not baked into the Nix
+   config.
+3. **SSH-agent forwarding for git auth.** Right now sandvm guests get none of df's real SSH/git private keys
+   (deliberately — see docs/microvm-sandbox.md, "what's deliberately not shared"), so git push/pull from inside a
+   sandbox has no auth. Forward the host's `SSH_AUTH_SOCK` into the guest (virtiofs can proxy a live UNIX socket; verify
+   this works in practice) instead of copying key material in.
+4. **(Optional) LAN-wide service exposure.** Currently sandvm's usermode networking only forwards to the host's
+   loopback. If a guest-hosted dev server needs to be reachable from other devices on the LAN, swap to tap+bridge
+   networking (like `virtualization.libvirt`'s `virbr0`) for that one interface.
+5. **(Optional) Network egress allowlisting inside the guest.** smolvm (reviewed alongside microvm.nix when designing
+   sandvm) defaults to deny-all guest network egress with an explicit `allow_hosts` list — worth mirroring for the
+   cloud-LLM case in particular, so a compromised agent can't phone home anywhere but the intended API.
+
+### 8. Port `nix-flake-install` from sini-nix
 
 Excluded in `modules/flake-parts/pkgs.nix` because it needs:
 
@@ -101,4 +128,4 @@ Source: `/home/df/dev/sini-nix/pkgs/by-name/nix-flake-install/` (+ its `.sh`). U
   `secrets/home.nix` (was 3 declarations per secret across 2–3 files), tailscale secret moved next to its consumer,
   `secretsUser.enable` flag removed (dendritic), stale docs fixed, ssh-to-age/age added to devshell. Verified: eval-diff
   of `sops.secrets` + tmpfiles vs pre-refactor baseline (only intended owner/group/mode deltas), abhaile toplevel
-  builds, `nix flake check` green (after fixing the pre-existing homeModules breakage, see item 7).
+  builds, `nix flake check` green (after fixing the pre-existing homeModules breakage, see item 6).

@@ -30,6 +30,12 @@ in
     # df's NixOS-side config on every host it lives on.
     nixos = {
       users.users.df.openssh.authorizedKeys.keys = [ authorizedKey ];
+
+      # /dev/kvm access for qemu (libvirt.nix + microvm-guest's `devbox` both
+      # need this; libvirtd itself gates virt-manager via polkit instead, but
+      # raw qemu — which is what a devbox's imperative microvm-run is — only
+      # goes through the kvm-group udev rule).
+      users.users.df.extraGroups = [ "kvm" ];
     };
 
     # HM uses its own nixpkgs (core/home-manager sets useGlobalPkgs = false), so

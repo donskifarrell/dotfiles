@@ -193,7 +193,9 @@
       "Bash(llama-bench-vulkan -m /var/lib/llm/models/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf -dev Vulkan0 -ngl 99 -ncmoe 16 -fa 1 -r 2 -p 0 -o md)",
       "WebFetch(domain:code.visualstudio.com)",
       "Read(//home/df/.config/**)",
-      "Read(//home/df/**)"
+      "Read(//home/df/**)",
+      "Bash(find /nix/store/dgmxpkhmy37i7whznflbfj6w3yf75nbd-source/doc -iname *share*)",
+      "Bash(find /nix/store/dgmxpkhmy37i7whznflbfj6w3yf75nbd-source/nixos-modules -maxdepth 2 -iname *share* -o -iname *virtiofs*)"
     ],
     "additionalDirectories": ["/tmp", "/var/lib/llm/models"]
   }

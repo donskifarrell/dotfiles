@@ -43,6 +43,7 @@ in
       hardware.storage.disko
 
       virtualization.libvirt
+      virtualization.microvm-host
 
       roles.default
       roles.workstation
