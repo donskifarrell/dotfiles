@@ -90,10 +90,15 @@ independent enough to pick up separately:
    omp's harness overhead is ~17.1k tokens, over llama-3.1-8b's 16k `ctx-size` (400s on every request) — it's excluded
    from the guest's models.yml; raising the 8B's `ctx-size` in llm.nix would re-enable it (VRAM cost: KV cache roughly
    doubles; re-bench the fast lane before keeping).
-4. **SSH-agent forwarding for git auth.** Right now sandvm guests get none of df's real SSH/git private keys
-   (deliberately — see docs/microvm-sandbox.md, "what's deliberately not shared"), so git push/pull from inside a
-   sandbox has no auth. Forward the host's `SSH_AUTH_SOCK` into the guest (virtiofs can proxy a live UNIX socket; verify
-   this works in practice) instead of copying key material in.
+4. ~~SSH-agent forwarding for git auth.~~ **Done 2026-07-13**, verified end-to-end (guest `ssh-add -l` lists the host
+   agent's keys; `ssh -T git@github.com` from inside a sandbox authenticates as df; zero key files guest-side; details:
+   docs/microvm-sandbox.md "Git auth"). The virtiofs idea was tested and **disproven** — a host-bound UNIX socket in the
+   share is visible as an inode but guest `connect()` gets ECONNREFUSED (virtiofs shares the fs namespace, not socket
+   endpoints) — so it's plain SSH `ForwardAgent` instead: `Host sandvm-*` block in `dev.tools.sandvm`'s HM module (must
+   live there, not in the wrapper's config.d file, which is Include'd _after_ `Host *`'s `ForwardAgent no` and would be
+   shadowed — first-match-wins), a stable `~/.ssh/agent.sock` symlink in the guest (herdr panes survive ssh reconnects),
+   and github.com seeded into guest known_hosts. Host-side block needs a `nixos-rebuild switch` to land in
+   `~/.ssh/config`; until then `ssh -o ForwardAgent=yes sandvm-<name>` behaves identically.
 5. **(Optional) LAN-wide service exposure.** Currently sandvm's usermode networking only forwards to the host's
    loopback. If a guest-hosted dev server needs to be reachable from other devices on the LAN, swap to tap+bridge
    networking (like `virtualization.libvirt`'s `virbr0`) for that one interface.

@@ -256,7 +256,32 @@ in
             set -gx $kv[1] $kv[2]
           end
         end
+
+        # Forwarded ssh-agent (dev.tools.sandvm sets ForwardAgent for
+        # sandvm-* hosts): pin SSH_AUTH_SOCK to a stable path. sshd mints a
+        # fresh random /tmp socket per connection, so long-lived herdr panes
+        # would otherwise hold a dead path after an ssh drop/reattach — each
+        # new login re-points the symlink and every pane using the stable
+        # path is live again. Sessions without a forwarded agent (console,
+        # VSCode-remote terminals) adopt the symlink too when some ssh
+        # session keeps it alive; with no ssh session connected, signing
+        # requests just fail — key material never exists in the guest.
+        if set -q SSH_AUTH_SOCK; and test "$SSH_AUTH_SOCK" != "$HOME/.ssh/agent.sock"; and test -S "$SSH_AUTH_SOCK"
+          mkdir -p "$HOME/.ssh"
+          ln -sf "$SSH_AUTH_SOCK" "$HOME/.ssh/agent.sock"
+        end
+        if test -S "$HOME/.ssh/agent.sock"
+          set -gx SSH_AUTH_SOCK "$HOME/.ssh/agent.sock"
+        end
       '';
+
+      # git push/pull over the forwarded agent shouldn't stall on an
+      # interactive host-key prompt (agents run non-interactively; the
+      # ephemeral home also forgets accepted keys on every stop). GitHub's
+      # published ed25519 key, from
+      # https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints
+      programs.ssh.knownHosts."github.com".publicKey =
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl";
 
       # Local LLM: abhaile's llama-server (services.llm, 127.0.0.1:8080) is
       # reachable from the guest at qemu's SLIRP gateway — 10.0.2.2 forwards

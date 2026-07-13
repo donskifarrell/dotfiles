@@ -15,6 +15,17 @@
       { pkgs, ... }:
       {
         home.packages = [ inputs.self.packages.${pkgs.system}.sandvm ];
+
+        # SSH-agent forwarding into sandboxes (git push/pull auth without any
+        # key material in the guest — the agent only ever *signs* on the
+        # guest's behalf, over the live connection). It must live HERE, not in
+        # the per-instance blocks the wrapper writes into ~/.ssh/config.d/:
+        # ssh_config is first-match-wins per keyword, and core.network.ssh's
+        # `Host *` sets `ForwardAgent no` *before* the `Include
+        # ~/.ssh/config.d/*` line — anything in those files is shadowed. This
+        # block instead rides home-manager's guarantee that non-"*" settings
+        # blocks render before the "*" default block, so it wins.
+        programs.ssh.settings."sandvm-*".ForwardAgent = true;
       };
   };
 }

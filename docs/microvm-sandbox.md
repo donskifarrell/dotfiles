@@ -143,10 +143,45 @@ both together via the cgroup) and polls for its socket before handing off to `mi
 
 `secrets.home` (df's real SSH/git private keys) is **not** included in the guest's aspect list, and only df's _public_
 key goes in, as iosta's authorized key (for inbound SSH — same literal as `modules/den/users/df.nix`, safe to duplicate;
-the guest user has no key material of its own). Outbound git push/pull auth from inside a sandbox is out of scope for
-now — the concern isn't just "the agent shouldn't write outside `/workspace`" but that it shouldn't be able to _read and
-exfiltrate_ real credentials either, since it already has network access to talk to an LLM. See "Not built yet" below
-for the planned fix (SSH-agent forwarding, so key material never touches the guest disk at all).
+the guest user has no key material of its own). The concern isn't just "the agent shouldn't write outside `/workspace`"
+but that it shouldn't be able to _read and exfiltrate_ real credentials either, since it already has network access to
+talk to an LLM. Outbound git push/pull auth works via SSH-agent **forwarding** instead (below) — the guest can ask the
+host's agent to sign while a session is connected, but no private key ever exists on the guest side to exfiltrate.
+
+## Git auth: SSH-agent forwarding (2026-07-13)
+
+`ssh sandvm-<name>` forwards the host's ssh-agent (`services.ssh-agent`, the HM user service holding df's keys), so
+`git push`/`pull`/`fetch` and `ssh -T git@github.com` just work inside a sandbox. Verified end-to-end: `ssh-add -l` in
+the guest lists the host agent's keys, GitHub authenticates as df — with zero key files in the guest.
+
+Three pieces, all small:
+
+- **`ForwardAgent yes` for `Host sandvm-*`** — lives in `dev.tools.sandvm`'s homeManager module
+  (`programs.ssh.settings."sandvm-*"`), **not** in the per-instance blocks the wrapper writes into `~/.ssh/config.d/`.
+  That placement is load-bearing: `ssh_config` is first-match-wins per keyword, and `core.network.ssh`'s `Host *` block
+  (`ForwardAgent no`) is rendered **before** the `Include ~/.ssh/config.d/*` line, so a `ForwardAgent` in the wrapper's
+  file would be silently shadowed. Home-manager renders non-`"*"` settings blocks before the `"*"` default block, so the
+  aspect-level `Host sandvm-*` wins. (HM-managed `~/.ssh/config` ⇒ takes effect on the next `nixos-rebuild switch`;
+  until then `ssh -o ForwardAgent=yes sandvm-<name>` does the same thing.)
+- **Stable socket path in the guest** (`microvm-guest.nix` fish shellInit): sshd mints a fresh random agent socket per
+  connection, so a long-lived herdr pane would hold a dead `SSH_AUTH_SOCK` after an ssh drop + reattach. Every login
+  re-points `~/.ssh/agent.sock` at its own live socket and sessions use the symlink — verified: kill the ssh
+  ControlMaster, reconnect, panes' agent works again without restarting anything.
+- **`github.com` in the guest's known_hosts** (`programs.ssh.knownHosts`, GitHub's published ed25519 key) — so a
+  non-interactive agent's first `git fetch` can't stall on a host-key prompt (the ephemeral home would forget an
+  accepted key on every stop anyway).
+
+**Why not virtiofs?** TODO 7.4's original idea — "virtiofs can proxy a live UNIX socket" — was tested and is **false**:
+a socket bound on the host inside the shared workspace shows up in the guest as a socket inode (`srwxr-xr-x`), but
+`connect()` from the guest returns `ECONNREFUSED` and the host listener never sees a connection. virtiofs shares the
+filesystem namespace only; socket _endpoints_ live in the kernel that bound them. Agent forwarding over the existing SSH
+channel is the mechanism that actually works (vsock + socat would be the alternative if session-independent forwarding
+were ever needed).
+
+**Trade-off, stated plainly:** while (and only while) an ssh session with forwarding is connected, a rogue agent in the
+guest can _use_ the host agent to authenticate as df (it can never _read_ the keys). That's the same trust tier as the
+auth-broker/llama-server reachability above, and strictly better than key copies. `AddKeysToAgent = "confirm"` on the
+host applies per-key as usual; for a sensitive key, `ssh-add -c` makes every signature require host-side confirmation.
 
 ## Why imperative, not declarative/host-managed
 
@@ -239,8 +274,6 @@ all → no credential → local provider only.
 
 ## Not built yet (tracked in TODO.md)
 
-- SSH-agent forwarding for git push/pull auth (so private key material never touches the guest disk, addressing the
-  exfiltration concern above).
 - LAN-wide (non-loopback) exposure of guest-hosted services (would need tap+bridge networking instead of usermode).
 - Network egress allowlisting inside the guest (smolvm has a good pattern for this: default-deny + an explicit
   allowed-hosts list).

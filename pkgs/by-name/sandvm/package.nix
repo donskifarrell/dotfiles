@@ -150,6 +150,11 @@ writeShellApplication {
       mkdir -p "$SSH_CONFIG_D"
       touch "$SSH_CONFIG_FILE"
       strip_ssh_block "$name" # idempotent: drop any stale block before re-adding
+      # NOTE: no ForwardAgent here, deliberately — this file is Include'd
+      # *after* the HM config's `Host *` block (`ForwardAgent no`), and
+      # ssh_config is first-match-wins, so it would be silently shadowed.
+      # Agent forwarding for sandvm-* comes from the HM-rendered block in
+      # modules/den/aspects/dev/tools/sandvm.nix instead.
       {
         echo ""
         echo "Host sandvm-$name"
