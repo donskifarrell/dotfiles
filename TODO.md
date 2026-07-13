@@ -76,10 +76,10 @@ independent enough to pick up separately:
    needed. `omp` is in the guest's `environment.systemPackages` (`modules/den/aspects/virtualisation/microvm-guest.nix`)
    — guest-only, not installed on real hosts.
 2. ~~Install herdr (herdr.dev, session multiplexer for coding agents) on both host and guest.~~ **Done 2026-07-13**:
-   also from `nix-ai-tools`. Routed through `dev.tools.herdr` (homeManager) → `roles.dev`, which reaches both abhaile's
-   df _and_ the guest's df (same mechanism that already put `sandvm` itself in the guest) — one aspect, no duplication.
-   `herdr --remote sandvm-<name>` from the host attaches to a guest's session over the ssh alias `sandvm` already sets
-   up; herdr tunnels over plain ssh, no daemon/config needed on either end.
+   also from `nix-ai-tools`. Routed through `dev.tools.herdr` (homeManager) → `roles.dev` (abhaile's df) and
+   `roles.dev-sandbox` (the guest's iosta) — one aspect, no duplication. `herdr --remote sandvm-<name>` from the host
+   attaches to a guest's session over the ssh alias `sandvm` already sets up; herdr tunnels over plain ssh, no
+   daemon/config needed on either end.
 3. ~~Wire LLM access into the guest.~~ **Done 2026-07-13**, verified end-to-end (omp print-mode round trip through the
    sandbox to qwen on the GPU; details: docs/microvm-sandbox.md "LLM access for the agent harness"). Local: guests seed
    `~/.omp/agent/models.yml` at boot pointing omp's `local` provider at `http://10.0.2.2:8080/v1` (SLIRP gateway → host
@@ -100,6 +100,16 @@ independent enough to pick up separately:
 6. **(Optional) Network egress allowlisting inside the guest.** smolvm (reviewed alongside microvm.nix when designing
    sandvm) defaults to deny-all guest network egress with an explicit `allow_hosts` list — worth mirroring for the
    cloud-LLM case in particular, so a compromised agent can't phone home anywhere but the intended API.
+7. ~~Lean guest identity.~~ **Done 2026-07-13**: the guest user is now `iosta` (`modules/den/users/iosta.nix`,
+   uid-pinned 1000 for the virtiofs `/workspace` share) carrying only `roles.dev-sandbox`
+   (`modules/den/roles/dev-sandbox.nix`) — workstation's TUI shell slice + git + devenv/direnv + herdr + agent tools; no
+   graphical apps, no zellij (herdr auto-starts on interactive SSH logins via `dev.tools.herdr.autostart`), and no more
+   df-full-HM-identity in the guest. Also added: `sandvm-workspace-init` boot oneshot (microvm-guest.nix) that
+   pre-builds a project's `devenv.nix`/`flake.nix` environment into the persistent store overlay, and direnv trusts
+   `/workspace` so a project `.envrc` activates without `direnv allow`. The sandvm ssh alias now logs in as
+   `User iosta`; console fallback is iosta/iosta. Remember: `sandvm` is HM-installed, so the new alias/User takes effect
+   only after a `nixos-rebuild switch` on abhaile (and existing `~/.ssh/config.d/sandvm` blocks are rewritten on next
+   launch).
 
 ### 8. Port `nix-flake-install` from sini-nix
 

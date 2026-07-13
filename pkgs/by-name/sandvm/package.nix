@@ -155,7 +155,7 @@ writeShellApplication {
         echo "Host sandvm-$name"
         echo "  HostName 127.0.0.1"
         echo "  Port $ssh_port"
-        echo "  User df"
+        echo "  User iosta"
       } >> "$SSH_CONFIG_FILE"
 
       # ~/.ssh/config itself is home-manager-managed (a read-only symlink) —

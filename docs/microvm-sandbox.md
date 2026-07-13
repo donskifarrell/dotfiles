@@ -4,7 +4,7 @@
 
 `sandvm <path>` boots a throwaway NixOS microVM (microvm.nix, qemu) whose _only_ writable channel back to the host
 filesystem is `<path>`, mounted at `/workspace`. It exists so a coding-agent harness (oh-my-pi, packaged as `omp`) can
-run against a real project with a real dev toolchain (devenv.sh, direnv, git, df's shell config, herdr for session
+run against a real project with a real dev toolchain (devenv.sh, direnv, git, a full TUI shell config, herdr for session
 management) without being able to write — or even see — anything outside that one folder, even if the agent or the LLM
 behind it goes rogue.
 
@@ -37,10 +37,25 @@ One Den "host", `sandvm` (`modules/den/hosts/sandvm.nix`), defines the guest sha
 runtime-parameterized via env vars (`MICROVM_WORKDIR`, `MICROVM_NAME`, `MICROVM_SSH_PORT`, `MICROVM_PORTS`,
 `MICROVM_CPU`, `MICROVM_MEM`) and read with `builtins.getEnv` in `virtualization.microvm-guest` — the one deliberate bit
 of impurity in the whole feature (hence `nix run --impure`). Everything else is ordinary static Nix, composed exactly
-like a real host: `roles.default`, `roles.dev`, and (via the standard `users.df = { }` mechanism) df's full home-manager
-identity — fish, git identity, lazygit, aliases, even desktop/workstation HM packages that just sit unused in a headless
-guest. That's an accepted tradeoff for the guest shell feeling like a slice of abhaile rather than a bare container; a
-leaner guest identity is a possible future optimization if build/eval time becomes annoying (see "Known quirks" below).
+like a real host: `roles.default`, `roles.dev-sandbox`, and the guest user **`iosta`** (`users.iosta = { }`,
+`modules/den/users/iosta.nix`) — a sandbox-only user, uid-pinned to 1000 to match the host-side project owner (df) for
+the virtiofs `/workspace` share, carrying only `roles.dev-sandbox`. That role is role-workstation's TUI slice: the full
+fish/starship/neovim/yazi/etc. shell config, git + lazygit + gh, devenv/direnv, herdr (the startup multiplexer —
+deliberately not zellij) and the agent tools (claude-code, omp) — no browsers, no ghostty, no desktop packages.
+(Originally the guest ran df's _full_ HM identity, workstation/desktop packages included; the lean iosta identity
+replaced that on 2026-07-13.)
+
+Two sandbox-specific behaviours are wired in on top:
+
+- **herdr on startup**: interactive SSH logins `exec herdr` directly (`dev.tools.herdr.autostart` — fish init guarded on
+  `SSH_TTY`, so the qemu serial console and VSCode-remote terminals stay plain fish, and on `HERDR_ENV`, so herdr's own
+  panes don't recurse).
+- **Dependency pre-install**: a boot-time oneshot (`sandvm-workspace-init`, in `microvm-guest.nix`, runs as iosta in
+  `/workspace`) builds the project's declared toolchain — `devenv shell true` if `devenv.nix` exists, else
+  `nix develop --command true` if `flake.nix` exists — so the environment is already in the persistent store overlay
+  before anyone attaches; failures are logged, never fatal. Interactively, direnv whitelists `/workspace`
+  (role-dev-sandbox), so a project `.envrc` activates without a manual `direnv allow` (allow-state would be lost with
+  the ephemeral home on every boot anyway).
 
 Files:
 
@@ -48,17 +63,23 @@ Files:
   `/var/lib/sandvm/hostkey`, generated once via `system.activationScripts` (not left to the guest to generate per-boot,
   which would both churn `known_hosts` and race between concurrent instances' first boot).
 - `modules/den/aspects/virtualisation/microvm-guest.nix` — guest-side: `microvm.shares`/`forwardPorts`/`interfaces`,
-  sshd pointed at the shared host key, df's authorized key (public — see "What's deliberately not shared" below).
+  sshd pointed at the shared host key, the console fallback password, the `sandvm-workspace-init` dependency
+  pre-installer, the agent.env/omp wiring.
+- `modules/den/users/iosta.nix` — the guest user aspect: uid 1000 (virtiofs), df's authorized key (public — see "What's
+  deliberately not shared" below), includes `roles.dev-sandbox` and nothing else.
+- `modules/den/roles/dev-sandbox.nix` — the TUI-only role iosta carries (shell config, git, devenv/direnv, herdr +
+  autostart, agent tools; no graphical apps, no zellij).
 - `modules/den/hosts/sandvm.nix` — the Den host declaration + the `packages.sandvm-guest` flake output
   (`nixosConfigurations.sandvm.config. microvm.declaredRunner`).
 - `pkgs/by-name/sandvm/package.nix` — the CLI wrapper (name/port bookkeeping, `~/.ssh/config.d/sandvm`,
   `systemd-run --user --scope` lifecycle).
 - `modules/den/aspects/dev/tools/sandvm.nix` — installs the CLI onto df's `$PATH`, included via `roles.dev`.
 - `modules/den/aspects/dev/tools/herdr.nix` — installs herdr (herdr.dev — terminal multiplexer for coding-agent
-  sessions, `nix-ai-tools`, not nixpkgs) via `roles.dev`'s home-manager packages, same mechanism as `dev.tools.sandvm`
-  above — reaches both abhaile's df _and_ the guest's df in one place (see "Known quirks").
-  `herdr --remote sandvm-<name>` attaches from the host to a session running inside a guest, over the ssh alias `sandvm`
-  itself sets up — herdr tunnels entirely over plain ssh, no daemon/server toggle needed on either end.
+  sessions, `nix-ai-tools`, not nixpkgs); included by `roles.dev` (abhaile's df) _and_ `roles.dev-sandbox` (the guest's
+  iosta) — one aspect, no duplication. Also defines `dev.tools.herdr.autostart` (guest-only via the sandbox role): the
+  fish snippet that lands interactive SSH logins straight in herdr. `herdr --remote sandvm-<name>` attaches from the
+  host to a session running inside a guest, over the ssh alias `sandvm` itself sets up — herdr tunnels entirely over
+  plain ssh, no daemon/server toggle needed on either end.
 - `omp` (oh-my-pi, also `nix-ai-tools`) is guest-only — a plain `environment.systemPackages` entry in
   `microvm-guest.nix` rather than routed through `roles.dev`, since (unlike herdr) it isn't wanted on real hosts.
 
@@ -105,10 +126,10 @@ actually writing into a running guest's `/workspace` and hitting `Permission den
 (`none`, the default; also tried `mapped`) only assign correct guest-side ownership to files the _guest itself_ creates
 through the share — a share of an **already-populated** directory (like a real project) presents every pre-existing
 file, and the share's root directory itself, as owned by `root:root` to the guest, because qemu runs unprivileged (as
-df, not root) and can't otherwise vouch for arbitrary ownership over 9p. Result: df (uid 1000 in the guest, matching the
+df, not root) and can't otherwise vouch for arbitrary ownership over 9p. Result: the guest user (uid 1000, matching the
 host) couldn't write into its own project's share at all. virtiofsd passes through real host uid/gid directly instead of
-trying to remap anything, which works here specifically because the guest's df already has the same uid as the host's
-df.
+trying to remap anything, which works here specifically because the guest user's uid matches the host-side project
+owner's — this is exactly why `users/iosta.nix` pins `uid = 1000` instead of trusting NixOS's allocation.
 
 The cost: virtiofs needs a separate `virtiofsd` process started as a prerequisite (`bin/virtiofsd-run`, bundled
 alongside `bin/microvm-run` in the same `sandvm-guest` build once any share uses `proto = "virtiofs"`), and that
@@ -121,11 +142,11 @@ both together via the cgroup) and polls for its socket before handing off to `mi
 ### What's deliberately NOT shared into the guest
 
 `secrets.home` (df's real SSH/git private keys) is **not** included in the guest's aspect list, and only df's _public_
-key goes in (for inbound SSH — same literal as `modules/den/users/df.nix`, safe to duplicate). Outbound git push/pull
-auth from inside a sandbox is out of scope for now — the concern isn't just "the agent shouldn't write outside
-`/workspace`" but that it shouldn't be able to _read and exfiltrate_ real credentials either, since it already has
-network access to talk to an LLM. See "Not built yet" below for the planned fix (SSH-agent forwarding, so key material
-never touches the guest disk at all).
+key goes in, as iosta's authorized key (for inbound SSH — same literal as `modules/den/users/df.nix`, safe to duplicate;
+the guest user has no key material of its own). Outbound git push/pull auth from inside a sandbox is out of scope for
+now — the concern isn't just "the agent shouldn't write outside `/workspace`" but that it shouldn't be able to _read and
+exfiltrate_ real credentials either, since it already has network access to talk to an LLM. See "Not built yet" below
+for the planned fix (SSH-agent forwarding, so key material never touches the guest disk at all).
 
 ## Why imperative, not declarative/host-managed
 
@@ -150,8 +171,8 @@ Two lanes, both wired in `microvm-guest.nix`:
 **Local (llama-server, zero config):** qemu's usermode gateway (`10.0.2.2` from the guest) forwards to the host's
 loopback interface, so abhaile's llama-server on `127.0.0.1:8080` (`modules/den/aspects/services/llm.nix`) is reachable
 from inside every sandvm guest at `http://10.0.2.2:8080/v1` with **no change** to llm.nix's bind address. The guest
-seeds `~/.omp/agent/models.yml` at boot (tmpfiles `C` — copy-if-absent into df's ephemeral home, so omp can rewrite it
-and a fresh boot resets it) declaring this as omp's `local` provider — keep the model ids/context sizes in sync with
+seeds `~/.omp/agent/models.yml` at boot (tmpfiles `C` — copy-if-absent into iosta's ephemeral home, so omp can rewrite
+it and a fresh boot resets it) declaring this as omp's `local` provider — keep the model ids/context sizes in sync with
 llm.nix's router presets. Inside a guest: `omp --model local/qwen3.6-35b-a3b` (or `/model` in-session). Verified
 end-to-end 2026-07-13 (omp print-mode round trip through the sandbox to the GPU and back).
 
@@ -166,8 +187,8 @@ VRAM/benchmarking decision for that aspect, not this one.
 turns it into a qemu `fw_cfg` systemd credential whose contents are read at VM start — **key material never enters the
 world-readable `/nix/store`** on either side (the whole design constraint; a Nix path _literal_ instead of a string
 would silently defeat it by copying the file to the store at eval time). In the guest, a oneshot installs the merged
-file at `/run/agent.env` (df, 0600, tmpfs — gone on stop) and fish exports its lines into every session. No lines at all
-→ no credential → local provider only.
+file at `/run/agent.env` (iosta, 0600, tmpfs — gone on stop) and fish exports its lines into every session. No lines at
+all → no credential → local provider only.
 
 - **Plain API keys**: put `KEY=value` lines (e.g. `OPENAI_API_KEY=…`) in `~/.config/sandvm/agent.env` on the host (0600;
   create it yourself — nothing manages it). Billed per-token against that provider's API.
@@ -193,13 +214,9 @@ file at `/run/agent.env` (df, 0600, tmpfs — gone on stop) and fish exports its
 
 ## Known quirks
 
-- `roles.dev` (which every sandvm guest's df user pulls in for HM) now includes `dev.tools.sandvm` itself — so a
-  sandbox's home-manager profile contains the `sandvm` binary too. Running it _inside_ a sandbox will fail cleanly
-  (`/home/df/.dotfiles` isn't shared into the guest, only `/workspace` is) rather than nesting sandboxes. Harmless, just
-  a by-product of giving the guest df's full HM identity.
-- Same story for `dev.tools.omp-auth-broker`: every guest also starts its own `omp auth-broker serve`, bound to its own
-  empty, disconnected local credential store. Nothing ever queries it (the guest's omp is steered at the _host's_ broker
-  via env vars, not its own) — just a harmless spare background process per boot.
+- (Historical, fixed 2026-07-13: when the guest ran df's full HM identity via `roles.dev`, it also inherited the
+  `sandvm` binary itself and a spare `omp auth-broker serve` per boot. The iosta/`roles.dev-sandbox` guest identity
+  includes neither.)
 - `nix run`/`nix build .#sandvm-guest` needs `--impure` and `MICROVM_WORKDIR` set in the environment first (the `sandvm`
   wrapper always does both; don't invoke the flake output directly except for debugging). Without it, the guest module
   falls back to sharing `/var/empty` as `/workspace` and prints a `lib.warn` rather than hard-failing — a hard assertion
@@ -213,9 +230,10 @@ file at `/run/agent.env` (df, 0600, tmpfs — gone on stop) and fish exports its
 - `sandvm` is home-manager-installed, so changes to `pkgs/by-name/sandvm/package.nix` don't reach `$PATH` until the next
   `nixos-rebuild switch`/`test` — a plain `git commit`/`nix build` isn't enough. Easy to forget and then debug a "fix"
   that was never actually deployed.
-- The console (`sandvm`'s own foreground output — `ssh`'s fallback if SSH itself is broken) logs in as `df` / password
-  `df`. Autologin was tried first and rejected (silently dropping into a shell on every launch); a throwaway typeable
-  password — same pattern as `virtualisation/vm-login.nix`'s debug VM — was the alternative.
+- The console (`sandvm`'s own foreground output — `ssh`'s fallback if SSH itself is broken) logs in as `iosta` /
+  password `iosta`. Autologin was tried first and rejected (silently dropping into a shell on every launch); a throwaway
+  typeable password — same pattern as `virtualisation/vm-login.nix`'s debug VM — was the alternative. The console
+  deliberately does _not_ auto-start herdr (the autostart is gated on `SSH_TTY`), so it stays usable for debugging.
 - `sandvm list`'s NAME column shows the `sandvm-<name>` form — that's the literal SSH `Host` alias (`ssh sandvm-<name>`
   works; the bare name without the prefix does not, since no `Host` entry matches it).
 

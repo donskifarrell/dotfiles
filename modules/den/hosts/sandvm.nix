@@ -4,13 +4,12 @@
 # `virtualization.microvm-guest`. One project folder = one running instance
 # of this same nixosConfiguration; see docs/microvm-sandbox.md.
 #
-# Deliberately NOT `roles.workstation`/`roles.desktop` at the system level —
-# headless, dev-only. `users.df = { }` still pulls df's *full* home-manager
-# identity (fish, git, lazygit, even desktop/workstation HM packages) the
-# same way it would on a real host: Den only resolves a role's `homeManager`
-# keys onto a user, never its `nixos` keys, so this stays lean at the system
-# level while df's shell still feels like home. Heavier eval/closure than a
-# bare-packages guest is the accepted tradeoff for that.
+# Deliberately headless and dev-only: the guest user is `iosta`
+# (modules/den/users/iosta.nix), which carries only `roles.dev-sandbox` — the
+# TUI slice of the dev environment (shell config, git, devenv/direnv, herdr,
+# agent tools) with none of df's workstation/desktop identity. The same role
+# sits in the system-level includes below for its `nixos`/`os` keys; Den only
+# resolves a role's `homeManager` keys onto a user, so nothing is duplicated.
 {
   den,
   lib,
@@ -19,13 +18,13 @@
 }:
 {
   den.hosts.x86_64-linux.sandvm = {
-    users.df = { };
+    users.iosta = { };
   };
 
   den.aspects.sandvm = {
     includes = with den.aspects; [
       roles.default
-      roles.dev
+      roles.dev-sandbox
       virtualization.microvm-guest
     ];
 

@@ -47,10 +47,6 @@ let
   # the store at eval time.)
   agentEnvFile = builtins.getEnv "MICROVM_AGENT_ENV";
 
-  # Same public key as modules/den/users/df.nix — it's public, safe to
-  # duplicate; df's real private key/secrets never touch this guest (see
-  # docs/microvm-sandbox.md, "what's not shared").
-  authorizedKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA6h5RafG9hYqgT3nviJO9P9eEUEAHJlIEqFWfoxFOP6";
 in
 {
   den.aspects.virtualization.microvm-guest.nixos =
@@ -172,9 +168,10 @@ in
         }
       ];
 
-      users.users.df.openssh.authorizedKeys.keys = [ authorizedKey ];
+      # (iosta's authorized key — df's public key — comes with the iosta user
+      # aspect itself, modules/den/users/iosta.nix.)
 
-      # Console fallback: df/root have no password set (deliberately — SSH
+      # Console fallback: iosta/root have no password set (deliberately — SSH
       # pubkey is the intended path in), which meant a broken SSH connection
       # left the console login prompt with no usable credentials at all. A
       # typeable throwaway password instead of autologin (which was tried and
@@ -183,14 +180,51 @@ in
       # VM. Not a security regression: the console is qemu's own stdout, only
       # ever reachable by whoever can already read the `sandvm`-launching
       # systemd-run unit (df on the host) — the same principal SSH already
-      # trusts.
-      users.users.df.initialPassword = "df";
+      # trusts. (herdr auto-start deliberately skips the console: it only
+      # fires on SSH_TTY, so this fallback stays a plain fish shell.)
+      users.users.iosta.initialPassword = "iosta";
+
+      # Dependency pre-install: if the mounted project declares its toolchain
+      # (devenv.nix or flake.nix), build it once at boot so the environment is
+      # already in the guest's (persistent) store overlay before anyone
+      # ssh'es in — and a relaunch after `sandvm stop` is a warm cache. Runs
+      # as iosta (same uid as the host-side project owner; devenv writes its
+      # .devenv/ state into /workspace). Failures are logged, never fatal — a
+      # broken flake must not stop the sandbox from booting.
+      systemd.services.sandvm-workspace-init = {
+        description = "Pre-install /workspace project dependencies (devenv/flake)";
+        wantedBy = [ "multi-user.target" ];
+        wants = [ "network-online.target" ];
+        after = [ "network-online.target" ];
+        unitConfig.ConditionPathIsDirectory = "/workspace";
+        path = [
+          pkgs.devenv
+          pkgs.git
+          pkgs.nix
+        ];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+          User = "iosta";
+          Group = "users";
+          WorkingDirectory = "/workspace";
+        };
+        script = ''
+          if [ -f devenv.nix ]; then
+            echo "devenv.nix found - building the devenv environment"
+            devenv shell true || echo "devenv setup failed (non-fatal)"
+          elif [ -f flake.nix ]; then
+            echo "flake.nix found - building the flake devShell"
+            nix develop --command true || echo "devShell setup failed (non-fatal)"
+          fi
+        '';
+      };
 
       # --- LLM access for the agent harness (omp) ---
 
       # Cloud keys: install the AGENT_ENV system credential (if the launch
-      # passed one — see microvm.credentialFiles above) where df's shells can
-      # read it. /run is tmpfs, so like everything else in the guest it
+      # passed one — see microvm.credentialFiles above) where iosta's shells
+      # can read it. /run is tmpfs, so like everything else in the guest it
       # evaporates on stop.
       systemd.services.sandvm-agent-env = {
         wantedBy = [ "multi-user.target" ];
@@ -201,14 +235,14 @@ in
         };
         script = ''
           if [ -f "$CREDENTIALS_DIRECTORY/AGENT_ENV" ]; then
-            install -m 0600 -o df -g users \
+            install -m 0600 -o iosta -g users \
               "$CREDENTIALS_DIRECTORY/AGENT_ENV" /run/agent.env
           fi
         '';
       };
 
-      # Export /run/agent.env's KEY=value lines into every fish session (df's
-      # shell — covers ssh logins, VSCode terminals, herdr panes, and
+      # Export /run/agent.env's KEY=value lines into every fish session
+      # (iosta's shell — covers ssh logins, VSCode terminals, herdr panes, and
       # non-interactive `ssh guest cmd`, since fish sources /etc/fish/
       # config.fish for all of those). omp picks its API keys up from the
       # standard env vars (ANTHROPIC_API_KEY, OPENAI_API_KEY, …). Native fish
@@ -229,7 +263,7 @@ in
       # to the host's loopback. Pre-declare it as an omp provider; the model
       # ids and context sizes must match the llama-server router presets in
       # modules/den/aspects/services/llm.nix. Seeded with tmpfiles `C` (copy,
-      # not symlink; only if absent) into df's ephemeral home so omp can
+      # not symlink; only if absent) into iosta's ephemeral home so omp can
       # rewrite it at runtime and a fresh boot resets it.
       systemd.tmpfiles.rules =
         let
@@ -253,9 +287,9 @@ in
           '';
         in
         [
-          "d /home/df/.omp 0755 df users - -"
-          "d /home/df/.omp/agent 0755 df users - -"
-          "C /home/df/.omp/agent/models.yml 0644 df users - ${ompModels}"
+          "d /home/iosta/.omp 0755 iosta users - -"
+          "d /home/iosta/.omp/agent 0755 iosta users - -"
+          "C /home/iosta/.omp/agent/models.yml 0644 iosta users - ${ompModels}"
         ];
     };
 }

@@ -37,8 +37,10 @@ modules/                everything else, auto-imported as flake-parts modules
     hosts/<host>.nix     emits nixosConfigurations.<host> (composes aspects + machine data)
     aspects/             feature modules by category: core, hardware, shell, dev,
                          services, secrets, apps, gaming, virtualisation
-    roles/               aspect bundles: default, workstation, dev, desktop
+    roles/               aspect bundles: default, workstation, dev, desktop,
+                         dev-sandbox (TUI-only, for sandvm guests)
     users/df.nix         the df user aspect (home-manager)
+    users/iosta.nix      the sandvm-guest-only user: uid pinned 1000 (virtiofs), only roles.dev-sandbox
 hosts/<host>/          machine data imported by that host: disko.nix + facter.json
 secrets/*.yaml         sops-nix encrypted secrets (shared.yaml = multi-host, <host>.yaml = per-host)
 .sops.yaml             sops recipients + creation rules
