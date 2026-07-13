@@ -12,6 +12,9 @@
   den.aspects.apps.ai-tools.homeManager =
     { pkgs, ... }:
     {
-      home.packages = [ inputs.nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.claude-code ];
+      home.packages = [
+        inputs.nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.claude-code
+        inputs.nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.omp
+      ];
     };
 }
