@@ -18,6 +18,7 @@
     dev.tools.direnv
     dev.tools.distrobox
     dev.tools.herdr
+    dev.tools.omp-auth-broker
     dev.tools.sandvm
     dev.tools.trippy
   ];

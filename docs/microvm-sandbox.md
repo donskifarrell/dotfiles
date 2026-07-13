@@ -161,15 +161,35 @@ tokens** (omp's `~/.omp/logs`: "Pre-prompt context maintenance … contextTokens
 smaller-context clients (curl, scripts); making it omp-usable means raising its `ctx-size` in llm.nix, which is a
 VRAM/benchmarking decision for that aspect, not this one.
 
-**Cloud (BYOK, optional):** put `KEY=value` lines (e.g. `ANTHROPIC_API_KEY=…`) in `~/.config/sandvm/agent.env` on the
-host (0600; create it yourself — nothing manages it). At launch the wrapper passes the _path_ to the guest build;
-`microvm.credentialFiles` turns it into a qemu `fw_cfg` systemd credential whose contents are read at VM start — **the
-key material never enters the world-readable `/nix/store`** on either side (that's the whole design constraint; a Nix
-path _literal_ instead of a string would silently defeat it by copying the file to the store at eval time). In the
-guest, a oneshot installs the credential at `/run/agent.env` (df, 0600, tmpfs — gone on stop) and fish exports its lines
-into every session, where omp reads the standard `*_API_KEY` vars. No file on the host → no credential → local provider
-only. Since only the path is baked into the runner, editing the file's _contents_ takes effect on the next launch
-without any rebuild.
+**Cloud, two ways.** Both land in the guest the same way: `sandvm` merges them into one temp file per launch
+(`~/.local/state/sandvm/<name>/agent.env`, 0600), passes the _path_ to the guest build, and `microvm.credentialFiles`
+turns it into a qemu `fw_cfg` systemd credential whose contents are read at VM start — **key material never enters the
+world-readable `/nix/store`** on either side (the whole design constraint; a Nix path _literal_ instead of a string
+would silently defeat it by copying the file to the store at eval time). In the guest, a oneshot installs the merged
+file at `/run/agent.env` (df, 0600, tmpfs — gone on stop) and fish exports its lines into every session. No lines at all
+→ no credential → local provider only.
+
+- **Plain API keys**: put `KEY=value` lines (e.g. `OPENAI_API_KEY=…`) in `~/.config/sandvm/agent.env` on the host (0600;
+  create it yourself — nothing manages it). Billed per-token against that provider's API.
+- **Anthropic via your Pro/Max subscription, not API billing**: `dev.tools.omp-auth-broker` runs `omp auth-broker serve`
+  as a persistent `systemd --user` service on the host — a credential store + HTTP endpoint (`127.0.0.1:8765`) that
+  other omp instances can pull fresh credentials from instead of storing their own copy. One-time setup, on the host:
+  `omp auth-broker login anthropic` **then `systemctl --user restart omp-auth-broker`** — the restart isn't optional.
+  `login` writes straight to `~/.omp/agent/agent.db`; the already-running server loaded its credential list into memory
+  once at startup and has no file-watcher, so it's blind to the new row until it re-reads the db on its own boot
+  (confirmed 2026-07-13 — a fresh login was invisible to a live broker, and to sandboxes already running against it,
+  until the restart; no guest relaunch was needed afterwards, since guests query the broker fresh per-request). `sandvm`
+  auto-detects the resulting `~/.omp/auth-broker.token` and adds `OMP_AUTH_BROKER_URL=http://10.0.2.2:8765` +
+  `OMP_AUTH_BROKER_TOKEN=<token>` to every launch's merged agent.env — the guest never stores the Anthropic OAuth token
+  itself, it asks the broker each time, so **the broker's own background refresher (60s cadence, refreshes anything
+  expiring within 5min) is what keeps a sandbox's session alive**, not anything guest-side. This is exactly the fix for
+  "the sandbox that could refresh the token is gone by the time it expires." Model ids need no guest-side declaration
+  (unlike the custom `local` llama-server provider) — Anthropic is a first-class omp provider; once the broker resolves
+  a credential, `--model anthropic/<id>` just works.
+- The broker's bearer token is a skeleton key to **every** credential it holds, to anything on the loopback path — which
+  in practice means any sandvm guest you launch. A rogue agent can't escape the filesystem sandbox through this, but it
+  _can_ spend down your Pro subscription's rate limits/quota. Same trust tier as the local-llama-server reachability
+  above, just: mind what you `--auto-approve` in a sandbox with a real subscription behind it.
 
 ## Known quirks
 
@@ -177,6 +197,9 @@ without any rebuild.
   sandbox's home-manager profile contains the `sandvm` binary too. Running it _inside_ a sandbox will fail cleanly
   (`/home/df/.dotfiles` isn't shared into the guest, only `/workspace` is) rather than nesting sandboxes. Harmless, just
   a by-product of giving the guest df's full HM identity.
+- Same story for `dev.tools.omp-auth-broker`: every guest also starts its own `omp auth-broker serve`, bound to its own
+  empty, disconnected local credential store. Nothing ever queries it (the guest's omp is steered at the _host's_ broker
+  via env vars, not its own) — just a harmless spare background process per boot.
 - `nix run`/`nix build .#sandvm-guest` needs `--impure` and `MICROVM_WORKDIR` set in the environment first (the `sandvm`
   wrapper always does both; don't invoke the flake output directly except for debugging). Without it, the guest module
   falls back to sharing `/var/empty` as `/workspace` and prints a `lib.warn` rather than hard-failing — a hard assertion

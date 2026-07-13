@@ -168,15 +168,38 @@ writeShellApplication {
       echo "  code --remote ssh-remote+sandvm-$name /workspace"
       echo
 
-      # Optional cloud-LLM keys for the agent harness: KEY=value lines in
-      # this file are handed to the guest at launch as a systemd credential
-      # (qemu fw_cfg — read at VM start, never in /nix/store) and end up
-      # exported in the guest's shells. No file, no credential — the local
-      # llama-server provider works either way.
-      local agent_env=""
+      # Optional cloud-LLM keys/tokens for the agent harness: KEY=value lines
+      # in this file are handed to the guest at launch as a systemd
+      # credential (qemu fw_cfg — read at VM start, never in /nix/store) and
+      # end up exported in the guest's shells. No file, no credential — the
+      # local llama-server provider works either way. Two sources, merged
+      # into one per-launch temp file (state_dir, so it doesn't linger
+      # outside the instance's own lifecycle):
+      #   - ~/.config/sandvm/agent.env: whatever df put there by hand
+      #     (plain API keys — OPENAI_API_KEY, XAI_API_KEY, ...).
+      #   - the omp auth-broker's token, auto-detected: if
+      #     dev.tools.omp-auth-broker's service has been logged into a
+      #     provider (`omp auth-broker login anthropic` — one-time, gets df's
+      #     Pro subscription via OAuth, not per-token API billing), point the
+      #     guest at it so every launch gets a live, auto-refreshed
+      #     credential instead of a copy that goes stale the moment the
+      #     guest that could refresh it is torn down.
+      local agent_env="$state_dir/agent.env"
+      : > "$agent_env"
       if [ -f "$HOME/.config/sandvm/agent.env" ]; then
-        agent_env="$HOME/.config/sandvm/agent.env"
+        cat "$HOME/.config/sandvm/agent.env" >> "$agent_env"
       fi
+      if [ -f "$HOME/.omp/auth-broker.token" ]; then
+        {
+          echo "OMP_AUTH_BROKER_URL=http://10.0.2.2:8765"
+          echo "OMP_AUTH_BROKER_TOKEN=$(cat "$HOME/.omp/auth-broker.token")"
+        } >> "$agent_env"
+      fi
+      if [ ! -s "$agent_env" ]; then
+        rm -f "$agent_env"
+        agent_env=""
+      fi
+      chmod 600 "$agent_env" 2>/dev/null || true
 
       export MICROVM_WORKDIR="$workdir"
       export MICROVM_NAME="$name"
