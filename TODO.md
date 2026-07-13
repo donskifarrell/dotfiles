@@ -71,24 +71,33 @@ contains no delta/difftastic config).
 lifecycle, filesystem isolation, devenv/direnv/git, SSH + VSCode access, host-only port forwarding. Left open, each
 independent enough to pick up separately:
 
-1. **Package Pi and/or oh-my-pi for the guest.** Neither is in nixpkgs yet (earendil-works/pi, and a fork of
-   can1357/oh-my-pi — check which fork is canonical before packaging). Check whether either ships its own
-   `flake.nix`/`packages` output first (add as a flake input + reference its package directly) before hand-rolling a
-   derivation. Add to `modules/den/aspects/virtualisation/microvm-guest.nix`'s `environment.systemPackages` once
-   packaged.
-2. **Wire LLM access into the guest.** Local: abhaile's llama-server is already reachable from any sandvm guest at
-   `http://10.0.2.2:8080/v1` (qemu usermode networking forwards the guest's gateway address to the host's loopback —
-   verified, no `llm.nix` change needed). Cloud: BYOK key needs to reach the guest at runtime without landing in the
-   world-readable `/nix/store` — pass it via a runtime-written share or systemd credential, not baked into the Nix
-   config.
-3. **SSH-agent forwarding for git auth.** Right now sandvm guests get none of df's real SSH/git private keys
+1. ~~Package Pi and/or oh-my-pi for the guest.~~ **Done 2026-07-13**: added `nix-ai-tools` (numtide) as a flake input —
+   it packages oh-my-pi as `omp` (upstream can1357/oh-my-pi) and `pi` (earendil-works/pi), no hand-rolled derivation
+   needed. `omp` is in the guest's `environment.systemPackages` (`modules/den/aspects/virtualisation/microvm-guest.nix`)
+   — guest-only, not installed on real hosts.
+2. ~~Install herdr (herdr.dev, session multiplexer for coding agents) on both host and guest.~~ **Done 2026-07-13**:
+   also from `nix-ai-tools`. Routed through `dev.tools.herdr` (homeManager) → `roles.dev`, which reaches both abhaile's
+   df _and_ the guest's df (same mechanism that already put `sandvm` itself in the guest) — one aspect, no duplication.
+   `herdr --remote sandvm-<name>` from the host attaches to a guest's session over the ssh alias `sandvm` already sets
+   up; herdr tunnels over plain ssh, no daemon/config needed on either end.
+3. ~~Wire LLM access into the guest.~~ **Done 2026-07-13**, verified end-to-end (omp print-mode round trip through the
+   sandbox to qwen on the GPU; details: docs/microvm-sandbox.md "LLM access for the agent harness"). Local: guests seed
+   `~/.omp/agent/models.yml` at boot pointing omp's `local` provider at `http://10.0.2.2:8080/v1` (SLIRP gateway → host
+   loopback → llama-server); **model ids/context sizes must be kept in sync with llm.nix's router presets by hand**.
+   Cloud: optional host file `~/.config/sandvm/agent.env` (KEY=value, 0600, user-managed) → `microvm.credentialFiles`
+   (qemu fw_cfg systemd credential, contents read at launch, never in /nix/store) → guest oneshot installs
+   `/run/agent.env` → fish exports it → omp reads standard `*_API_KEY` vars. Follow-up if the 8B should be omp-usable:
+   omp's harness overhead is ~17.1k tokens, over llama-3.1-8b's 16k `ctx-size` (400s on every request) — it's excluded
+   from the guest's models.yml; raising the 8B's `ctx-size` in llm.nix would re-enable it (VRAM cost: KV cache roughly
+   doubles; re-bench the fast lane before keeping).
+4. **SSH-agent forwarding for git auth.** Right now sandvm guests get none of df's real SSH/git private keys
    (deliberately — see docs/microvm-sandbox.md, "what's deliberately not shared"), so git push/pull from inside a
    sandbox has no auth. Forward the host's `SSH_AUTH_SOCK` into the guest (virtiofs can proxy a live UNIX socket; verify
    this works in practice) instead of copying key material in.
-4. **(Optional) LAN-wide service exposure.** Currently sandvm's usermode networking only forwards to the host's
+5. **(Optional) LAN-wide service exposure.** Currently sandvm's usermode networking only forwards to the host's
    loopback. If a guest-hosted dev server needs to be reachable from other devices on the LAN, swap to tap+bridge
    networking (like `virtualization.libvirt`'s `virbr0`) for that one interface.
-5. **(Optional) Network egress allowlisting inside the guest.** smolvm (reviewed alongside microvm.nix when designing
+6. **(Optional) Network egress allowlisting inside the guest.** smolvm (reviewed alongside microvm.nix when designing
    sandvm) defaults to deny-all guest network egress with an explicit `allow_hosts` list — worth mirroring for the
    cloud-LLM case in particular, so a compromised agent can't phone home anywhere but the intended API.
 

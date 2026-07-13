@@ -38,6 +38,15 @@ let
     in
     map lib.toIntBase10 (lib.filter (s: s != "") (lib.splitString "," raw));
 
+  # Host path of an optional KEY=value env file with cloud LLM API keys
+  # (~/.config/sandvm/agent.env — the wrapper only sets this when the file
+  # exists). Kept as a *string*: microvm.credentialFiles embeds the path in
+  # the runner script and qemu reads the contents at VM start via fw_cfg, so
+  # the key material never enters the world-readable /nix/store. (A Nix
+  # *path literal* here would defeat the whole point by copying the file to
+  # the store at eval time.)
+  agentEnvFile = builtins.getEnv "MICROVM_AGENT_ENV";
+
   # Same public key as modules/den/users/df.nix — it's public, safe to
   # duplicate; df's real private key/secrets never touch this guest (see
   # docs/microvm-sandbox.md, "what's not shared").
@@ -45,9 +54,17 @@ let
 in
 {
   den.aspects.virtualization.microvm-guest.nixos =
-    { ... }:
+    { pkgs, ... }:
     {
       imports = [ inputs.microvm.nixosModules.microvm ];
+
+      # Agent harness — oh-my-pi, packaged as `omp` by numtide's nix-ai-tools
+      # flake (not nixpkgs). Guest-only (unlike herdr, not wanted on the real
+      # host) so it's a plain systemPackages entry here rather than routed
+      # through roles.dev's home-manager packages like dev.tools.herdr is.
+      environment.systemPackages = [
+        inputs.nix-ai-tools.packages.${pkgs.system}.omp
+      ];
 
       # Den sets networking.hostName from the static Den host name ("sandvm")
       # — mkForce so the per-launch instance name (e.g. the project's own
@@ -131,6 +148,14 @@ in
             size = 8192;
           }
         ];
+
+        # Cloud LLM API keys (optional): qemu reads the host file at VM start
+        # and hands it to the guest's systemd as a system credential over
+        # fw_cfg — contents never touch the /nix/store on either side. See
+        # `sandvm-agent-env.service` below for the guest-side consumption.
+        credentialFiles = lib.optionalAttrs (agentEnvFile != "") {
+          AGENT_ENV = agentEnvFile;
+        };
       };
 
       # roles.default's core.nix sets this repo-wide for disk savings; it's
@@ -151,13 +176,86 @@ in
 
       # Console fallback: df/root have no password set (deliberately — SSH
       # pubkey is the intended path in), which meant a broken SSH connection
-      # left the console login prompt with no usable credentials at all,
-      # locking out debugging exactly when it's needed. Autologin instead —
-      # same pattern as virtualisation/vm-login.nix's debug-VM convenience.
-      # Not a security regression: the console is qemu's own stdout, only
+      # left the console login prompt with no usable credentials at all. A
+      # typeable throwaway password instead of autologin (which was tried and
+      # rejected — an auto-dropped-into shell on every launch was unwanted) —
+      # same "throwaway creds" pattern as virtualisation/vm-login.nix's debug
+      # VM. Not a security regression: the console is qemu's own stdout, only
       # ever reachable by whoever can already read the `sandvm`-launching
       # systemd-run unit (df on the host) — the same principal SSH already
       # trusts.
-      services.getty.autologinUser = "df";
+      users.users.df.initialPassword = "df";
+
+      # --- LLM access for the agent harness (omp) ---
+
+      # Cloud keys: install the AGENT_ENV system credential (if the launch
+      # passed one — see microvm.credentialFiles above) where df's shells can
+      # read it. /run is tmpfs, so like everything else in the guest it
+      # evaporates on stop.
+      systemd.services.sandvm-agent-env = {
+        wantedBy = [ "multi-user.target" ];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+          ImportCredential = "AGENT_ENV";
+        };
+        script = ''
+          if [ -f "$CREDENTIALS_DIRECTORY/AGENT_ENV" ]; then
+            install -m 0600 -o df -g users \
+              "$CREDENTIALS_DIRECTORY/AGENT_ENV" /run/agent.env
+          fi
+        '';
+      };
+
+      # Export /run/agent.env's KEY=value lines into every fish session (df's
+      # shell — covers ssh logins, VSCode terminals, herdr panes, and
+      # non-interactive `ssh guest cmd`, since fish sources /etc/fish/
+      # config.fish for all of those). omp picks its API keys up from the
+      # standard env vars (ANTHROPIC_API_KEY, OPENAI_API_KEY, …). Native fish
+      # syntax on the fish-specific option — sh put into the generic
+      # environment.shellInit would get babelfish-translated for fish at
+      # build time, which can't translate sourcing a runtime sh file.
+      programs.fish.shellInit = ''
+        if test -r /run/agent.env
+          for line in (grep -E '^[A-Za-z_][A-Za-z0-9_]*=' /run/agent.env)
+            set -l kv (string split -m 1 = -- $line)
+            set -gx $kv[1] $kv[2]
+          end
+        end
+      '';
+
+      # Local LLM: abhaile's llama-server (services.llm, 127.0.0.1:8080) is
+      # reachable from the guest at qemu's SLIRP gateway — 10.0.2.2 forwards
+      # to the host's loopback. Pre-declare it as an omp provider; the model
+      # ids and context sizes must match the llama-server router presets in
+      # modules/den/aspects/services/llm.nix. Seeded with tmpfiles `C` (copy,
+      # not symlink; only if absent) into df's ephemeral home so omp can
+      # rewrite it at runtime and a fresh boot resets it.
+      systemd.tmpfiles.rules =
+        let
+          # Only qwen: omp's own harness overhead (system prompt + tool
+          # definitions) measured ~17.1k tokens, so llama-3.1-8b's 16k
+          # server-side ctx-size 400s on every request — declaring it here
+          # would just be a foot-gun (llama-server still serves it fine to
+          # smaller-context clients; raising its ctx-size is an llm.nix
+          # tuning decision, see TODO.md).
+          ompModels = pkgs.writeText "omp-models.yml" ''
+            providers:
+              local:
+                baseUrl: http://10.0.2.2:8080/v1
+                auth: none
+                api: openai-completions
+                models:
+                  - id: qwen3.6-35b-a3b
+                    name: Qwen3.6 35B A3B (abhaile llama-server)
+                    contextWindow: 32768
+                    maxTokens: 8192
+          '';
+        in
+        [
+          "d /home/df/.omp 0755 df users - -"
+          "d /home/df/.omp/agent 0755 df users - -"
+          "C /home/df/.omp/agent/models.yml 0644 df users - ${ompModels}"
+        ];
     };
 }

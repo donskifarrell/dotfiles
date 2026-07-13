@@ -74,6 +74,9 @@
       microvm.inputs.nixpkgs.follows = "nixpkgs-unstable";
       microvm.url = "github:microvm-nix/microvm.nix";
 
+      nix-ai-tools.inputs.nixpkgs.follows = "nixpkgs-unstable";
+      nix-ai-tools.url = "github:numtide/nix-ai-tools";
+
       nix-darwin.inputs.nixpkgs.follows = "nixpkgs-unstable";
       nix-darwin.url = "github:LnL7/nix-darwin";
 

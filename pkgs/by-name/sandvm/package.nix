@@ -37,9 +37,35 @@ writeShellApplication {
       sandvm stop [<name>]
           Stop a running sandbox (default: the one for the current directory).
 
+      sandvm rm [<name>]
+          Stop (if running) and completely delete a sandbox: its state dir
+          (assigned port, writable-store-overlay image) and ssh config.d
+          entry. Irreversible — devenv/nix state built up in the guest is
+          gone; the project folder itself is untouched either way.
+
       sandvm list
           List known sandboxes, their running state and assigned SSH port.
     USAGE
+    }
+
+    # Both drop the "sandvm-" prefix if given (accepts either the raw
+    # instance name or the "sandvm-<name>" ssh-alias form users copy from
+    # `sandvm`'s own launch banner / `sandvm list`).
+    resolve_name() {
+      local name=''${1:-$(name_for "$PWD")}
+      printf '%s' "''${name#sandvm-}"
+    }
+
+    # Drop this instance's "Host sandvm-<name>" block from ssh config.d.
+    strip_ssh_block() {
+      local name=$1
+      [ -f "$SSH_CONFIG_FILE" ] || return 0
+      awk -v h="Host sandvm-$name" '
+        $0==h {skip=1; next}
+        skip && /^Host / {skip=0}
+        !skip
+      ' "$SSH_CONFIG_FILE" > "$SSH_CONFIG_FILE.tmp"
+      mv "$SSH_CONFIG_FILE.tmp" "$SSH_CONFIG_FILE"
     }
 
     name_for() {
@@ -75,13 +101,20 @@ writeShellApplication {
     }
 
     cmd_stop() {
-      local name=''${1:-$(name_for "$PWD")}
-      # Accept either form: the raw instance name, or the "sandvm-<name>"
-      # form shown in the `ssh sandvm-<name>` hint printed at launch (which
-      # users will naturally copy) — strip one leading "sandvm-" so both
-      # resolve to the same unit instead of double-prefixing.
-      name=''${name#sandvm-}
+      local name; name=$(resolve_name "''${1:-}")
       systemctl --user stop "sandvm-$name.scope" 2>/dev/null || echo "not running: $name"
+    }
+
+    cmd_rm() {
+      local name; name=$(resolve_name "''${1:-}")
+      if [ ! -d "$STATE_ROOT/$name" ]; then
+        echo "no such sandbox: $name"
+        return 1
+      fi
+      systemctl --user stop "sandvm-$name.scope" 2>/dev/null || true
+      rm -rf "''${STATE_ROOT:?}/''${name:?}"
+      strip_ssh_block "$name"
+      echo "removed: sandvm-$name"
     }
 
     cmd_run() {
@@ -116,13 +149,7 @@ writeShellApplication {
 
       mkdir -p "$SSH_CONFIG_D"
       touch "$SSH_CONFIG_FILE"
-      # Idempotent: drop any stale "Host sandvm-$name" block before re-adding.
-      awk -v h="Host sandvm-$name" '
-        $0==h {skip=1; next}
-        skip && /^Host / {skip=0}
-        !skip
-      ' "$SSH_CONFIG_FILE" > "$SSH_CONFIG_FILE.tmp"
-      mv "$SSH_CONFIG_FILE.tmp" "$SSH_CONFIG_FILE"
+      strip_ssh_block "$name" # idempotent: drop any stale block before re-adding
       {
         echo ""
         echo "Host sandvm-$name"
@@ -141,12 +168,23 @@ writeShellApplication {
       echo "  code --remote ssh-remote+sandvm-$name /workspace"
       echo
 
+      # Optional cloud-LLM keys for the agent harness: KEY=value lines in
+      # this file are handed to the guest at launch as a systemd credential
+      # (qemu fw_cfg — read at VM start, never in /nix/store) and end up
+      # exported in the guest's shells. No file, no credential — the local
+      # llama-server provider works either way.
+      local agent_env=""
+      if [ -f "$HOME/.config/sandvm/agent.env" ]; then
+        agent_env="$HOME/.config/sandvm/agent.env"
+      fi
+
       export MICROVM_WORKDIR="$workdir"
       export MICROVM_NAME="$name"
       export MICROVM_SSH_PORT="$ssh_port"
       export MICROVM_PORTS="$ports_csv"
       export MICROVM_CPU="$cpu"
       export MICROVM_MEM="$mem"
+      export MICROVM_AGENT_ENV="$agent_env"
 
       # Build (not `nix run`) so both the virtiofsd companion and the runner
       # itself come from the exact same store path.
@@ -199,6 +237,7 @@ writeShellApplication {
 
     case "''${1:-}" in
       stop) shift; cmd_stop "$@" ;;
+      rm) shift; cmd_rm "$@" ;;
       list) cmd_list ;;
       -h|--help) usage ;;
       *) cmd_run "$@" ;;

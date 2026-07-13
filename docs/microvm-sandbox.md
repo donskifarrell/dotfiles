@@ -3,9 +3,9 @@
 ## What this is
 
 `sandvm <path>` boots a throwaway NixOS microVM (microvm.nix, qemu) whose _only_ writable channel back to the host
-filesystem is `<path>`, mounted at `/workspace`. It exists so a coding-agent harness (Pi/oh-my-pi — not yet wired in,
-see "Not built yet" below) can run against a real project with a real dev toolchain (devenv.sh, direnv, git, df's shell
-config) without being able to write — or even see — anything outside that one folder, even if the agent or the LLM
+filesystem is `<path>`, mounted at `/workspace`. It exists so a coding-agent harness (oh-my-pi, packaged as `omp`) can
+run against a real project with a real dev toolchain (devenv.sh, direnv, git, df's shell config, herdr for session
+management) without being able to write — or even see — anything outside that one folder, even if the agent or the LLM
 behind it goes rogue.
 
 ## Usage
@@ -13,6 +13,7 @@ behind it goes rogue.
 ```
 sandvm [--port N ...] [--cpu N] [--mem N] [<path>]   # default <path>: $PWD
 sandvm stop [<name>]                                  # default: current dir's
+sandvm rm [<name>]                                    # stop + delete state (irreversible)
 sandvm list
 ```
 
@@ -53,6 +54,13 @@ Files:
 - `pkgs/by-name/sandvm/package.nix` — the CLI wrapper (name/port bookkeeping, `~/.ssh/config.d/sandvm`,
   `systemd-run --user --scope` lifecycle).
 - `modules/den/aspects/dev/tools/sandvm.nix` — installs the CLI onto df's `$PATH`, included via `roles.dev`.
+- `modules/den/aspects/dev/tools/herdr.nix` — installs herdr (herdr.dev — terminal multiplexer for coding-agent
+  sessions, `nix-ai-tools`, not nixpkgs) via `roles.dev`'s home-manager packages, same mechanism as `dev.tools.sandvm`
+  above — reaches both abhaile's df _and_ the guest's df in one place (see "Known quirks").
+  `herdr --remote sandvm-<name>` attaches from the host to a session running inside a guest, over the ssh alias `sandvm`
+  itself sets up — herdr tunnels entirely over plain ssh, no daemon/server toggle needed on either end.
+- `omp` (oh-my-pi, also `nix-ai-tools`) is guest-only — a plain `environment.systemPackages` entry in
+  `microvm-guest.nix` rather than routed through `roles.dev`, since (unlike herdr) it isn't wanted on real hosts.
 
 Named `sandvm`, not `devbox`: nixpkgs already has an unrelated package literally called `devbox` (Jetify's tool). Using
 that name for `pkgs.devbox` in home-manager would have silently resolved to the wrong package — there's no overlay
@@ -135,10 +143,33 @@ reachability is host-only by design (matches "connections from the local machine
 `microvm.forwardPorts` entry (host port assigned by the wrapper, persisted per-instance in
 `~/.local/state/sandvm/<name>/ssh_port`); `--port N` adds more, mapped 1:1.
 
-**Local/cloud LLM reachability (informational — not wired in yet):** qemu's usermode gateway (`10.0.2.2` from the guest)
-forwards to the host's loopback interface, so abhaile's llama-server on `127.0.0.1:8080`
-(`modules/den/aspects/services/llm.nix`) is _already_ reachable from inside a sandvm guest at `http://10.0.2.2:8080/v1`
-with **no change** needed to llm.nix's bind address. Worth remembering before "fixing" this the hard way later.
+## LLM access for the agent harness
+
+Two lanes, both wired in `microvm-guest.nix`:
+
+**Local (llama-server, zero config):** qemu's usermode gateway (`10.0.2.2` from the guest) forwards to the host's
+loopback interface, so abhaile's llama-server on `127.0.0.1:8080` (`modules/den/aspects/services/llm.nix`) is reachable
+from inside every sandvm guest at `http://10.0.2.2:8080/v1` with **no change** to llm.nix's bind address. The guest
+seeds `~/.omp/agent/models.yml` at boot (tmpfiles `C` — copy-if-absent into df's ephemeral home, so omp can rewrite it
+and a fresh boot resets it) declaring this as omp's `local` provider — keep the model ids/context sizes in sync with
+llm.nix's router presets. Inside a guest: `omp --model local/qwen3.6-35b-a3b` (or `/model` in-session). Verified
+end-to-end 2026-07-13 (omp print-mode round trip through the sandbox to the GPU and back).
+
+Only qwen is declared, deliberately: **omp's own harness overhead (system prompt + tool definitions) measured ~17.1k
+tokens** (omp's `~/.omp/logs`: "Pre-prompt context maintenance … contextTokens: 17120"), which overflows llama-3.1-8b's
+16k server-side `ctx-size` — every request 400s before generation starts. llama-server still serves the 8B fine to
+smaller-context clients (curl, scripts); making it omp-usable means raising its `ctx-size` in llm.nix, which is a
+VRAM/benchmarking decision for that aspect, not this one.
+
+**Cloud (BYOK, optional):** put `KEY=value` lines (e.g. `ANTHROPIC_API_KEY=…`) in `~/.config/sandvm/agent.env` on the
+host (0600; create it yourself — nothing manages it). At launch the wrapper passes the _path_ to the guest build;
+`microvm.credentialFiles` turns it into a qemu `fw_cfg` systemd credential whose contents are read at VM start — **the
+key material never enters the world-readable `/nix/store`** on either side (that's the whole design constraint; a Nix
+path _literal_ instead of a string would silently defeat it by copying the file to the store at eval time). In the
+guest, a oneshot installs the credential at `/run/agent.env` (df, 0600, tmpfs — gone on stop) and fish exports its lines
+into every session, where omp reads the standard `*_API_KEY` vars. No file on the host → no credential → local provider
+only. Since only the path is baked into the runner, editing the file's _contents_ takes effect on the next launch
+without any rebuild.
 
 ## Known quirks
 
@@ -159,16 +190,14 @@ with **no change** needed to llm.nix's bind address. Worth remembering before "f
 - `sandvm` is home-manager-installed, so changes to `pkgs/by-name/sandvm/package.nix` don't reach `$PATH` until the next
   `nixos-rebuild switch`/`test` — a plain `git commit`/`nix build` isn't enough. Easy to forget and then debug a "fix"
   that was never actually deployed.
-- The console (`ssh`'s only fallback if SSH itself is broken) autologs in as `df` — no username/password to type,
-  because none is set (df/root have no password hash in the guest at all; SSH pubkey is the only intended path in). If
-  SSH is unreachable, just watch the `sandvm` command's own foreground output (it _is_ the console).
+- The console (`sandvm`'s own foreground output — `ssh`'s fallback if SSH itself is broken) logs in as `df` / password
+  `df`. Autologin was tried first and rejected (silently dropping into a shell on every launch); a throwaway typeable
+  password — same pattern as `virtualisation/vm-login.nix`'s debug VM — was the alternative.
 - `sandvm list`'s NAME column shows the `sandvm-<name>` form — that's the literal SSH `Host` alias (`ssh sandvm-<name>`
   works; the bare name without the prefix does not, since no `Host` entry matches it).
 
 ## Not built yet (tracked in TODO.md)
 
-- Packaging/installing Pi or oh-my-pi inside the guest.
-- Wiring a cloud API key or the local llama-server into the guest.
 - SSH-agent forwarding for git push/pull auth (so private key material never touches the guest disk, addressing the
   exfiltration concern above).
 - LAN-wide (non-loopback) exposure of guest-hosted services (would need tap+bridge networking instead of usermode).
