@@ -165,7 +165,8 @@
                 "Prettier-SQL.SQLFlavourOverride": "mysql",
                 "Prettier-SQL.expressionWidth": 120,
                 "terminal.integrated.inheritEnv": true,
-                "terminal.integrated.defaultProfile.linux": "fish"
+                "terminal.integrated.defaultProfile.linux": "fish",
+                "workbench.editorAssociations": {"*.md": "vscode.markdown.preview.editor"}
               }
             '';
           };
