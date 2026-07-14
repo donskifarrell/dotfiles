@@ -20,6 +20,7 @@
 
     apps.ai-tools
     apps.ghostty
+    apps.obsidian
 
     shell
     shell.atuin

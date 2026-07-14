@@ -26,6 +26,11 @@
         # block instead rides home-manager's guarantee that non-"*" settings
         # blocks render before the "*" default block, so it wins.
         programs.ssh.settings."sandvm-*".ForwardAgent = true;
+
+        # Launch the isolated vault agent (Claude in a microVM that sees only
+        # ~/vaults/main) — docs/obsidian.md. Lives here, not in apps.obsidian,
+        # so the abbr only exists where `sandvm` itself does.
+        programs.fish.shellAbbrs.vault-agent = "sandvm ~/vaults/main";
       };
   };
 }

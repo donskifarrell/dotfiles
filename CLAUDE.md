@@ -114,6 +114,14 @@ Gotchas (easy to forget):
 - Tailscale auth keys expire (~90d). Already-joined nodes stay connected; mint a fresh key only for new joins.
 - Flakes gotcha: `git add` new files before building/evaluating, or the flake won't see them.
 
+## Obsidian vault + sync + vault agent (abhaile)
+
+**Full reference: [docs/obsidian.md](docs/obsidian.md)** — vault `~/vaults/main` (registered by `apps.obsidian`; `drop/`
+= phone/agent exchange folder), Syncthing to the Android phone (`services.syncthing`, runs as df, declarative
+`.stignore` excludes `.git`), obsidian-git plugin (installed manually — HM plugin installs are store symlinks that break
+sync to Android) pushes to a private GitHub repo, and the isolated agent = `sandvm ~/vaults/main` (abbr `vault-agent`;
+the vault is the guest's only writable host view). Follow-ups + phone→agent/Telegram sketches: TODO.md item 17.
+
 ## Local LLM inference (abhaile)
 
 **Full reference: [docs/llm.md](docs/llm.md)** — benchmark numbers + what they mean per use case, llama-server parameter

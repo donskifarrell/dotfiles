@@ -57,6 +57,7 @@ in
 
       services.tailscale # tailscale peer (declares its own authkey secret)
       services.llm # llama.cpp vulkan+rocm on the RX 9070 (benchmarked on-box)
+      services.syncthing # Obsidian vault <-> Android phone (docs/obsidian.md)
     ];
 
     nixos =

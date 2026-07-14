@@ -212,6 +212,31 @@ nixos-hardware was reviewed at the same time and stays pruned: its AMD profiles 
 active (verified live) — nothing left for it to add on a custom desktop; re-add only if a NixOS _laptop_ joins the fleet
 (its per-model laptop quirk profiles are the actual value).
 
+### 17. Obsidian vault follow-ups (setup 2026-07-14; architecture: docs/obsidian.md)
+
+Aspects `apps.obsidian` + `services.syncthing` landed; sandvm reused unchanged (`vault-agent` abbr). Remaining, in
+order:
+
+1. **One-time bootstrap** (df, manual): follow the ordered checklist in docs/obsidian.md — switch, then git init +
+   `gh repo create vault-main --private`, vault `CLAUDE.md`, install the obsidian-git community plugin (auto
+   commit-and-sync ~10 min; plugins are manual on purpose — HM-installed ones are store symlinks that break
+   Syncthing→Android).
+2. **Pair the Android phone**: read the device ID off Syncthing-Fork, fill `devices.phone.id` and the folder's
+   `devices = [ "phone" ]` in `modules/den/aspects/services/syncthing.nix`, switch, accept the share on the phone, open
+   in Obsidian mobile; disable obsidian-git's automatic routines on the phone (per-device toggle).
+3. (Optional) adopt the staged sops syncthing identity + GUI password (`secrets/abhaile.nix` commented entries — owner
+   df) if a declarative device ID matters; today syncthing self-generates on first start.
+4. (Optional) git-commit backstop: systemd --user timer running `git -C ~/vaults/main add -A && git commit && git push`
+   when Obsidian hasn't been running (obsidian-git only commits while the app is open).
+5. **Phone→agent inbox (design)**: phone edits `inbox.md` / drops files into `drop/` (both sync in); a systemd --user
+   _path unit_ on abhaile watches the synced path and triggers a oneshot running headless Claude in the sandbox
+   (`ssh sandvm-main--<hash> -- claude -p 'process /workspace/inbox.md'`; sandbox pre-launched or lazy-launched by the
+   unit). Needs: locking/idempotency, a processed-marker convention, and treating inbox content as untrusted input.
+6. **Telegram bot (design, after 5)**: bot (abhaile now, eachtrach later; token in sops) bridging chat ↔ the same inbox
+   convention — append message, trigger agent, reply with the agent's answer. Strictly additive to item 5.
+7. **MacBook wiring (with item 15)**: HM `services.syncthing` user service on darwin with the same folder id
+   `vault-main`; `apps.obsidian` is already portable (registers the vault via the HM module's darwin paths).
+
 ## Done
 
 - 2026-07-14 — **`roles.default` split** (was item 11): `core.network.manager` + `core.network.avahi` moved to

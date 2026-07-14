@@ -11,7 +11,7 @@
           pkgs.vlc
         ];
 
-        programs.obsidian.enable = true;
+        # obsidian moved to the dedicated apps.obsidian aspect (vault wiring).
         programs.onlyoffice.enable = true;
       };
   };

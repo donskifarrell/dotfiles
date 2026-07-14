@@ -35,12 +35,14 @@ in
         neededForUsers = true;
       };
 
-      # Optional - only if abhaile actually runs syncthing (the vars exist but
-      # there is no syncthing aspect today; deferred per CLAUDE.md TODO). Point
-      # your syncthing config at these .path values when enabling.
-      # "abhaile-syncthing-key"  = { sopsFile = abhaileFile; key = "abhaile/syncthing_key";  owner = "syncthing"; mode = "0600"; };
-      # "abhaile-syncthing-cert" = { sopsFile = abhaileFile; key = "abhaile/syncthing_cert"; owner = "syncthing"; mode = "0600"; };
-      # "abhaile-syncthing-api"  = { sopsFile = abhaileFile; key = "abhaile/syncthing_api";  owner = "syncthing"; mode = "0600"; };
+      # Optional - syncthing now runs via services.syncthing (vault sync,
+      # docs/obsidian.md) with self-generated keys; adopt these only if you
+      # want the identity in sops. NOTE: the service runs as df, so owner must
+      # be "df" (not "syncthing"). Point services.syncthing.{key,cert} at the
+      # .path values when enabling.
+      # "abhaile-syncthing-key"  = { sopsFile = abhaileFile; key = "abhaile/syncthing_key";  owner = "df"; mode = "0600"; };
+      # "abhaile-syncthing-cert" = { sopsFile = abhaileFile; key = "abhaile/syncthing_cert"; owner = "df"; mode = "0600"; };
+      # "abhaile-syncthing-api"  = { sopsFile = abhaileFile; key = "abhaile/syncthing_api";  owner = "df"; mode = "0600"; };
     };
   };
 
