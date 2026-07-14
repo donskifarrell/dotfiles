@@ -53,7 +53,6 @@
               # `code --remote ssh-remote+sandvm-<name> /workspace`
               ms-vscode-remote.remote-ssh
               redhat.vscode-yaml
-              saoudrizwan.claude-dev
               streetsidesoftware.code-spell-checker
               tamasfe.even-better-toml
               waderyan.gitblame
