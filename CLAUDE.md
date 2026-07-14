@@ -14,6 +14,7 @@ Guidance for Claude Code working in this repo.
 4. Start in PLAN mode and only write once ready.
 5. Do NOT ask for permissions to read any file and run any script/program that will read files too. You are allowed. You
    can write to any .md file as needed. Only ask for permission to execute Write commands outside the repo.
+6. Do NOT stage or commit files in git unless I give permission
 
 ## Stack
 
@@ -30,10 +31,12 @@ then into per-host configs. Every file under `./modules` is auto-imported (`impo
 flake.nix              just description + inputs + `mkFlake { imports = [ (import-tree ./modules) ]; }`
 modules/                everything else, auto-imported as flake-parts modules
   flake-parts/          the flake's own plumbing (NOT Den config): flake-file.nix (inputs →
-                          `nix run .#write-flake` regenerates flake.nix), devshell.nix, treefmt.nix,
-                          pre-commit.nix, pkgs.nix (auto-wires pkgs/by-name), den-tree.nix
+                          `nix run .#write-flake` regenerates flake.nix; also imports Den's dendritic
+                          flakeModule), devshell.nix, treefmt.nix, pre-commit.nix, deploy.nix
+                          (deploy-rs nodes from every real host), pkgs.nix (auto-wires pkgs/by-name),
+                          den-tree.nix
   den/                  the whole NixOS/HM config Den builds:
-    den.nix              wires inputs.den.flakeModule
+    den.nix              global Den defaults (batteries, HM user class)
     hosts/<host>.nix     emits nixosConfigurations.<host> (composes aspects + machine data)
     aspects/             feature modules by category: core, hardware, shell, dev,
                          services, secrets, apps, gaming, virtualisation
@@ -52,23 +55,25 @@ An aspect is `den.aspects.<path>.{nixos|homeManager|darwin} = <module>`; referen
 
 ## Machines
 
-| Host      | System       | Role                                                             |
-| --------- | ------------ | ---------------------------------------------------------------- |
-| abhaile   | x86_64-linux | df's AMD desktop workstation (LUKS root, systemd-boot)           |
-| eachtrach | x86_64-linux | Hetzner VPS, tailscale exit node — disposable, reprovision fresh |
+| Host      | System         | Role                                                                                                                                                                                 |
+| --------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| abhaile   | x86_64-linux   | df's AMD desktop workstation (LUKS root, systemd-boot)                                                                                                                               |
+| eachtrach | x86_64-linux   | (planned, TODO item 2) Hetzner x86 VPS — tailscale exit node + hosted apps; provisioned from a stock Ubuntu image via nixos-anywhere kexec; BIOS boot → needs grub, not systemd-boot |
+| (macbook) | aarch64-darwin | (planned) df's MacBook Pro on nix-darwin + homebrew — inputs already kept for it                                                                                                     |
 
 ## Common commands
 
 ```bash
 nixos-rebuild switch --flake .#abhaile      # build + activate locally (nh also configured)
-nix flake check                              # treefmt + flake-file check ONLY (per-host toplevel
-                                             #   checks were lost in cleanup — see TODO.md); to
-                                             #   really verify a host, build its toplevel:
+nix flake check                              # treefmt + flake-file + deploy-rs deployChecks (the
+                                             #   latter re-evaluates every deploy node's toplevel);
+                                             #   to fully verify a host, build its toplevel:
 nix build .#nixosConfigurations.abhaile.config.system.build.toplevel
-nix fmt                                       # nixfmt + statix + deadnix (treefmt)
+nix fmt                                       # nixfmt + nixf-diagnose (+ shellcheck/prettier/…, treefmt)
 nix flake update                              # update inputs (commit flake.lock on its own)
-deploy .#<host>                               # deploy-rs remote day-2 (once a deploy node is wired)
-nixos-anywhere --flake .#<host> root@<ip>     # provision a new host
+deploy .#<host>                               # deploy-rs remote day-2 (nodes auto-generated per host
+                                              #   in modules/flake-parts/deploy.nix; magic rollback)
+nixos-anywhere --flake .#<host> root@<ip>     # provision a new host (kexec's Ubuntu images into NixOS)
 ```
 
 ## Secrets (sops-nix)

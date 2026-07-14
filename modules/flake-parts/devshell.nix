@@ -40,6 +40,17 @@
             help = "Nix helper for nixpkgs development";
           }
           {
+            # nixpkgs' binary (cached); the activation lib in flake.deploy
+            # comes from the deploy-rs input (modules/flake-parts/deploy.nix).
+            package = pkgs.deploy-rs;
+            name = "deploy";
+            help = "deploy-rs remote deploy (deploy .#<host>; magic rollback on lost ssh)";
+          }
+          {
+            package = pkgs.nixos-anywhere;
+            help = "Provision a fresh host over ssh (kexec's stock Ubuntu images into NixOS)";
+          }
+          {
             package = config.treefmt.build.wrapper;
             help = "Format all files";
           }
@@ -78,6 +89,11 @@
             package = config.packages.den-tree;
             name = "den-tree";
             help = "Print the Den aspect tree applied to each host and user";
+          }
+          {
+            package = config.packages.sandvm;
+            name = "sandvm";
+            help = "Launch a sandboxed per-folder microVM (background by default; -f for foreground)";
           }
         ];
 

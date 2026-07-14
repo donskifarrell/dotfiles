@@ -4,6 +4,12 @@
 { den, ... }:
 {
   den.aspects.roles.workstation.includes = with den.aspects; [
+    # Desktop networking — moved here out of roles.default (2026-07-14) so
+    # microVM guests / servers don't inherit a desktop network daemon (boot
+    # time + RAM) or open-firewall mDNS.
+    core.network.avahi
+    core.network.manager
+
     core.network.ssh
     core.nix.nix-index
 

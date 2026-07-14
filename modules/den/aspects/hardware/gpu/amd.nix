@@ -7,7 +7,9 @@
       enable32Bit = true;
     };
 
-    # amdgpu.initrd.enable = true;
+    # amdgpu KMS in the initrd: earlier modesetting, native-res console and a
+    # smoother LUKS-prompt→desktop handoff. Costs some initrd size/build time.
+    hardware.amdgpu.initrd.enable = true;
 
     services.xserver.videoDrivers = [ "amdgpu" ];
 

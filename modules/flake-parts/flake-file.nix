@@ -50,9 +50,6 @@
       disko.inputs.nixpkgs.follows = "nixpkgs-unstable";
       disko.url = "github:nix-community/disko";
 
-      firefox-addons.inputs.nixpkgs.follows = "nixpkgs-unstable";
-      firefox-addons.url = "gitlab:rycee/nur-expressions?dir=pkgs/firefox-addons";
-
       flake-file.url = "github:vic/flake-file";
 
       flake-parts.inputs.nixpkgs-lib.follows = "nixpkgs-unstable";
@@ -77,10 +74,10 @@
       nix-ai-tools.inputs.nixpkgs.follows = "nixpkgs-unstable";
       nix-ai-tools.url = "github:numtide/nix-ai-tools";
 
+      # nix-darwin/homebrew/rosetta-builder: unused today, kept for the
+      # planned macbook host (2026-07-14).
       nix-darwin.inputs.nixpkgs.follows = "nixpkgs-unstable";
       nix-darwin.url = "github:LnL7/nix-darwin";
-
-      nix-flatpak.url = "github:gmodena/nix-flatpak";
 
       nix-homebrew.url = "github:zhaofengli/nix-homebrew";
 
@@ -93,9 +90,8 @@
       nix-vscode-extensions.inputs.nixpkgs.follows = "nixpkgs-unstable";
       nix-vscode-extensions.url = "github:nix-community/nix-vscode-extensions";
 
-      nixidy.inputs.nixpkgs.follows = "nixpkgs-unstable";
-      nixidy.url = "github:arnarg/nixidy";
-
+      # nixos-anywhere: provisions fresh hosts (kexec takes over a stock
+      # Ubuntu VPS image — the eachtrach path, TODO item 2).
       nixos-anywhere.inputs.disko.follows = "disko";
       nixos-anywhere.inputs.nixos-stable.follows = "nixpkgs";
       nixos-anywhere.inputs.nixpkgs.follows = "nixpkgs-unstable";
@@ -103,8 +99,6 @@
       nixos-anywhere.url = "github:numtide/nixos-anywhere";
 
       nixos-facter-modules.url = "github:numtide/nixos-facter-modules";
-
-      nixos-hardware.url = "github:nixos/nixos-hardware";
 
       nixpkgs-unstable.url = "https://flakehub.com/f/DeterminateSystems/nixpkgs-weekly/0.1";
       # Hosts build from `nixpkgs` (Den uses inputs.nixpkgs.legacyPackages).
@@ -123,16 +117,13 @@
       statix.inputs.nixpkgs.follows = "nixpkgs-unstable";
       statix.url = "github:oppiliappan/statix";
 
-      steam-config-nix.inputs.nixpkgs.follows = "nixpkgs-unstable";
-      steam-config-nix.url = "github:different-name/steam-config-nix";
-
-      stylix.inputs.nixpkgs.follows = "nixpkgs-unstable";
-      stylix.url = "github:nix-community/stylix";
-
       treefmt-nix.inputs.nixpkgs.follows = "nixpkgs-unstable";
       treefmt-nix.url = "github:numtide/treefmt-nix";
 
-      ucodenix.url = "github:e-tho/ucodenix";
+      # Pruned 2026-07-14 (declared but referenced nowhere): firefox-addons,
+      # nix-flatpak, nixidy, nixos-hardware, steam-config-nix, stylix,
+      # ucodenix. Re-add via flake-file when something actually consumes them
+      # (steam-config-nix when gaming gets wired back onto abhaile).
     };
   };
 }

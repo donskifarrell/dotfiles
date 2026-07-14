@@ -31,7 +31,7 @@ let
   vmName = getEnvOr "MICROVM_NAME" "sandvm";
   sshPort = lib.toIntBase10 (getEnvOr "MICROVM_SSH_PORT" "2222");
   vcpu = lib.toIntBase10 (getEnvOr "MICROVM_CPU" "4");
-  mem = lib.toIntBase10 (getEnvOr "MICROVM_MEM" "4096");
+  mem = lib.toIntBase10 (getEnvOr "MICROVM_MEM" "32768");
   extraPorts =
     let
       raw = builtins.getEnv "MICROVM_PORTS";
@@ -54,13 +54,20 @@ in
     {
       imports = [ inputs.microvm.nixosModules.microvm ];
 
-      # Agent harness — oh-my-pi, packaged as `omp` by numtide's nix-ai-tools
-      # flake (not nixpkgs). Guest-only (unlike herdr, not wanted on the real
-      # host) so it's a plain systemPackages entry here rather than routed
-      # through roles.dev's home-manager packages like dev.tools.herdr is.
-      environment.systemPackages = [
-        inputs.nix-ai-tools.packages.${pkgs.system}.omp
-      ];
+      # (The agent harness — omp — and claude-code come to iosta via
+      # apps.ai-tools in roles.dev-sandbox, the same aspect that installs
+      # them for df on real hosts. A duplicate guest-only systemPackages omp
+      # lived here until 2026-07-14.)
+
+      # Guest networking: systemd-networkd DHCP on the SLIRP interface.
+      # roles.default no longer ships NetworkManager/avahi (2026-07-14) — a
+      # desktop network daemon was the single biggest guest boot-time/RAM
+      # cost, and mDNS behind SLIRP reaches nothing. useNetworkd +
+      # useDHCP(default true) generates networkd's ethernet-default-dhcp
+      # network for eth0; anyInterface lets network-online.target (the
+      # workspace-init gate) fire as soon as that one link is up.
+      networking.useNetworkd = true;
+      systemd.network.wait-online.anyInterface = true;
 
       # Den sets networking.hostName from the static Den host name ("sandvm")
       # — mkForce so the per-launch instance name (e.g. the project's own
@@ -70,6 +77,15 @@ in
       microvm = {
         inherit vcpu mem;
         hypervisor = "qemu";
+
+        # Big ceiling, small footprint: qemu allocates guest RAM lazily (only
+        # pages the guest touches cost host memory), and microvm.nix's qemu
+        # runner wires this balloon with free-page-reporting=on — freed guest
+        # pages are returned to the host automatically, no QMP babysitting.
+        # So the 32G default `mem` is a cap, not a reservation. deflate-on-oom
+        # is on by default. (Fixed per-guest cost remains: the guest kernel's
+        # struct page array, ~1.5% of `mem`, ~500M at 32G.)
+        balloon = true;
 
         # Usermode (SLIRP) networking: no host tap/bridge setup, host-only
         # reachability by design (matches "connections from the local
@@ -143,6 +159,18 @@ in
             mountPoint = "/nix/.rw-store";
             size = 8192;
           }
+          # ~/.vscode-server (the Remote-SSH server + its remote extensions)
+          # would otherwise land in the ephemeral tmpfs home and be
+          # re-downloaded on every boot — persist it per-instance, same
+          # lifecycle/trust tier as the store overlay above (only ever holds
+          # VS Code's own downloads; image is sparse, so 2G is a cap not a
+          # cost). Fresh ext4 mounts root-owned — the tmpfiles `z` rule below
+          # hands it to iosta.
+          {
+            image = "vscode-server.img";
+            mountPoint = "/home/iosta/.vscode-server";
+            size = 2048;
+          }
         ];
 
         # Cloud LLM API keys (optional): qemu reads the host file at VM start
@@ -167,6 +195,15 @@ in
           type = "ed25519";
         }
       ];
+
+      # VSCode Remote-SSH (`code --remote ssh-remote+sandvm-<name> /workspace`,
+      # the hint the wrapper prints): the extension downloads a prebuilt server
+      # into ~/.vscode-server whose node binary is dynamically linked against
+      # /lib64/ld-linux-x86-64.so.2 — absent on NixOS, so it dies on launch
+      # without this. nix-ld provides that loader path; no NIX_LD env plumbing
+      # is needed for it to reach sshd exec sessions — nix-ld falls back to
+      # /run/current-system/sw/share/nix-ld/lib/ld.so when the var is unset.
+      programs.nix-ld.enable = true;
 
       # (iosta's authorized key — df's public key — comes with the iosta user
       # aspect itself, modules/den/users/iosta.nix.)
@@ -315,6 +352,11 @@ in
           "d /home/iosta/.omp 0755 iosta users - -"
           "d /home/iosta/.omp/agent 0755 iosta users - -"
           "C /home/iosta/.omp/agent/models.yml 0644 iosta users - ${ompModels}"
+          # The vscode-server volume's mount root (see microvm.volumes above):
+          # freshly-created ext4 is root-owned; tmpfiles-setup runs after
+          # local-fs.target, so this lands on the mounted fs, not the tmpfs
+          # home underneath.
+          "z /home/iosta/.vscode-server 0755 iosta users - -"
         ];
     };
 }

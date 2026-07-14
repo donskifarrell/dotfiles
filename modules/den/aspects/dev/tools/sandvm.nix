@@ -14,7 +14,7 @@
     homeManager =
       { pkgs, ... }:
       {
-        home.packages = [ inputs.self.packages.${pkgs.system}.sandvm ];
+        home.packages = [ inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.sandvm ];
 
         # SSH-agent forwarding into sandboxes (git push/pull auth without any
         # key material in the guest — the agent only ever *signs* on the

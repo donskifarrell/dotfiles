@@ -14,10 +14,11 @@ Configs borrow heavily from [onix-core](https://github.com/onixcomputer/onix-cor
 
 ## Machines
 
-| Host      | System       | What                                                             |
-| --------- | ------------ | ---------------------------------------------------------------- |
-| abhaile   | x86_64-linux | df's AMD desktop workstation (LUKS root, systemd-boot)           |
-| eachtrach | x86_64-linux | Hetzner VPS, tailscale exit node — disposable, reprovision fresh |
+| Host      | System         | What                                                                       |
+| --------- | -------------- | -------------------------------------------------------------------------- |
+| abhaile   | x86_64-linux   | df's AMD desktop workstation (LUKS root, systemd-boot)                     |
+| eachtrach | x86_64-linux   | (planned) Hetzner VPS — tailscale exit node + hosted apps, reprovisionable |
+| (macbook) | aarch64-darwin | (planned) MacBook Pro on nix-darwin + homebrew                             |
 
 ## Layout
 
@@ -34,14 +35,14 @@ secrets/*.yaml      sops-encrypted secrets (shared.yaml, <host>.yaml)
 # Build + activate the local machine
 sudo nixos-rebuild switch --flake .#abhaile
 
-# Validate (eval + per-host build + treefmt) and format
+# Validate (treefmt + flake-file + deploy-rs node checks) and format
 nix flake check
 nix fmt
 
 # Update inputs (keep as its own commit)
 nix flake update
 
-# Remote day-2 deploy (once a deploy node is wired in)
+# Remote day-2 deploy (nodes auto-generated in modules/flake-parts/deploy.nix)
 nix develop -c deploy .#<host>
 
 # Provision a fresh host

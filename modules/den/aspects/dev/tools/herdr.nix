@@ -9,7 +9,7 @@
     homeManager =
       { pkgs, ... }:
       {
-        home.packages = [ inputs.nix-ai-tools.packages.${pkgs.system}.herdr ];
+        home.packages = [ inputs.nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.herdr ];
       };
 
     # Startup multiplexer for sandbox guests (roles.dev-sandbox): interactive

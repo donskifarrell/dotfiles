@@ -1,6 +1,8 @@
-# A role is just an aspect that `includes` concern aspects.
-# This is the thin `role-server` from the plan's taxonomy — the minimal
-# set to boot a headless server. Grow it by adding more `core.*` / `services.*`.
+# role-dev — the software-development toolchain for a real host's user:
+# languages, git stack, devenv/direnv, and the agent/sandbox tooling (sandvm,
+# herdr, omp-auth-broker). A role is just an aspect that `includes` concern
+# aspects. (The sandvm guest deliberately does NOT use this role — it carries
+# roles.dev-sandbox, a leaner slice.)
 { den, ... }:
 {
   den.aspects.roles.dev.includes = with den.aspects; [

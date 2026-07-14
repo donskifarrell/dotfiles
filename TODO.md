@@ -17,7 +17,11 @@ dropped as a candidate). Also worth testing then: Qwen3.6-35B-A3B **MTP** GGUF +
 
 ### 2. Provision eachtrach (migration Phase 6)
 
-Fresh Hetzner VPS, tailscale exit node, disposable. Full recipe:
+Fresh Hetzner VPS, tailscale exit node, disposable. Decided 2026-07-14 (df): **x86 instance (2 vCPU / 4 GB RAM / 40 GB
+disk), initial image = stock Ubuntu** (nixos-anywhere kexec's it into NixOS), custom apps run as **native NixOS
+services** (not containers), some internet-exposed + some tailnet-only behind one Caddy (rewrite the orphaned
+short-specific `services.web.caddy` aspect; `services.tailscale.permitCertUid = "caddy"` gets real certs for ts.net
+names, normal ACME for public ones). Full recipe:
 
 1. Create the VM; get root ssh access.
 2. `nixos-anywhere --flake .#eachtrach root@<ip>` (needs `modules/den/hosts/eachtrach.nix` +
@@ -31,7 +35,24 @@ Fresh Hetzner VPS, tailscale exit node, disposable. Full recipe:
 5. Mint a **fresh** tailscale auth key (old ones expire ~90d) — as an exit node it likely wants its own key/secret
    rather than reusing `tailscale/aon_tailnet_authkey` (which is abhaile's peer key); add e.g.
    `tailscale/eachtrach_authkey` to shared.yaml or eachtrach.yaml and declare it in the exit-node aspect.
-6. Wire deploy-rs for day-2 (`deploy .#eachtrach`).
+6. ~~Wire deploy-rs for day-2 (`deploy .#eachtrach`).~~ **Done 2026-07-14**: `modules/flake-parts/deploy.nix` — input +
+   auto-generated `deploy.nodes` for every real host (hostname = bare host name, resolves via the tailscale /etc/hosts
+   alias sync) + deployChecks in `nix flake check` + `deploy`/`nixos-anywhere` in the devshell. The eachtrach node
+   appears automatically once its host file exists.
+
+Additions from the 2026-07-14 repo review:
+
+- **Bootloader**: `roles.default` pulls in `core.systemd.boot` (systemd-boot = UEFI-only). Hetzner Cloud x86 VMs (df's
+  confirmed choice) boot legacy BIOS → eachtrach needs a grub disko/boot variant (GPT + `bios_boot` partition,
+  `boot.loader.grub`) and must exclude/override `core.systemd.boot`.
+- **Avoid the two-step secrets bootstrap**: instead of provision → read host key → updatekeys → redeploy, pre-generate
+  eachtrach's SSH host keypair locally, compute its ssh-to-age recipient, updatekeys _first_, and hand the key to
+  `nixos-anywhere --extra-files` (or `--copy-host-keys`) so the very first boot already decrypts sops secrets (tailscale
+  joins immediately).
+- **facter.json**: no need to model on abhaile's —
+  `nixos-anywhere --generate-hardware-config nixos-facter hosts/eachtrach/facter.json` produces it during provisioning.
+- Compose it from `roles.default` (now genuinely minimal — NM/avahi moved out 2026-07-14) + a new thin `roles.server`
+  (systemd-networkd DHCP, maybe fail2ban) rather than any workstation role.
 
 ### 3. Back up the sops editor identity
 
@@ -55,15 +76,6 @@ the encrypted `sshconfig.local`. Verify with the eval-diff method from MIGRATION
 `modules/flake-parts/checks.nix` that maps every `nixosConfigurations.<host>` toplevel into
 `checks.<system>.host-<host>` (guard cross-system hosts), so `nix flake check` catches config breakage again. Until
 then, verify hosts with `nix build .#nixosConfigurations.<host>.config.system.build.toplevel`.
-
-### 6. Wire up (or delete) the delta/difftastic shell aspects
-
-2026-07-02: `shell/delta.nix` + `shell/difftastic.nix` were dead `flake.homeModules` leftovers that broke
-`nix flake check` (no `flake.homeModules` option exists since the HM flakeModule was removed); they're now proper Den
-aspects (`den.aspects.shell.{delta,difftastic}.homeManager`) but **no bundle/host includes them**, so they're inert.
-Either add them to `shell.bundles.base` / `dev.git` (verify the home-manager option names still exist when doing so —
-they were never evaluated while dead) or delete them (the `dev.git` header claims they were merged there, but git.nix
-contains no delta/difftastic config).
 
 ### 7. `sandvm` phase 2: agent harness + LLM wiring + git auth
 
@@ -115,19 +127,126 @@ independent enough to pick up separately:
    `User iosta`; console fallback is iosta/iosta. Remember: `sandvm` is HM-installed, so the new alias/User takes effect
    only after a `nixos-rebuild switch` on abhaile (and existing `~/.ssh/config.d/sandvm` blocks are rewritten on next
    launch).
+8. ~~Make the launch banner's `code --remote` hint actually work (VSCode Remote-SSH into guests).~~ **Done 2026-07-13**
+   (details: docs/microvm-sandbox.md "VS Code Remote-SSH"). Three fixes: guest `programs.nix-ld.enable` (the downloaded
+   VS Code server's node needs `/lib64/ld-linux-x86-64.so.2`, absent on NixOS) + a persistent per-instance
+   `vscode-server.img` volume at `/home/iosta/.vscode-server` (ephemeral home would re-download the server every boot),
+   both in `microvm-guest.nix`; host `dev.vscode` gained the `ms-vscode-remote.remote-ssh` extension and
+   `remote.SSH.configFile` was re-pointed from `~/.ssh/sshconfig.local` to `~/.ssh/config` — the old value meant VS Code
+   never saw the `Include ~/.ssh/config.d/*` line, so `sandvm-*` aliases resolved for the ssh CLI but not for VS Code.
+   Host side needs `nixos-rebuild switch`; guests pick it up on next launch (running sandboxes must be stopped +
+   relaunched).
 
-### 8. Port `nix-flake-install` from sini-nix
+### 8. VPS provision/update wrapper tool (port `nix-flake-install` from sini-nix)
 
-Excluded in `modules/flake-parts/pkgs.nix` because it needs:
+df (2026-07-14): eachtrach and future VPSs start from stock Ubuntu images and need remote install (nixos-anywhere
+kexec) + day-2 updates (deploy-rs, now wired — see `modules/flake-parts/deploy.nix`) — "a tool to wrap that all up would
+be useful". The natural shape: one `pkgs/by-name` CLI that, given a host name + IP, does the whole item-2 sequence —
+pre-generate host SSH keypair → add ssh-to-age recipient to `.sops.yaml` → `sops updatekeys` →
+`nixos-anywhere --extra-files` (host key in place, first boot decrypts, tailscale joins) → verify `deploy .#<host>`
+works. Prior art to port: `/home/df/dev/sini-nix/pkgs/by-name/nix-flake-install/` (+ its `.sh`), currently excluded in
+`modules/flake-parts/pkgs.nix` because it needs:
 
 - a port of sini-nix `pkgs/by-name/nix-flake-provision-keys` (key provisioning helper), and
 - reworking its agenix-rekey workflow to this repo's sops-nix flow (host recipient = ssh-to-age of the target's host
   key; `sops updatekeys` instead of rekey).
 
-Source: `/home/df/dev/sini-nix/pkgs/by-name/nix-flake-install/` (+ its `.sh`). Un-exclude in
-`modules/flake-parts/pkgs.nix` once it builds.
+Un-exclude in `modules/flake-parts/pkgs.nix` once it builds.
+
+### 9. Purge migration leftovers (plaintext secrets on disk)
+
+`.migration-staging/plaintext/` still holds **unencrypted** copies of migration-era secrets (df's SSH private key,
+password + emergency-access plaintext, host keys) from June — gitignored, but sitting in the working tree since the
+migration finished. Securely delete it (`shred -u` the files / `rm -rf` at minimum), and archive or delete
+`MIGRATION-STATUS.md` + the rest of `.migration-staging/` (migration is complete; anything still-relevant is already in
+CLAUDE.md/TODO.md).
+
+### 12. Decide wire-or-delete for the orphaned aspects
+
+Aspects defined but included by no host/role/user (inert, several carry stale legacy references): `services.web.caddy`
+(still "short"-specific — rewrite for eachtrach, see item 2), `services.paperless`, `services.cosmic`,
+`virtualisation.vm-login`, `gaming.steam`, `gaming.alvr`, `apps.yt-dlp`, `apps.zathura`. steam/alvr staying orphaned is
+**intentional for now** (df 2026-07-14: will game on abhaile eventually, not yet — re-add a gaming include and the
+`steam-config-nix` input then). The rest: delete or wire when their host materialises.
+
+### 13. sandvm follow-ups (from 2026-07-14 repo review; the lightweighting half is done)
+
+Still open, independent items:
+
+1. **Reuse the built runner on relaunch**: every `sandvm` launch pays a full impure NixOS eval (`nix build --impure`,
+   tens of seconds) even when nothing changed. Cache the runner store path in the instance state dir keyed on (flake git
+   rev + dirty-tree hash + cpu/mem/ports env tuple); reuse on match, `--fresh` flag to force.
+2. **Replace the rw `hostkey` 9p share with a `microvm.credentialFiles` entry** (same fw_cfg mechanism as AGENT_ENV):
+   guest oneshot installs it for sshd. Removes a whole virtio device and closes "guest root can read/corrupt the SSH
+   host key shared by all instances" (share is currently rw; in-guest root is trivially reachable — iosta is wheel with
+   password `iosta`).
+3. **Instance-name double dash**: `name_for` in `pkgs/by-name/sandvm/package.nix` pipes `basename` through
+   `tr -c 'a-zA-Z0-9' '-'`, which converts the trailing newline to `-` → names render `myproject--4a8bb99e`, not the
+   single-dash form the docs/banner show. Fix: `tr -d '\n' | tr -c ...` or trim in bash. **Caveat**: fixing this changes
+   every existing instance's identity (state dir, ssh alias, unit name) — old state dirs become orphans
+   (`sandvm rm <old-name>` them) and any still-running old-name sandbox must be stopped via
+   `systemctl --user stop sandvm-<old-name>`. Do it deliberately, not as a drive-by.
+4. (Context, decided) Not worth switching hypervisor: qemu is load-bearing (SLIRP user networking + virtiofs + fw_cfg
+   credentials — firecracker has no virtiofs, cloud-hypervisor no SLIRP), and `microvm.qemu.machine` already defaults to
+   the slim `microvm` machine type on x86_64.
+
+### 15. Add the macbook (nix-darwin) host
+
+df (2026-07-14): a MacBook Pro will join the fleet on nix-darwin + homebrew. The unused-but-kept inputs (`nix-darwin`,
+`nix-homebrew`, `homebrew-core`, `homebrew-cask`, `nix-rosetta-builder`) exist for this. Den supports darwin classes
+(`den.aspects.<x>.darwin`; several core aspects — nix.nix, openssh — already carry `darwin` blocks). Needs: a
+`den.hosts.aarch64-darwin.<name>` host file, a homebrew aspect wiring nix-homebrew + the taps, deciding which roles
+apply (workstation minus NixOS-only aspects), and `nix-rosetta-builder` if linux-builder VMs are wanted for x86 builds.
+
+### 16. (Optional) ucodenix for newer Raphael microcode on abhaile
+
+Reviewed 2026-07-14. Early microcode updates already work on abhaile via `hardware.cpu.amd.updateMicrocode` +
+linux-firmware (boot log: `Updated early from: 0x0a601209` → running `0x0a60120a`; BIOS carries 1209). But platomav's
+CPUMicrocodes (ucodenix's source) has **`0x0A60120C`** (2024-11-10) for this exact stepping (`cpu00A60F12`) — two
+revisions ahead of what linux-firmware ships. If wanted without a BIOS flash: re-add `github:e-tho/ucodenix` as an
+input, `services.ucodenix.enable = true` + `services.ucodenix.cpuModelId = "00A60F12"` (it can also read
+`hosts/abhaile/facter.json` directly) in `hardware.cpu.amd` or its own aspect. Trade-off: one more input, microcode
+binaries sourced from BIOS-extraction aggregation rather than AMD's linux-firmware channel (still AMD-signed).
+nixos-hardware was reviewed at the same time and stays pruned: its AMD profiles are a strict subset of the existing
+`hardware.*` aspects (`updateMicrocode`, `hardware.graphics`, fstrim) and kernel 7.1 already defaults `amd-pstate-epp`
+active (verified live) — nothing left for it to add on a custom desktop; re-add only if a NixOS _laptop_ joins the fleet
+(its per-model laptop quirk profiles are the actual value).
 
 ## Done
+
+- 2026-07-14 — **`roles.default` split** (was item 11): `core.network.manager` + `core.network.avahi` moved to
+  `roles.workstation` (df-approved); the sandvm guest now runs systemd-networkd DHCP (`networking.useNetworkd` +
+  `wait-online.anyInterface` in `microvm-guest.nix`). `core.systemd.boot` deliberately stayed in roles.default (every
+  current consumer wants it; eachtrach overrides it — item 2). Verified: nix-diff of abhaile's toplevel pre/post shows
+  zero avahi/NM deltas (only the intentionally-changed sandvm package chain); sandvm-guest builds clean. Den's
+  `primary-user` battery still lists a now-nonexistent `networkmanager` group for iosta — NixOS drops unknown groups,
+  harmless.
+
+- 2026-07-14 — **sandvm lightweighting, first batch** (was item 13.1/2/5/7): NM/avahi out of the guest (above);
+  `microvm.balloon = true` + `--mem` default raised 4096 → **32768** per df ("use my resources, don't restrict") —
+  microvm.nix's qemu runner sets `free-page-reporting=on`, so mem is a lazy-allocated cap and freed guest pages return
+  to the host automatically (fixed cost: guest struct-page array ~1.5% of cap); duplicate guest `omp` systemPackages
+  entry removed (apps.ai-tools already installs it, and on real hosts too — stale "guest-only" doc claims fixed);
+  agent.env now created under `umask 077` (was briefly world-readable with API keys). Also swept the deprecated
+  `pkgs.system` → `pkgs.stdenv.hostPlatform.system` in dev/tools aspects. Running sandboxes pick everything up on next
+  relaunch after abhaile's `nixos-rebuild switch`.
+
+- 2026-07-14 — **deploy-rs wired + dead inputs pruned** (was items 10 + part of 2): new `modules/flake-parts/deploy.nix`
+  (deploy-rs input, auto-generated `deploy.nodes` for every real host, deployChecks in `nix flake check`), `deploy` +
+  `nixos-anywhere` added to the devshell — README's claims about both are now true. Pruned 7 dead inputs
+  (firefox-addons, nix-flatpak, nixidy, nixos-hardware, steam-config-nix, stylix, ucodenix); kept
+  nix-darwin/homebrew-core/homebrew-cask/nix-homebrew/nix-rosetta-builder for the planned macbook (item 15) and
+  nixos-anywhere for provisioning (item 2). flake.nix regenerated via write-flake; `nix flake lock` pruned the lock (no
+  version bumps).
+
+- 2026-07-14 — **doc drift fixed** (was item 14): CLAUDE.md (treefmt formatter list, den.nix wiring description,
+  machines table marks eachtrach/macbook as planned, deploy/flake-check command notes) and README (flake-check claim,
+  deploy node note, machines table) corrected, and the stale role/user file headers (`roles/dev.nix` "role-server",
+  `roles/desktop.nix` "scratchpad", `users/df.nix` "devbox") rewritten.
+
+- 2026-07-14 — **delta/difftastic aspects wired** (was item 6): both are included by `roles.workstation` and
+  `roles.dev-sandbox`; abhaile's toplevel dry-run-evals clean with them (`programs.delta` / `programs.difftastic` are
+  valid current HM options).
 
 - 2026-07-03 — **Kernel 7.1.0 re-bench** (was item 1): rebooted onto `linuxPackages_latest` from the weekly; full matrix
   re-run (8B + Qwen3.6 both backends). No regression, no verdict change — all numbers within a few % of 6.18.35 (tables

@@ -49,6 +49,9 @@
               matthewpi.caddyfile-support
               mechatroner.rainbow-csv
               mkhl.direnv
+              # Remote-SSH into sandvm guests (docs/microvm-sandbox.md):
+              # `code --remote ssh-remote+sandvm-<name> /workspace`
+              ms-vscode-remote.remote-ssh
               redhat.vscode-yaml
               saoudrizwan.claude-dev
               streetsidesoftware.code-spell-checker
@@ -161,7 +164,7 @@
                   "**/*.tmpl",
                   "**/*.sql"
                 ],
-                "remote.SSH.configFile": "${config.home.homeDirectory}/.ssh/sshconfig.local",
+                "remote.SSH.configFile": "${config.home.homeDirectory}/.ssh/config",
                 "Prettier-SQL.SQLFlavourOverride": "mysql",
                 "Prettier-SQL.expressionWidth": 120,
                 "terminal.integrated.inheritEnv": true,

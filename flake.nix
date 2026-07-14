@@ -25,16 +25,16 @@
 
   inputs = {
     den.url = "github:denful/den";
+    deploy-rs = {
+      url = "github:serokell/deploy-rs";
+      inputs.nixpkgs.follows = "nixpkgs-unstable";
+    };
     devshell = {
       url = "github:numtide/devshell";
       inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
     disko = {
       url = "github:nix-community/disko";
-      inputs.nixpkgs.follows = "nixpkgs-unstable";
-    };
-    firefox-addons = {
-      url = "gitlab:rycee/nur-expressions?dir=pkgs/firefox-addons";
       inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
     flake-file.url = "github:vic/flake-file";
@@ -68,7 +68,6 @@
       url = "github:LnL7/nix-darwin";
       inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
-    nix-flatpak.url = "github:gmodena/nix-flatpak";
     nix-homebrew.url = "github:zhaofengli/nix-homebrew";
     nix-index-database = {
       url = "github:nix-community/nix-index-database";
@@ -82,10 +81,6 @@
       url = "github:nix-community/nix-vscode-extensions";
       inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
-    nixidy = {
-      url = "github:arnarg/nixidy";
-      inputs.nixpkgs.follows = "nixpkgs-unstable";
-    };
     nixos-anywhere = {
       url = "github:numtide/nixos-anywhere";
       inputs = {
@@ -96,7 +91,6 @@
       };
     };
     nixos-facter-modules.url = "github:numtide/nixos-facter-modules";
-    nixos-hardware.url = "github:nixos/nixos-hardware";
     nixpkgs.url = "https://flakehub.com/f/DeterminateSystems/nixpkgs-weekly/0.1";
     nixpkgs-unstable.url = "https://flakehub.com/f/DeterminateSystems/nixpkgs-weekly/0.1";
     sops-nix = {
@@ -110,18 +104,9 @@
         nixpkgs.follows = "nixpkgs-unstable";
       };
     };
-    steam-config-nix = {
-      url = "github:different-name/steam-config-nix";
-      inputs.nixpkgs.follows = "nixpkgs-unstable";
-    };
-    stylix = {
-      url = "github:nix-community/stylix";
-      inputs.nixpkgs.follows = "nixpkgs-unstable";
-    };
     treefmt-nix = {
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
-    ucodenix.url = "github:e-tho/ucodenix";
   };
 }

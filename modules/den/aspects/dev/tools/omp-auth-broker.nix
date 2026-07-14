@@ -41,7 +41,9 @@
           Unit.Description = "omp (oh-my-pi) auth broker — shared LLM provider credentials";
           Install.WantedBy = [ "default.target" ];
           Service = {
-            ExecStart = "${inputs.nix-ai-tools.packages.${pkgs.system}.omp}/bin/omp auth-broker serve";
+            ExecStart = "${
+              inputs.nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.omp
+            }/bin/omp auth-broker serve";
             Restart = "on-failure";
             RestartSec = 5;
           };
