@@ -212,7 +212,9 @@
       "Bash(timeout 30 ssh -T -F /home/df/.ssh/config sandvm-mono--18915ff1 \"stat -c '%U:%G %a %n' ~/.vscode-server; findmnt /home/iosta/.vscode-server 2>/dev/null | tail -1; systemctl show systemd-tmpfiles-setup.service -p After 2>/dev/null | tr ' ' '\\\\n' | grep -E 'local-fs|home' ; systemctl status 'home-iosta-.vscode\\\\x2dserver.mount' --no-pager 2>&1 | head -6\")",
       "Bash(timeout 30 ssh -T -F /home/df/.ssh/config sandvm-mono--18915ff1 \"grep -r 'vscode' /etc/tmpfiles.d/ 2>/dev/null; echo ---; journalctl -u systemd-tmpfiles-setup --no-pager 2>&1 | tail -5; echo ---; systemctl show systemd-tmpfiles-setup -p ActiveEnterTimestamp; systemctl show 'home-iosta-.vscode\\\\x2dserver.mount' -p ActiveEnterTimestamp\")",
       "Bash(timeout 20 ssh -T -F /home/df/.ssh/config sandvm-mono--18915ff1 \"pgrep -a herdr 2>/dev/null | head -3; pgrep -ac 'omp|claude|node' 2>/dev/null; who; uptime\")",
-      "Bash(timeout 25 ssh -T -F /home/df/.ssh/config sandvm-mono--18915ff1 \"stat -c '%U:%G %a %n' ~/.vscode-server; systemctl status vscode-server-volume-perms --no-pager 2>&1 | head -5; ls -la ~/.vscode-server/ | head; pgrep -a -f vscode 2>/dev/null | head -5\")"
+      "Bash(timeout 25 ssh -T -F /home/df/.ssh/config sandvm-mono--18915ff1 \"stat -c '%U:%G %a %n' ~/.vscode-server; systemctl status vscode-server-volume-perms --no-pager 2>&1 | head -5; ls -la ~/.vscode-server/ | head; pgrep -a -f vscode 2>/dev/null | head -5\")",
+      "Bash(curl -s http://127.0.0.1:8080/v1/chat/completions -H 'Content-Type: application/json' -d '{\"model\":\"qwen3.6-35b-a3b\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":1}')",
+      "Bash(curl -s 'http://127.0.0.1:8080/props?model=qwen3.6-35b-a3b')"
     ],
     "additionalDirectories": ["/tmp", "/var/lib/llm/models"]
   }

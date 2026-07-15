@@ -364,7 +364,7 @@ in
                 models:
                   - id: qwen3.6-35b-a3b
                     name: Qwen3.6 35B A3B (abhaile llama-server)
-                    contextWindow: 32768
+                    contextWindow: 65536
                     maxTokens: 8192
           '';
         in
