@@ -164,8 +164,8 @@ in
           # re-downloaded on every boot — persist it per-instance, same
           # lifecycle/trust tier as the store overlay above (only ever holds
           # VS Code's own downloads; image is sparse, so 2G is a cap not a
-          # cost). Fresh ext4 mounts root-owned — the tmpfiles `z` rule below
-          # hands it to iosta.
+          # cost). Fresh ext4 mounts root-owned — the
+          # `vscode-server-volume-perms` oneshot below hands it to iosta.
           {
             image = "vscode-server.img";
             mountPoint = "/home/iosta/.vscode-server";
@@ -204,6 +204,26 @@ in
       # is needed for it to reach sshd exec sessions — nix-ld falls back to
       # /run/current-system/sw/share/nix-ld/lib/ld.so when the var is unset.
       programs.nix-ld.enable = true;
+
+      # The vscode-server volume's mount root: freshly-created ext4 is
+      # root-owned, and iosta must be able to write into it or the Remote-SSH
+      # bootstrap fails silently (VS Code just reports "Connecting with SSH
+      # timed out"). NOT a tmpfiles `z` rule: tmpfiles refuses to touch a
+      # root-owned path under a user-owned home ("Detected unsafe path
+      # transition /home/iosta → /home/iosta/.vscode-server", observed in a
+      # live guest) — the refusal triggers on exactly the state this needs to
+      # fix. Default unit deps already order this after local-fs.target, i.e.
+      # after the mount.
+      systemd.services.vscode-server-volume-perms = {
+        wantedBy = [ "multi-user.target" ];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+        };
+        script = ''
+          chown iosta:users /home/iosta/.vscode-server
+        '';
+      };
 
       # (iosta's authorized key — df's public key — comes with the iosta user
       # aspect itself, modules/den/users/iosta.nix.)
@@ -352,11 +372,6 @@ in
           "d /home/iosta/.omp 0755 iosta users - -"
           "d /home/iosta/.omp/agent 0755 iosta users - -"
           "C /home/iosta/.omp/agent/models.yml 0644 iosta users - ${ompModels}"
-          # The vscode-server volume's mount root (see microvm.volumes above):
-          # freshly-created ext4 is root-owned; tmpfiles-setup runs after
-          # local-fs.target, so this lands on the mounted fs, not the tmpfs
-          # home underneath.
-          "z /home/iosta/.vscode-server 0755 iosta users - -"
         ];
     };
 }

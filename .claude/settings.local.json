@@ -195,7 +195,24 @@
       "Read(//home/df/.config/**)",
       "Read(//home/df/**)",
       "Bash(find /nix/store/dgmxpkhmy37i7whznflbfj6w3yf75nbd-source/doc -iname *share*)",
-      "Bash(find /nix/store/dgmxpkhmy37i7whznflbfj6w3yf75nbd-source/nixos-modules -maxdepth 2 -iname *share* -o -iname *virtiofs*)"
+      "Bash(find /nix/store/dgmxpkhmy37i7whznflbfj6w3yf75nbd-source/nixos-modules -maxdepth 2 -iname *share* -o -iname *virtiofs*)",
+      "Bash(sandvm list *)",
+      "Bash(timeout 20 ssh -v -T -D 35799 -o ConnectTimeout=15 -F /home/df/.ssh/config sandvm-mono--18915ff1)",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(grep -o 'VSCODE_AGENT_FOLDER[^\\\\\\\\]\\\\{0,60\\\\}' /home/df/.vscode/extensions/ms-vscode-remote.remote-ssh-0.124.0/out/extension.js)",
+      "Bash(timeout 25 ssh -v -T -o ControlMaster=no -o ControlPath=none -o ConnectTimeout=15 -F /home/df/.ssh/config sandvm-mono--18915ff1)",
+      "Bash(grep -o '.\\\\{80\\\\}Spawned ssh, pid=.\\\\{400\\\\}' /home/df/.vscode/extensions/ms-vscode-remote.remote-ssh-0.124.0/out/localServer.js)",
+      "Bash(systemctl --user show sandvm-mono--18915ff1.scope -p ActiveEnterTimestamp)",
+      "Bash(timeout 15 ssh -T -F /home/df/.ssh/config sandvm-mono--18915ff1)",
+      "Bash(PATH=/nix/store/flq8wn4dikbhn2nmqac31zbpv0lkii2w-glib-2.88.1-bin/bin:/nix/store/wp1cshqv98i8abs8rcx91s54igqgll0f-gawk-5.4.0/bin:/nix/store/gn94gpcp5q08x4v6g8mvw8v4r65rcjzk-gnugrep-3.12/bin:/nix/store/kgxafhycw2kybbqih759ykc2043qyi5j-gnused-4.9/bin:/nix/store/9ypz3flqsrl5xl495mm8h645gadjsxi1-coreutils-9.11/bin:/nix/store/91d9n98grpqj93576zl27bd5x0khcsvv-which-2.23/bin:/nix/store/74gap24knhy6dl59xnd7cksag4hns2vc-getconf-glibc-2.42-61/bin:/nix/store/23iiyy37lyvd07n7vh7ig0lgrr1rvf0j-devshell-dir/bin:/nix/store/cgjr3kj3hs7ngznyws5qfg16c8scpys0-bash-interactive-5.3p9/bin:/path-not-set:/home/df/.dotfiles/.direnv/bin:.:/run/wrappers/bin:/home/df/.local/share/flatpak/exports/bin:/var/lib/flatpak/exports/bin:/home/df/.nix-profile/bin:/home/df/.local/state/nix/profile/bin:/home/df/.local/state/nix/profile/bin:/etc/profiles/per-user/df/bin:/nix/var/nix/profiles/default/bin:/run/current-system/sw/bin:/nix/store/r8g7wx039a0kcc3chmxrni9qflxjs802-ghostty-1.3.1/bin which -a ssh)",
+      "Bash(PATH=/nix/store/flq8wn4dikbhn2nmqac31zbpv0lkii2w-glib-2.88.1-bin/bin:/nix/store/wp1cshqv98i8abs8rcx91s54igqgll0f-gawk-5.4.0/bin:/nix/store/gn94gpcp5q08x4v6g8mvw8v4r65rcjzk-gnugrep-3.12/bin:/nix/store/kgxafhycw2kybbqih759ykc2043qyi5j-gnused-4.9/bin:/nix/store/9ypz3flqsrl5xl495mm8h645gadjsxi1-coreutils-9.11/bin:/nix/store/91d9n98grpqj93576zl27bd5x0khcsvv-which-2.23/bin:/nix/store/74gap24knhy6dl59xnd7cksag4hns2vc-getconf-glibc-2.42-61/bin:/nix/store/23iiyy37lyvd07n7vh7ig0lgrr1rvf0j-devshell-dir/bin:/nix/store/cgjr3kj3hs7ngznyws5qfg16c8scpys0-bash-interactive-5.3p9/bin:/path-not-set:/home/df/.dotfiles/.direnv/bin:.:/run/wrappers/bin:/home/df/.local/share/flatpak/exports/bin:/var/lib/flatpak/exports/bin:/home/df/.nix-profile/bin:/home/df/.local/state/nix/profile/bin:/home/df/.local/state/nix/profile/bin:/etc/profiles/per-user/df/bin:/nix/var/nix/profiles/default/bin:/run/current-system/sw/bin:/nix/store/r8g7wx039a0kcc3chmxrni9qflxjs802-ghostty-1.3.1/bin ssh -V)",
+      "Bash(grep -o '.\\\\{400\\\\}stdio:\\\\[\"inherit\",\"pipe\",\"pipe\"\\\\].\\\\{600\\\\}' /home/df/.vscode/extensions/ms-vscode-remote.remote-ssh-0.124.0/out/localServer.js)",
+      "Bash(timeout 20 direnv exec /home/df/.dotfiles ssh -v -T -D 35899 -o ConnectTimeout=15 -F /home/df/.ssh/config sandvm-mono--18915ff1)",
+      "Bash(echo \"PIPESTATUS=$?\")",
+      "Bash(timeout 30 ssh -T -F /home/df/.ssh/config sandvm-mono--18915ff1 \"stat -c '%U:%G %a %n' ~/.vscode-server; findmnt /home/iosta/.vscode-server 2>/dev/null | tail -1; systemctl show systemd-tmpfiles-setup.service -p After 2>/dev/null | tr ' ' '\\\\n' | grep -E 'local-fs|home' ; systemctl status 'home-iosta-.vscode\\\\x2dserver.mount' --no-pager 2>&1 | head -6\")",
+      "Bash(timeout 30 ssh -T -F /home/df/.ssh/config sandvm-mono--18915ff1 \"grep -r 'vscode' /etc/tmpfiles.d/ 2>/dev/null; echo ---; journalctl -u systemd-tmpfiles-setup --no-pager 2>&1 | tail -5; echo ---; systemctl show systemd-tmpfiles-setup -p ActiveEnterTimestamp; systemctl show 'home-iosta-.vscode\\\\x2dserver.mount' -p ActiveEnterTimestamp\")",
+      "Bash(timeout 20 ssh -T -F /home/df/.ssh/config sandvm-mono--18915ff1 \"pgrep -a herdr 2>/dev/null | head -3; pgrep -ac 'omp|claude|node' 2>/dev/null; who; uptime\")",
+      "Bash(timeout 25 ssh -T -F /home/df/.ssh/config sandvm-mono--18915ff1 \"stat -c '%U:%G %a %n' ~/.vscode-server; systemctl status vscode-server-volume-perms --no-pager 2>&1 | head -5; ls -la ~/.vscode-server/ | head; pgrep -a -f vscode 2>/dev/null | head -5\")"
     ],
     "additionalDirectories": ["/tmp", "/var/lib/llm/models"]
   }

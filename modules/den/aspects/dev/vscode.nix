@@ -7,7 +7,12 @@
 {
   den.aspects.dev.vscode = {
     homeManager =
-      { config, pkgs, ... }:
+      {
+        config,
+        lib,
+        pkgs,
+        ...
+      }:
       let
         vscode-marketplace = pkgs.nix-vscode-extensions.vscode-marketplace;
       in
@@ -59,120 +64,142 @@
               # (anthropic.claude-code.override { meta.license = [ ]; })
               # (ms-windows-ai-studio.windows-ai-studio.override { meta.license = [ ]; })
             ];
-
-            userSettings = builtins.fromJSON ''
-              {
-                "claudeCode.claudeProcessWrapper": "/etc/profiles/per-user/${config.home.username}/bin/claude",
-                "claudeCode.preferredLocation": "panel",
-                "[dockerfile]": {
-                  "editor.defaultFormatter": "ms-azuretools.vscode-docker"
-                },
-                "[html]": {
-                  "editor.defaultFormatter": "esbenp.prettier-vscode"
-                },
-                "[json]": {
-                  "editor.defaultFormatter": "vscode.json-language-features"
-                },
-                "[css]": {
-                  "editor.defaultFormatter": "esbenp.prettier-vscode"
-                },
-                "nix.formatterPath": "nixfmt",
-                "[nix]": {
-                  "editor.defaultFormatter": "jnoortheen.nix-ide"
-                },
-                "[typescript]": {
-                  "editor.defaultFormatter": "esbenp.prettier-vscode"
-                },
-                "[typescriptreact]": {
-                  "editor.defaultFormatter": "esbenp.prettier-vscode"
-                },
-                "[xml]": {
-                  "editor.defaultFormatter": "redhat.vscode-xml",
-                  "editor.tabSize": 2
-                },
-                "[github-actions-workflow]": {
-                  "editor.defaultFormatter": "redhat.vscode-yaml"
-                },
-                "go.formatTool": "goimports",
-                "go.toolsManagement.autoUpdate": false,
-                "go.lintTool": "golangci-lint",
-                "go.lintOnSave": "package",
-                "go.lintFlags": [
-                ],
-                "cSpell.language": "en-GB",
-                "diffEditor.ignoreTrimWhitespace": false,
-                "editor.bracketPairColorization.enabled": true,
-                "editor.fontFamily": "JetBrainsMono Nerd Font, 'Droid Sans Mono', 'monospace', monospace",
-                "editor.fontLigatures": true,
-                "editor.formatOnSave": true,
-                "editor.linkedEditing": true,
-                "editor.tabSize": 2,
-                "editor.wordWrap": "on",
-                "editor.unicodeHighlight.includeStrings": true,
-                "explorer.confirmDelete": false,
-                "files.trimFinalNewlines": true,
-                "files.trimTrailingWhitespace": true,
-                "files.eol": "\n",
-                "files.encoding": "utf8",
-                "files.associations": {
-                  "*.tmpl": "html"
-                },
-                "git.confirmSync": false,
-                "git.path": "/run/current-system/sw/bin/git",
-                "redhat.telemetry.enabled": false,
-                "todohighlight.keywords": [
-                  {
-                    "text": "TODO:",
-                    "color": "#fff",
-                    "backgroundColor": "#ffbd2a",
-                    "overviewRulerColor": "rgba(255,189,42,0.8)"
-                  },
-                  {
-                    "text": "TODO",
-                    "color": "#fff",
-                    "backgroundColor": "#ffbd2a",
-                    "overviewRulerColor": "rgba(255,189,42,0.8)"
-                  },
-                  {
-                    "text": "[TODO]",
-                    "color": "#fff",
-                    "backgroundColor": "#ffbd2a",
-                    "overviewRulerColor": "rgba(255,189,42,0.8)"
-                  },
-                  {
-                    "text": "FIXME:",
-                    "color": "#fff",
-                    "backgroundColor": "#f06292",
-                    "overviewRulerColor": "rgba(240,98,146,0.8)"
-                  }
-                ],
-                "todohighlight.include": [
-                  "**/*.js",
-                  "**/*.jsx",
-                  "**/*.ts",
-                  "**/*.tsx",
-                  "**/*.html",
-                  "**/*.css",
-                  "**/*.scss",
-                  "**/*.php",
-                  "**/*.rb",
-                  "**/*.txt",
-                  "**/*.mdown",
-                  "**/*.md",
-                  "**/*.go",
-                  "**/*.tmpl",
-                  "**/*.sql"
-                ],
-                "remote.SSH.configFile": "${config.home.homeDirectory}/.ssh/config",
-                "Prettier-SQL.SQLFlavourOverride": "mysql",
-                "Prettier-SQL.expressionWidth": 120,
-                "terminal.integrated.inheritEnv": true,
-                "terminal.integrated.defaultProfile.linux": "fish",
-                "workbench.editorAssociations": {"*.md": "vscode.markdown.preview.editor"}
-              }
-            '';
           };
         };
+
+        # settings.json: seeded declaratively but installed as a real, WRITABLE
+        # file (re-copied on every switch) instead of programs.vscode's usual
+        # userSettings read-only store symlink. Remote-SSH (sandvm guests, see
+        # docs/microvm-sandbox.md) tries to write a per-hostname
+        # `remote.SSH.remotePlatform` entry after EVERY successful connect in
+        # useLocalServer=false mode — the wildcard "sandvm-*" entry satisfies
+        # platform *resolution* but not the extension's exact-key save guard —
+        # and against a read-only symlink that write fails and nags on each
+        # connect. Mutable-but-seeded lets those writes (and ad-hoc UI settings
+        # tweaks) succeed silently; the next switch resets the file to the
+        # declared state below. builtins.fromJSON validates at eval time.
+        home.activation.vscodeUserSettings =
+          let
+            settingsFile = (pkgs.formats.json { }).generate "vscode-settings.json" (
+              builtins.fromJSON ''
+                {
+                  "claudeCode.claudeProcessWrapper": "/etc/profiles/per-user/${config.home.username}/bin/claude",
+                  "claudeCode.preferredLocation": "panel",
+                  "[dockerfile]": {
+                    "editor.defaultFormatter": "ms-azuretools.vscode-docker"
+                  },
+                  "[html]": {
+                    "editor.defaultFormatter": "esbenp.prettier-vscode"
+                  },
+                  "[json]": {
+                    "editor.defaultFormatter": "vscode.json-language-features"
+                  },
+                  "[css]": {
+                    "editor.defaultFormatter": "esbenp.prettier-vscode"
+                  },
+                  "nix.formatterPath": "nixfmt",
+                  "[nix]": {
+                    "editor.defaultFormatter": "jnoortheen.nix-ide"
+                  },
+                  "[typescript]": {
+                    "editor.defaultFormatter": "esbenp.prettier-vscode"
+                  },
+                  "[typescriptreact]": {
+                    "editor.defaultFormatter": "esbenp.prettier-vscode"
+                  },
+                  "[xml]": {
+                    "editor.defaultFormatter": "redhat.vscode-xml",
+                    "editor.tabSize": 2
+                  },
+                  "[github-actions-workflow]": {
+                    "editor.defaultFormatter": "redhat.vscode-yaml"
+                  },
+                  "go.formatTool": "goimports",
+                  "go.toolsManagement.autoUpdate": false,
+                  "go.lintTool": "golangci-lint",
+                  "go.lintOnSave": "package",
+                  "go.lintFlags": [
+                  ],
+                  "cSpell.language": "en-GB",
+                  "diffEditor.ignoreTrimWhitespace": false,
+                  "editor.bracketPairColorization.enabled": true,
+                  "editor.fontFamily": "JetBrainsMono Nerd Font, 'Droid Sans Mono', 'monospace', monospace",
+                  "editor.fontLigatures": true,
+                  "editor.formatOnSave": true,
+                  "editor.linkedEditing": true,
+                  "editor.tabSize": 2,
+                  "editor.wordWrap": "on",
+                  "editor.unicodeHighlight.includeStrings": true,
+                  "explorer.confirmDelete": false,
+                  "files.trimFinalNewlines": true,
+                  "files.trimTrailingWhitespace": true,
+                  "files.eol": "\n",
+                  "files.encoding": "utf8",
+                  "files.associations": {
+                    "*.tmpl": "html"
+                  },
+                  "git.confirmSync": false,
+                  "git.path": "/run/current-system/sw/bin/git",
+                  "redhat.telemetry.enabled": false,
+                  "todohighlight.keywords": [
+                    {
+                      "text": "TODO:",
+                      "color": "#fff",
+                      "backgroundColor": "#ffbd2a",
+                      "overviewRulerColor": "rgba(255,189,42,0.8)"
+                    },
+                    {
+                      "text": "TODO",
+                      "color": "#fff",
+                      "backgroundColor": "#ffbd2a",
+                      "overviewRulerColor": "rgba(255,189,42,0.8)"
+                    },
+                    {
+                      "text": "[TODO]",
+                      "color": "#fff",
+                      "backgroundColor": "#ffbd2a",
+                      "overviewRulerColor": "rgba(255,189,42,0.8)"
+                    },
+                    {
+                      "text": "FIXME:",
+                      "color": "#fff",
+                      "backgroundColor": "#f06292",
+                      "overviewRulerColor": "rgba(240,98,146,0.8)"
+                    }
+                  ],
+                  "todohighlight.include": [
+                    "**/*.js",
+                    "**/*.jsx",
+                    "**/*.ts",
+                    "**/*.tsx",
+                    "**/*.html",
+                    "**/*.css",
+                    "**/*.scss",
+                    "**/*.php",
+                    "**/*.rb",
+                    "**/*.txt",
+                    "**/*.mdown",
+                    "**/*.md",
+                    "**/*.go",
+                    "**/*.tmpl",
+                    "**/*.sql"
+                  ],
+                  "remote.SSH.configFile": "${config.home.homeDirectory}/.ssh/config",
+                  "remote.SSH.connectTimeout": 60,
+                  "remote.SSH.useLocalServer": false,
+                  "remote.SSH.remotePlatform": { "sandvm-*": "linux" },
+                  "Prettier-SQL.SQLFlavourOverride": "mysql",
+                  "Prettier-SQL.expressionWidth": 120,
+                  "terminal.integrated.inheritEnv": true,
+                  "terminal.integrated.defaultProfile.linux": "fish",
+                  "workbench.editorAssociations": {"*.md": "vscode.markdown.preview.editor"}
+                }
+              ''
+            );
+          in
+          lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+            run install -D -m 0644 ${settingsFile} "${config.home.homeDirectory}/.config/Code/User/settings.json"
+          '';
       };
   };
 }

@@ -127,15 +127,23 @@ independent enough to pick up separately:
    `User iosta`; console fallback is iosta/iosta. Remember: `sandvm` is HM-installed, so the new alias/User takes effect
    only after a `nixos-rebuild switch` on abhaile (and existing `~/.ssh/config.d/sandvm` blocks are rewritten on next
    launch).
-8. ~~Make the launch banner's `code --remote` hint actually work (VSCode Remote-SSH into guests).~~ **Done 2026-07-13**
-   (details: docs/microvm-sandbox.md "VS Code Remote-SSH"). Three fixes: guest `programs.nix-ld.enable` (the downloaded
+8. ~~Make the launch banner's `code --remote` hint actually work (VSCode Remote-SSH into guests).~~ **Done 2026-07-15**
+   (details: docs/microvm-sandbox.md "VS Code Remote-SSH"). Four fixes: guest `programs.nix-ld.enable` (the downloaded
    VS Code server's node needs `/lib64/ld-linux-x86-64.so.2`, absent on NixOS) + a persistent per-instance
-   `vscode-server.img` volume at `/home/iosta/.vscode-server` (ephemeral home would re-download the server every boot),
-   both in `microvm-guest.nix`; host `dev.vscode` gained the `ms-vscode-remote.remote-ssh` extension and
-   `remote.SSH.configFile` was re-pointed from `~/.ssh/sshconfig.local` to `~/.ssh/config` — the old value meant VS Code
-   never saw the `Include ~/.ssh/config.d/*` line, so `sandvm-*` aliases resolved for the ssh CLI but not for VS Code.
-   Host side needs `nixos-rebuild switch`; guests pick it up on next launch (running sandboxes must be stopped +
-   relaunched).
+   `vscode-server.img` volume at `/home/iosta/.vscode-server` (ephemeral home would re-download the server every boot;
+   its mount root is chowned to iosta by a root oneshot — a tmpfiles `z` rule does NOT work there, see docs), both in
+   `microvm-guest.nix`; host `dev.vscode` gained the `ms-vscode-remote.remote-ssh` extension + `remote.SSH.configFile`
+   re-pointed from `~/.ssh/sshconfig.local` to `~/.ssh/config` (the old value meant VS Code never saw the
+   `Include ~/.ssh/config.d/*` line, so `sandvm-*` aliases resolved for the ssh CLI but not for VS Code) +
+   `remote.SSH.connectTimeout: 60` + — load-bearing with a fish login shell in the guest —
+   `remote.SSH.useLocalServer: false`: the default local-server mode pipes the (bash) install script into the login
+   shell, and fish rejects it at parse time (exit 127, nothing runs, VS Code reports only "Connecting with SSH timed
+   out"); non-local-server mode runs `ssh <host> sh` explicitly instead. Also `remote.SSH.remotePlatform` with a
+   wildcard `"sandvm-*" = "linux"` entry (stops the per-instance platform prompt), and settings.json is now installed as
+   a **mutable seeded file** via `home.activation` instead of HM's read-only symlink — in non-local-server mode the
+   extension writes an exact-hostname remotePlatform entry after every connect (its save guard is wildcard-unaware),
+   which nags forever against a read-only file; details in the docs. Host side needs `nixos-rebuild switch`; guests pick
+   changes up on next launch (running sandboxes must be stopped + relaunched).
 
 ### 8. VPS provision/update wrapper tool (port `nix-flake-install` from sini-nix)
 

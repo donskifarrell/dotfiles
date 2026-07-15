@@ -197,7 +197,7 @@ host applies per-key as usual; for a sensitive key, `ssh-add -c` makes every sig
 
 The launch banner's `code --remote ssh-remote+sandvm-<name> /workspace` line works for real now (equivalently: F1 →
 "Remote-SSH: Connect to Host…" → `sandvm-<name>` → open `/workspace`) — a full editor session inside the sandbox, files
-edited as if local, integrated terminals landing in the guest as iosta. Three pieces made it work:
+edited as if local, integrated terminals landing in the guest as iosta. Four pieces made it work:
 
 - **Guest: `programs.nix-ld.enable`** (`microvm-guest.nix`). Remote-SSH downloads a prebuilt server into
   `~/.vscode-server` whose node binary is linked against `/lib64/ld-linux-x86-64.so.2` — a path that doesn't exist on
@@ -209,13 +209,39 @@ edited as if local, integrated terminals landing in the guest as iosta. Three pi
   ephemeral tmpfs, so without this every boot re-downloaded the server + remote extensions (tens of MB, ~a minute before
   the editor connects). Same mechanism/lifecycle/trust tier as the store-overlay volume: lives in the per-instance state
   dir, survives `sandvm stop`/relaunch, deleted by `sandvm rm`, only ever holds VS Code's own downloads (2G sparse cap).
-  Fresh ext4 mounts root-owned; a tmpfiles `z` rule chowns the mount root to iosta (tmpfiles-setup runs after
-  local-fs.target, so it hits the mounted fs, not the tmpfs underneath).
+  Fresh ext4 mounts root-owned; a root oneshot (`vscode-server-volume-perms`) chowns the mount root to iosta. A tmpfiles
+  `z` rule was tried first and **does not work**: tmpfiles refuses to touch a root-owned path under a user-owned home
+  ("Detected unsafe path transition /home/iosta → /home/iosta/.vscode-server", seen in a live guest's journal) — the
+  refusal triggers on exactly the state the rule exists to fix. The symptom was VS Code dying with "Connecting with SSH
+  timed out" (the bootstrap piped over ssh can't write into `~/.vscode-server`, produces no output VS Code recognises,
+  and the extension just waits out its `remote.SSH.connectTimeout` — now set to 60s in `dev.vscode`, since a
+  first-connect server download over SLIRP can also outlast the 15s default).
 - **Host: `dev.vscode` changes.** The `ms-vscode-remote.remote-ssh` extension is now declared, and
   `remote.SSH.configFile` was re-pointed from `~/.ssh/sshconfig.local` to `~/.ssh/config`. The old value predated the
   HM-managed ssh config and was the silent killer: VS Code read _only_ that file, which contains no
   `Include ~/.ssh/config.d/*` line — so the `sandvm-*` Host blocks the wrapper writes resolved fine for the ssh CLI but
   were invisible to VS Code. `~/.ssh/config` Includes both `sshconfig.local` and `config.d/*`, so nothing was lost.
+- **Host: `remote.SSH.useLocalServer: false` — required because the guest's login shell is fish.** In the default
+  local-server mode, Remote-SSH opens a plain ssh session (no remote command) and pipes its install script into the
+  **login shell**. That script is bash, and fish rejects it at _parse_ time (`fish: Unsupported use of '='`, exit 127)
+  without executing a single line — VS Code never sees its start marker and reports only "Connecting with SSH timed out"
+  (verified by piping the script's opening lines into a guest by hand). With `useLocalServer: false` the extension
+  instead runs `ssh <host> sh` — an explicit remote command, so sshd invokes `fish -c sh` and the script runs under `sh`
+  regardless of the login shell. Any future guest whose user shells out of bash/zsh needs this same setting; the
+  alternative (bash as iosta's login shell, exec'ing fish when interactive) was rejected because the guest's agent.env
+  exports, `SSH_AUTH_SOCK` glue and herdr autostart all live in fish's config. Paired with it, two more `dev.vscode`
+  pieces:
+  - `remote.SSH.remotePlatform = { "sandvm-*" = "linux" }` — without a matching entry the extension asks for the
+    platform on the first connect to each new instance. The map keys support `*` wildcards (per the extension's own
+    setting description), and the extension notes this setting will become _required_ when `useLocalServer` is off.
+  - **settings.json is installed as a mutable file, not HM's usual read-only symlink** (a `home.activation` step copies
+    the declared JSON on every switch). Reason: in `useLocalServer: false` mode the extension flags `storePlatform` on
+    _every_ successful connect (`tryInstall` in extension.js, unconditional), and its save guard checks only for an
+    **exact** hostname key — the wildcard satisfies resolution but never the guard — so after every connect it writes
+    `remotePlatform["sandvm-<name>"] = "linux"` into `settings.json`. Against a read-only symlink that write fails and
+    nags every time; against the mutable file it succeeds silently, and the next `nixos-rebuild switch` resets the file
+    to the declared state (the accumulated exact entries are redundant with the wildcard anyway). Side benefit: ad-hoc
+    UI settings tweaks stop erroring too — they now last until the next switch.
 
 Terminals inside a VS Code remote window are plain fish, not herdr (the herdr autostart is gated on `SSH_TTY`, which VS
 Code's exec-channel sessions don't set — deliberate, same as the qemu console). They get `/run/agent.env` exports like
