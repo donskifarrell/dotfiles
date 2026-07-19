@@ -220,6 +220,19 @@ let
           agent_env=""
         fi
 
+        # Git identity for the guest: user.name/user.email (+ the includeIf
+        # org lines) live in ~/.config/git/gitconfig.local — a sops secret on
+        # the host, so it can't be baked into the guest declaratively without
+        # putting the email in the world-readable /nix/store. Same credential
+        # mechanism as agent.env above; the guest-side sandvm-gitconfig
+        # service installs it where dev.git's include.path already points.
+        # No file, no credential — commits in the guest then fail with
+        # "Author identity unknown", same as before.
+        local gitconfig="$HOME/.config/git/gitconfig.local"
+        if [ ! -r "$gitconfig" ]; then
+          gitconfig=""
+        fi
+
         export MICROVM_WORKDIR="$workdir"
         export MICROVM_NAME="$name"
         export MICROVM_SSH_PORT="$ssh_port"
@@ -227,6 +240,7 @@ let
         export MICROVM_CPU="$cpu"
         export MICROVM_MEM="$mem"
         export MICROVM_AGENT_ENV="$agent_env"
+        export MICROVM_GITCONFIG="$gitconfig"
 
         # Build (not `nix run`) so both the virtiofsd companion and the runner
         # itself come from the exact same store path.

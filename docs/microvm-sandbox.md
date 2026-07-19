@@ -158,6 +158,15 @@ but that it shouldn't be able to _read and exfiltrate_ real credentials either, 
 talk to an LLM. Outbound git push/pull auth works via SSH-agent **forwarding** instead (below) — the guest can ask the
 host's agent to sign while a session is connected, but no private key ever exists on the guest side to exfiltrate.
 
+One narrow exception (2026-07-19): `~/.config/git/gitconfig.local` — df's git _identity_ (user.name/user.email + the
+includeIf org lines), a sops secret on the host — **is** handed into the guest, because without it commits fail with
+"Author identity unknown" (the guest's git config includes that path via `dev.git`, but iosta's ephemeral home had no
+such file). It travels the same route as agent.env — wrapper exports `MICROVM_GITCONFIG` when the host file exists,
+`microvm.credentialFiles.GITCONFIG_LOCAL` hands it over via fw_cfg (never in the store), and the guest's
+`sandvm-gitconfig` oneshot installs it to `/home/iosta/.config/git/gitconfig.local` (0600, ephemeral home — gone on
+stop). It's name/email only — no key material; the org includeIf targets it references (`gitconfig.pgstar`, …) stay
+absent in the guest and git silently skips missing includes, so sandbox commits always use the default identity.
+
 ## Git auth: SSH-agent forwarding (2026-07-13)
 
 `ssh sandvm-<name>` forwards the host's ssh-agent (`services.ssh-agent`, the HM user service holding df's keys), so

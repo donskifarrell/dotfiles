@@ -71,6 +71,7 @@
           cache-type-v = q8_0
           jinja = on
           reasoning = off
+          mmproj = ${modelsDir}/mmproj-Qwen3.6-35B-A3B-F16.gguf
         '';
       in
       {

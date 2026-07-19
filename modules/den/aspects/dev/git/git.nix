@@ -1,7 +1,10 @@
 # Ported from modules/home/git.nix + delta.nix + difftastic.nix — git plus its
 # pager (delta) and structural differ (difftastic), since they configure one
-# tool. NOTE: this sets the full git config; the per-user identity (userName /
-# userEmail) is set in the user aspect (users/df.nix) and merges with this.
+# tool. NOTE: this sets the full git config; the per-user identity (user.name /
+# user.email + the per-org includeIf lines) comes from the
+# ~/.config/git/gitconfig.local include below — a sops secret on real hosts
+# (secrets/home.nix), forwarded into sandvm guests as a launch credential
+# (microvm-guest.nix, sandvm-gitconfig) so it never enters the /nix/store.
 {
   den.aspects.dev.git.homeManager = {
     programs.git = {

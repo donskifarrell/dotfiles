@@ -214,7 +214,18 @@
       "Bash(timeout 20 ssh -T -F /home/df/.ssh/config sandvm-mono--18915ff1 \"pgrep -a herdr 2>/dev/null | head -3; pgrep -ac 'omp|claude|node' 2>/dev/null; who; uptime\")",
       "Bash(timeout 25 ssh -T -F /home/df/.ssh/config sandvm-mono--18915ff1 \"stat -c '%U:%G %a %n' ~/.vscode-server; systemctl status vscode-server-volume-perms --no-pager 2>&1 | head -5; ls -la ~/.vscode-server/ | head; pgrep -a -f vscode 2>/dev/null | head -5\")",
       "Bash(curl -s http://127.0.0.1:8080/v1/chat/completions -H 'Content-Type: application/json' -d '{\"model\":\"qwen3.6-35b-a3b\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":1}')",
-      "Bash(curl -s 'http://127.0.0.1:8080/props?model=qwen3.6-35b-a3b')"
+      "Bash(curl -s 'http://127.0.0.1:8080/props?model=qwen3.6-35b-a3b')",
+      "Bash(omp --version)",
+      "Bash(omp --help)",
+      "Bash(omp config *)",
+      "Bash(journalctl -u llama-cpp -n 5 --no-pager)",
+      "Bash(journalctl -u llama-cpp -n 40 --no-pager)",
+      "Bash(journalctl -u llama-cpp -n 400 --no-pager)",
+      "Bash(timeout 30 omp models)",
+      "Bash(timeout 30 omp --no-lsp models)",
+      "Bash(export PI_CODING_AGENT_DIR=$S/agent)",
+      "Bash(timeout 180 omp --cwd /tmp/claude-1000/-home-df--dotfiles/5541be95-d75e-43e5-8c2f-94113bca0eb0/scratchpad/empty --model local/qwen3.6-35b-a3b --no-session -p 'Reply with exactly: ok')",
+      "Bash(journalctl -u llama-cpp -n 6 --no-pager)"
     ],
     "additionalDirectories": ["/tmp", "/var/lib/llm/models"]
   }

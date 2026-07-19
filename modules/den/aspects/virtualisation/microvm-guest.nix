@@ -47,6 +47,12 @@ let
   # the store at eval time.)
   agentEnvFile = builtins.getEnv "MICROVM_AGENT_ENV";
 
+  # Host path of df's ~/.config/git/gitconfig.local (sops secret:
+  # user.name/user.email + the includeIf org identities) — same
+  # string-not-path-literal reasoning as agentEnvFile above. The wrapper only
+  # sets this when the file exists and is readable.
+  gitconfigFile = builtins.getEnv "MICROVM_GITCONFIG";
+
 in
 {
   den.aspects.virtualization.microvm-guest.nixos =
@@ -177,9 +183,13 @@ in
         # and hands it to the guest's systemd as a system credential over
         # fw_cfg — contents never touch the /nix/store on either side. See
         # `sandvm-agent-env.service` below for the guest-side consumption.
-        credentialFiles = lib.optionalAttrs (agentEnvFile != "") {
-          AGENT_ENV = agentEnvFile;
-        };
+        credentialFiles =
+          lib.optionalAttrs (agentEnvFile != "") {
+            AGENT_ENV = agentEnvFile;
+          }
+          // lib.optionalAttrs (gitconfigFile != "") {
+            GITCONFIG_LOCAL = gitconfigFile;
+          };
       };
 
       # roles.default's core.nix sets this repo-wide for disk savings; it's
@@ -298,6 +308,32 @@ in
         '';
       };
 
+      # Git identity: install the GITCONFIG_LOCAL credential (df's
+      # gitconfig.local — user.name/user.email + includeIf lines) exactly
+      # where dev.git's `include.path = ~/.config/git/gitconfig.local`
+      # already looks. Without it, commits in the guest fail with "Author
+      # identity unknown" — iosta's ephemeral home has no identity of its
+      # own. The includeIf targets it references (gitconfig.pgstar, …) stay
+      # absent in the guest and git silently skips missing includes, so only
+      # the default identity applies. The parent dirs come from the tmpfiles
+      # rules below (same pattern as .omp), which run before multi-user
+      # services.
+      systemd.services.sandvm-gitconfig = {
+        wantedBy = [ "multi-user.target" ];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+          ImportCredential = "GITCONFIG_LOCAL";
+        };
+        script = ''
+          if [ -f "$CREDENTIALS_DIRECTORY/GITCONFIG_LOCAL" ]; then
+            install -m 0600 -o iosta -g users \
+              "$CREDENTIALS_DIRECTORY/GITCONFIG_LOCAL" \
+              /home/iosta/.config/git/gitconfig.local
+          fi
+        '';
+      };
+
       # Export /run/agent.env's KEY=value lines into every fish session
       # (iosta's shell — covers ssh logins, VSCode terminals, herdr panes, and
       # non-interactive `ssh guest cmd`, since fish sources /etc/fish/
@@ -372,6 +408,10 @@ in
           "d /home/iosta/.omp 0755 iosta users - -"
           "d /home/iosta/.omp/agent 0755 iosta users - -"
           "C /home/iosta/.omp/agent/models.yml 0644 iosta users - ${ompModels}"
+          # Parent dirs for sandvm-gitconfig's install (mirrors the host-side
+          # secrets/home.nix tmpfiles layout for the same file).
+          "d /home/iosta/.config 0755 iosta users - -"
+          "d /home/iosta/.config/git 0700 iosta users - -"
         ];
     };
 }
