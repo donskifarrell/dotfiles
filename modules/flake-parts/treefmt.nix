@@ -12,13 +12,15 @@
 
   perSystem =
     {
-      inputs',
       config,
       pkgs,
       ...
     }:
     {
-      devshells.default.packages = [ inputs'.statix.packages.default ];
+      # nixpkgs' statix (cached, built via buildRustPackage) instead of the
+      # oppiliappan/statix flake input, whose source build runs clippy with
+      # `-D warnings` and fails on newer Rust (useless_borrows_in_formatting).
+      devshells.default.packages = [ pkgs.statix ];
 
       formatter = config.treefmt.build.wrapper;
 
@@ -101,7 +103,7 @@
           };
           # statix = {
           #   enable = true;
-          #   package = inputs'.statix.packages.default;
+          #   package = pkgs.statix;
           # };
           nixf-diagnose = {
             enable = true;

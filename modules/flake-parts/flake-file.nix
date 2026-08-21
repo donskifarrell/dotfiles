@@ -113,10 +113,6 @@
       sops-nix.inputs.nixpkgs.follows = "nixpkgs-unstable";
       sops-nix.url = "github:Mic92/sops-nix";
 
-      statix.inputs.flake-parts.follows = "flake-parts";
-      statix.inputs.nixpkgs.follows = "nixpkgs-unstable";
-      statix.url = "github:oppiliappan/statix";
-
       treefmt-nix.inputs.nixpkgs.follows = "nixpkgs-unstable";
       treefmt-nix.url = "github:numtide/treefmt-nix";
 
