@@ -181,6 +181,14 @@ Aspects defined but included by no host/role/user (inert, several carry stale le
 
 Items 1 (runner reuse) and 3 (instance-name double dash) were closed by the 2026-08-22 rework — see Done. Still open:
 
+0. **Restart the two pre-existing sandboxes to pick up the networking rework** (2026-08-22, low effort, do first).
+   `main-e57b201a` and `mono-18915ff1` still run the old scheme: forwards bound to `0.0.0.0` (LAN-visible) and a guest
+   firewall that DROPs everything but ssh. Both migrate automatically on their next `sandvm start` — they get an `ADDR`,
+   ssh moves to 2222, and `sandvm list` stops printing `(on next start)`. Until they do, their `0.0.0.0:5173` /
+   `0.0.0.0:24123` / `0.0.0.0:29162` bindings also block those ports for **every** other sandbox (a wildcard listener
+   covers all 127.x addresses), so `effective_ports` silently drops them from new launches. Needs a
+   `nixos-rebuild switch` first — `sandvm` is home-manager-installed, so CLI edits do not reach `$PATH` without one.
+
 1. **Replace the rw `hostkey` 9p share with a `microvm.credentialFiles` entry** (same fw_cfg mechanism as AGENT_ENV /
    CLAUDE_CREDS): a guest oneshot installs it for sshd. Removes a whole virtio device and closes "guest root can
    read/corrupt the SSH host key shared by all instances" (the share is currently rw, and in-guest root is trivially

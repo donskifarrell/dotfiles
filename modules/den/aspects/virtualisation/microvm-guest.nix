@@ -51,6 +51,25 @@ let
     in
     map lib.toIntBase10 (lib.filter (s: s != "") (lib.splitString "," raw));
 
+  # Host-side bind address for every forwarded port. The CLI allocates one
+  # 127.x.y.1 per instance (see `free_addr` in pkgs/by-name/sandvm), which is
+  # what lets guest ports map 1:1 — a guest's :8080 lands on 127.x.y.1:8080
+  # and so cannot collide with abhaile's own llama-server on 127.0.0.1:8080,
+  # nor with any other sandbox. It also keeps forwards genuinely host-only:
+  # microvm.nix defaults `host.address` to "", which qemu renders as "bind all
+  # interfaces" — every sandbox's ports (ssh included) were being offered to
+  # the LAN, contradicting the host-only design in docs/microvm-sandbox.md.
+  hostAddr = getEnvOr "MICROVM_HOST_ADDR" "127.0.0.1";
+
+  # MICROVM_PORTS already carries the full effective set — the CLI's default
+  # dev-port list plus any `--port`, minus whatever the host currently holds on
+  # a wildcard address (see `effective_ports` in pkgs/by-name/sandvm). That
+  # filtering has to happen against live host state, so it cannot live here.
+  # This end only guards the two shapes qemu refuses to start with: a duplicate
+  # host port, or a second rule on the ssh port. Either one aborts the whole VM
+  # with "Could not set up host forwarding", not just that rule.
+  forwardedPorts = lib.filter (p: p != sshPort) (lib.unique extraPorts);
+
   # Host paths of per-launch credential files. Kept as *strings*, never Nix
   # path literals: microvm.credentialFiles embeds the path in the runner
   # script and qemu reads the contents at VM start via fw_cfg, so the material
@@ -87,6 +106,19 @@ in
       networking.useNetworkd = true;
       systemd.network.wait-online.anyInterface = true;
 
+      # No firewall in the guest, deliberately. SLIRP gives a sandbox exactly
+      # one inbound path — a `hostfwd` rule held by qemu on the host — so the
+      # forwardPorts list below *is* the access-control list; an in-guest
+      # firewall only adds a second, invisible one that has to be kept in sync
+      # with it. Nothing here used to set this, so guests ran NixOS's default:
+      # enabled, port 22 only (from services.openssh.openFirewall), policy
+      # DROP. That silently black-holed every `sandvm --port N` — the host-side
+      # connect succeeded (qemu accepts on the host side before it dials the
+      # guest), the request then hit a DROP with no RST, and curl hung forever
+      # with no error anywhere. Ports nothing forwards stay unreachable for the
+      # solid reason that qemu is not listening on them.
+      networking.firewall.enable = false;
+
       # Static, deliberately: Den would derive this from the Den host name
       # ("sandvm-devenv", …) and the previous design forced it to the
       # per-launch instance name — which put the instance name inside
@@ -118,15 +150,21 @@ in
         forwardPorts = [
           {
             from = "host";
-            host.port = sshPort;
+            host = {
+              address = hostAddr;
+              port = sshPort;
+            };
             guest.port = 22;
           }
         ]
         ++ map (p: {
           from = "host";
-          host.port = p;
+          host = {
+            address = hostAddr;
+            port = p;
+          };
           guest.port = p;
-        }) extraPorts;
+        }) forwardedPorts;
 
         # ro-store/hostkey stay 9p (built into qemu, no companion process,
         # and read-mostly so 9p's ownership quirks don't matter). workspace

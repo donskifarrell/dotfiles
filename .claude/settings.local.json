@@ -225,7 +225,23 @@
       "Bash(timeout 30 omp --no-lsp models)",
       "Bash(export PI_CODING_AGENT_DIR=$S/agent)",
       "Bash(timeout 180 omp --cwd /tmp/claude-1000/-home-df--dotfiles/5541be95-d75e-43e5-8c2f-94113bca0eb0/scratchpad/empty --model local/qwen3.6-35b-a3b --no-session -p 'Reply with exactly: ok')",
-      "Bash(journalctl -u llama-cpp -n 6 --no-pager)"
+      "Bash(journalctl -u llama-cpp -n 6 --no-pager)",
+      "Bash(sandvm ssh *)",
+      "Bash(timeout 8 curl -s -o /dev/null -w 'HTTP %{http_code} in %{time_total}s\\\\n' http://127.0.0.1:5173/)",
+      "Bash(grep -n \"^#\\\\{1,3\\\\} \\\\||---\\\\|^| \" TODO.md)",
+      "Bash(MICROVM_WORKDIR=/tmp MICROVM_SSH_PORT=2222 MICROVM_HOST_ADDR=127.7.3.1 MICROVM_PORTS=4173 MICROVM_CPU=4 MICROVM_MEM=4096 MICROVM_DISK=1024 MICROVM_HOME_DISK=1024 nix build --impure --no-warn-dirty '.#sandvm-guest-devenv' --out-link /tmp/claude-1000/-home-df--dotfiles/3bf8e883-d5e9-4a93-a046-1ce41aab28d1/scratchpad/runner)",
+      "Bash(xargs -I{} sh -c 'ls {}/etc/systemd/system/ | grep -i firewall || echo \"\\(no firewall unit in the guest\\)\"')",
+      "Bash(journalctl --user -u sandvm-nettest-tmp -n 25 --no-pager)",
+      "Bash(/nix/store/91mavay756828zvlmf9f75scsa6ikndi-sandvm/bin/sandvm rm *)",
+      "Bash(/nix/store/91mavay756828zvlmf9f75scsa6ikndi-sandvm/bin/sandvm list *)",
+      "Bash(awk '{print $4}')",
+      "Bash(grep '^127\\\\.239\\\\.192\\\\.1:5173$')",
+      "Bash(timeout 120 /nix/store/91mavay756828zvlmf9f75scsa6ikndi-sandvm/bin/sandvm ssh nettest-tmp -- 'command -v python3 || command -v busybox || echo NONE')",
+      "Bash(timeout 60 /nix/store/91mavay756828zvlmf9f75scsa6ikndi-sandvm/bin/sandvm ssh nettest-tmp -- 'cd /workspace; setsid busybox httpd -p 8000 -h /workspace; sleep 1; ss -tln | grep 8000')",
+      "Bash(timeout 10 curl -s -w '\\\\nHTTP %{http_code} in %{time_total}s\\\\n' http://127.239.192.1:8000/)",
+      "Bash(/nix/store/jqv9d018sy5hbqzi30vhyjdk87nhqqb8-sandvm/bin/sandvm rm *)",
+      "Bash(rm -rf /tmp/claude-1000/-home-df--dotfiles/3bf8e883-d5e9-4a93-a046-1ce41aab28d1/scratchpad/nettest /tmp/claude-1000/-home-df--dotfiles/3bf8e883-d5e9-4a93-a046-1ce41aab28d1/scratchpad/runner)",
+      "Bash(/nix/store/jqv9d018sy5hbqzi30vhyjdk87nhqqb8-sandvm/bin/sandvm list *)"
     ],
     "additionalDirectories": ["/tmp", "/var/lib/llm/models"]
   }

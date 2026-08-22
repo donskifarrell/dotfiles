@@ -40,6 +40,21 @@ let
       DEFAULT_DISK=32768
       DEFAULT_HOME_DISK=16384
 
+      # Fixed, not allocated: every instance binds its forwards on an address
+      # of its own (see free_addr), so the same port number is free on all of
+      # them and there is nothing left to hash around.
+      GUEST_SSH_PORT=2222
+
+      # Forwarded on every launch so a guest dev server is viewable from the
+      # host with no --port and no restart. One qemu listening socket each, all
+      # on the instance's private address, so a wide net costs ~nothing.
+      # Deliberately here and not in the guest module: which of these can
+      # actually be bound depends on host state at launch (see
+      # effective_ports), which is exactly the kind of per-launch concern the
+      # CLI owns and the guest's system closure must never see.
+      DEFAULT_DEV_PORTS="$(seq 3000 3009) $(seq 4000 4009) $(seq 5000 5009) \
+        $(seq 5173 5182) 6006 $(seq 8000 8009) $(seq 8080 8089) $(seq 9000 9009)"
+
       usage() {
         cat <<'USAGE'
       Usage:
@@ -50,7 +65,17 @@ let
         sandvm ssh [<name>] [-- cmd]    ssh in (starts it first if stopped)
         sandvm list                     list every sandbox and its state
         sandvm resize [<name>] [opts]   grow a sandbox's disks
+        sandvm expose [<name>] <port>   forward a port into a running sandbox
+        sandvm unexpose [<name>] <port> stop forwarding one
         sandvm <path>                   shorthand: new-or-start for a folder
+
+      Viewing a guest's web server:
+        Each sandbox owns a loopback address of its own (127.x.y.1, shown by
+        `sandvm list`), and guest ports map to it 1:1 — a dev server on :5173
+        in the guest is http://127.x.y.1:5173 on the host, with no --port and
+        no restart. Common dev ports (3000s, 4000s, 5000s, 5173+, 6006, 8000s,
+        8080s, 9000s) are forwarded on every launch; `sandvm expose` adds any
+        other port to a *running* guest. Nothing is reachable off this machine.
 
       new/start options:
         --type minimal|generic|devenv|workstation   guest flavour (new only, default: devenv)
@@ -60,7 +85,8 @@ let
         --mem <MiB>          RAM ceiling, lazily allocated (default: 32768)
         --disk <MiB>         nix store overlay image size (default: 32768)
         --home-disk <MiB>    /home/iosta image size (default: 16384)
-        --port <n>           forward a host<->guest TCP port (repeatable)
+        --port <n>           also forward this TCP port (repeatable; only
+                             needed outside the default set above)
         --ssh, -s            wait for boot, then ssh straight in
         -f, --foreground     block in this terminal instead of detaching
         --fresh              rebuild the runner even if nothing changed
@@ -103,16 +129,87 @@ let
         printf '%s-%s' "$base" "$hash"
       }
 
-      free_port() {
-        local seed=$1 port
-        port=$(( 20000 + (16#$(printf '%s' "$seed" | sha256sum | cut -c1-4) % 10000) ))
-        while ss -H -tln "sport = :$port" 2>/dev/null | grep -q .; do
-          port=$((port + 1))
+      # Is this address already claimed by a *different* instance?
+      addr_taken_by_other() {
+        local addr=$1 self=$2 dir other
+        shopt -s nullglob
+        for dir in "$STATE_ROOT"/*/; do
+          if [ "$(basename "$dir")" != "$self" ]; then
+            other=$(sed -n 's/^ADDR=//p' "$dir/config" 2>/dev/null || true)
+            if [ "$other" = "$addr" ]; then return 0; fi
+          fi
         done
-        echo "$port"
+        return 1
+      }
+
+      # Every instance gets a loopback address of its own. All of 127.0.0.0/8
+      # is bound to `lo` on Linux, so any of it is bindable unprivileged with
+      # no `ip addr add` and no root. Deterministic from the name (same idiom
+      # the ssh port used to use) so an instance keeps its address for life,
+      # and 127.<1-254>.<0-255>.1 deliberately avoids 127.0.x.y, where
+      # abhaile's own loopback services live (llama-server :8080, harmonia
+      # :5000, the omp auth-broker :8765). That separation is the whole point:
+      # a guest's :8080 is 127.x.y.1:8080 and collides with nothing, so guest
+      # ports can be forwarded 1:1 instead of being renumbered.
+      free_addr() {
+        local name=$1 hash a b addr _i
+        hash=$(printf '%s' "$name" | sha256sum)
+        a=$(( 16#''${hash:0:2} % 254 + 1 ))
+        b=$(( 16#''${hash:2:2} ))
+        for _i in $(seq 256); do
+          addr="127.$a.$b.1"
+          if ! addr_taken_by_other "$addr" "$name"; then
+            echo "$addr"
+            return
+          fi
+          b=$(( (b + 1) % 256 ))
+        done
+        die "no free loopback address for '$name'"
       }
 
       is_running() { systemctl --user is-active --quiet "sandvm-$1.service" 2>/dev/null; }
+
+      # Host ports qemu would fail to bind on this instance's address. A
+      # listener on the wildcard (0.0.0.0, or the dual-stack [::], which also
+      # takes the v4 wildcard) occupies every 127.x address, so it takes that
+      # port away from every sandbox; one bound to a *specific* address —
+      # abhaile's llama-server on 127.0.0.1:8080 — does not, which is the whole
+      # reason instances get an address of their own.
+      blocked_ports() {
+        local addr=$1
+        ss -H -tln 2>/dev/null | awk '{print $4}' | awk -v a="$addr" '
+          {
+            n = split($0, parts, ":")
+            port = parts[n]
+            host = substr($0, 1, length($0) - length(port) - 1)
+            if (host == "0.0.0.0" || host == "*" || host == "[::]" || host == a) print port
+          }'
+      }
+
+      # The port list this launch will actually forward: the defaults plus the
+      # instance's own --port entries, minus anything unbindable. qemu aborts
+      # the *entire* VM over a single failed hostfwd rule, so a port that some
+      # host process happens to hold must be dropped here rather than allowed
+      # to take the sandbox down with it.
+      effective_ports() {
+        local addr=$1 extras=$2 blocked port out="" skipped=""
+        blocked=$(blocked_ports "$addr")
+        for port in $DEFAULT_DEV_PORTS $(printf '%s' "$extras" | tr ',' ' '); do
+          if [ "$port" = "$GUEST_SSH_PORT" ]; then continue; fi
+          if printf '%s\n' "$blocked" | grep -qx "$port"; then
+            skipped="''${skipped:+$skipped }$port"
+            continue
+          fi
+          case " $out " in
+            *" $port "*) ;;
+            *) out="''${out:+$out }$port" ;;
+          esac
+        done
+        if [ -n "$skipped" ]; then
+          echo "sandvm: not forwarded, held on the host by a wildcard listener: $skipped" >&2
+        fi
+        printf '%s' "$out" | tr ' ' ','
+      }
 
       # --- per-instance config ------------------------------------------------
       # A plain KEY=value file, sourced on start/resize/ssh so a sandbox keeps
@@ -122,8 +219,20 @@ let
       load_config() {
         local name=$1
         [ -f "$STATE_ROOT/$name/config" ] || die "no such sandbox: $name (try: sandvm list)"
+        ADDR="" PORTS=""
         # shellcheck disable=SC1090
         . "$STATE_ROOT/$name/config"
+
+        # Migration for instances created before per-instance addresses: give
+        # them one, and normalise the ssh port onto it. Their old hashed port
+        # would still work, but keeping two schemes alive means every later
+        # reader has to handle both.
+        if [ -z "$ADDR" ]; then
+          ADDR=$(free_addr "$name")
+          SSH_PORT=$GUEST_SSH_PORT
+          save_config "$name"
+          echo "sandvm: '$name' moved to $ADDR (ports now map 1:1)" >&2
+        fi
       }
 
       save_config() {
@@ -137,6 +246,7 @@ let
       HOME_DISK=$HOME_DISK
       PORTS=$PORTS
       SSH_PORT=$SSH_PORT
+      ADDR=$ADDR
       CFG
       }
 
@@ -153,7 +263,7 @@ let
       }
 
       write_ssh_block() {
-        local name=$1 port=$2
+        local name=$1 port=$2 addr=$3
         mkdir -p "$SSH_CONFIG_D"
         touch "$SSH_CONFIG_FILE"
         strip_ssh_block "$name"
@@ -165,7 +275,7 @@ let
         {
           echo ""
           echo "Host sandvm-$name"
-          echo "  HostName 127.0.0.1"
+          echo "  HostName $addr"
           echo "  Port $port"
           echo "  User iosta"
           echo "  StrictHostKeyChecking accept-new"
@@ -233,7 +343,7 @@ let
       build_runner() {
         local name=$1 fresh=$2 dir=$STATE_ROOT/$1 key
         key=$(printf '%s\n' "$(flake_fingerprint)" "$TYPE" "$CPU" "$MEM" "$DISK" \
-          "$HOME_DISK" "$PORTS" "$SSH_PORT" "$WORKSPACE" \
+          "$HOME_DISK" "$EFFECTIVE_PORTS" "$SSH_PORT" "$ADDR" "$WORKSPACE" \
           "''${AGENT_ENV:-}" "''${GITCONFIG:-}" "''${CLAUDE_CREDS:-}" \
           | sha256sum | cut -d' ' -f1)
 
@@ -248,7 +358,8 @@ let
         # closure survive `nix-collect-garbage` for as long as the instance does.
         MICROVM_WORKDIR="$WORKSPACE" \
         MICROVM_SSH_PORT="$SSH_PORT" \
-        MICROVM_PORTS="$PORTS" \
+        MICROVM_HOST_ADDR="$ADDR" \
+        MICROVM_PORTS="$EFFECTIVE_PORTS" \
         MICROVM_CPU="$CPU" \
         MICROVM_MEM="$MEM" \
         MICROVM_DISK="$DISK" \
@@ -271,9 +382,14 @@ let
         if is_running "$name"; then echo "sandvm: '$name' is already running"; return 0; fi
 
         collect_credentials "$name"
+        # Computed per launch, not persisted: which ports are bindable is host
+        # state, and $PORTS stays the small list of what df explicitly asked
+        # for. Feeds build_runner's cache key, so a change here rebuilds only
+        # the ~2 kB runner script.
+        EFFECTIVE_PORTS=$(effective_ports "$ADDR" "$PORTS")
         runner=$(build_runner "$name" "$fresh")
 
-        write_ssh_block "$name" "$SSH_PORT"
+        write_ssh_block "$name" "$SSH_PORT" "$ADDR"
 
         # Defensive cleanup: a crashed launch can leave an orphaned virtiofsd
         # holding this instance's socket lock, after which every relaunch fails
@@ -337,6 +453,7 @@ let
         echo "sandvm '$name' [$TYPE] -> $WORKSPACE"
         echo "  ssh sandvm-$name"
         echo "  code --remote ssh-remote+sandvm-$name /workspace"
+        echo "  http://$ADDR:<port>  (guest ports map 1:1; sandvm expose $name <port> for others)"
       }
 
       # --- option parsing -----------------------------------------------------
@@ -409,7 +526,8 @@ let
         DISK=''${OPT_DISK:-$DEFAULT_DISK}
         HOME_DISK=''${OPT_HOME_DISK:-$DEFAULT_HOME_DISK}
         PORTS=$(IFS=,; echo "''${OPT_PORTS[*]:-}")
-        SSH_PORT=$(free_port "$name")
+        SSH_PORT=$GUEST_SSH_PORT
+        ADDR=$(free_addr "$name")
         save_config "$name"
 
         banner "$name"
@@ -475,7 +593,7 @@ let
       }
 
       cmd_list() {
-        printf '%-34s %-12s %-9s %-8s %-7s %s\n' NAME TYPE STATUS SSH-PORT ON-DISK WORKSPACE
+        printf '%-34s %-12s %-9s %-15s %-7s %s\n' NAME TYPE STATUS ADDRESS ON-DISK WORKSPACE
         shopt -s nullglob
         for dir in "$STATE_ROOT"/*/; do
           local name status used
@@ -487,12 +605,12 @@ let
             ( # subshell: don't leak one instance's config into the next
               # shellcheck disable=SC1091
               . "$dir/config"
-              printf '%-34s %-12s %-9s %-8s %-7s %s\n' \
-                "$name" "$TYPE" "$status" "$SSH_PORT" "$used" "$WORKSPACE"
+              printf '%-34s %-12s %-9s %-15s %-7s %s\n' \
+                "$name" "$TYPE" "$status" "''${ADDR:-(on next start)}" "$used" "$WORKSPACE"
             )
           else
             # A state dir from before the four-type rework — `sandvm rm` it.
-            printf '%-34s %-12s %-9s %-8s %-7s %s\n' \
+            printf '%-34s %-12s %-9s %-15s %-7s %s\n' \
               "$name" "legacy" "$status" "-" "$used" "-"
           fi
         done
@@ -502,6 +620,21 @@ let
       # Images are sparse: growing one costs nothing until the guest writes into
       # it. Grow the backing file, tell a running qemu about it over QMP, and
       # let the guest's sandvm-grow-fs timer stretch the filesystem to match.
+      # Run a qemu *human monitor* command over the QMP socket and echo what it
+      # printed (empty output = success). hostfwd_add/hostfwd_remove have no
+      # QMP equivalent — they exist only in HMP — and this is what lets a port
+      # be forwarded into an already-running guest instead of costing a
+      # stop/start cycle.
+      qmp_hmp() {
+        local sock=$1 cmd=$2
+        printf '%s\n%s\n' \
+          '{"execute":"qmp_capabilities"}' \
+          "{\"execute\":\"human-monitor-command\",\"arguments\":{\"command-line\":\"$cmd\"}}" \
+          | socat -t 2 - "UNIX-CONNECT:$sock" 2>/dev/null \
+          | grep -o '"return": *"[^"]*"' | tail -1 \
+          | sed 's/.*"return": *"//; s/"$//; s/\\r\\n$//' || true
+      }
+
       qmp() {
         local sock=$1 device=$2 bytes=$3
         printf '%s\n%s\n' \
@@ -551,6 +684,96 @@ let
         save_config "$name"
       }
 
+      # --- expose -------------------------------------------------------------
+      # A wide set of common dev ports is forwarded on every launch (see
+      # defaultDevPorts in modules/den/aspects/virtualisation/microvm-guest.nix),
+      # so this is only needed for a port outside that set. It takes effect on a
+      # running guest immediately — qemu grows a listening socket on the
+      # instance's own address — and is persisted so a restart keeps it.
+      is_port() { printf '%s' "$1" | grep -qE '^[0-9]+$'; }
+
+      # `expose 5173` (name from $PWD) as well as `expose <name> 5173`.
+      expose_args() {
+        if [ $# -gt 0 ] && is_port "$1"; then
+          EXPOSE_NAME=$(resolve_name "")
+        else
+          EXPOSE_NAME=$(resolve_name "''${1:-}")
+          shift || true
+        fi
+        EXPOSE_PORTS=("$@")
+      }
+
+      cmd_expose() {
+        local port out dir
+        expose_args "$@"
+        [ ''${#EXPOSE_PORTS[@]} -gt 0 ] || die "usage: sandvm expose [<name>] <port>..."
+        load_config "$EXPOSE_NAME"
+        dir=$STATE_ROOT/$EXPOSE_NAME
+
+        for port in "''${EXPOSE_PORTS[@]}"; do
+          is_port "$port" || die "not a port number: $port"
+
+          # Already listening (almost always: it's in the default set) — adding
+          # it again just makes qemu fail to bind.
+          if ss -H -tln "src = $ADDR:$port" 2>/dev/null | grep -q .; then
+            echo "  http://$ADDR:$port (already forwarded)"
+            continue
+          fi
+          if is_running "$EXPOSE_NAME" && printf '%s\n' "$(blocked_ports "$ADDR")" | grep -qx "$port"; then
+            die "port $port is held on the host by a wildcard listener - free it first"
+          fi
+
+          case ",$PORTS," in
+            *",$port,"*) ;;
+            *) PORTS=''${PORTS:+$PORTS,}$port ;;
+          esac
+
+          if is_running "$EXPOSE_NAME"; then
+            out=$(qmp_hmp "$dir/sandbox.sock" "hostfwd_add usernet0 tcp:$ADDR:$port-:$port")
+            if [ -n "$out" ]; then
+              echo "sandvm: $port: $out" >&2
+            else
+              echo "  http://$ADDR:$port"
+            fi
+          else
+            echo "  http://$ADDR:$port (on next start)"
+          fi
+        done
+        save_config "$EXPOSE_NAME"
+      }
+
+      cmd_unexpose() {
+        local port out dir
+        expose_args "$@"
+        [ ''${#EXPOSE_PORTS[@]} -gt 0 ] || die "usage: sandvm unexpose [<name>] <port>..."
+        load_config "$EXPOSE_NAME"
+        dir=$STATE_ROOT/$EXPOSE_NAME
+
+        for port in "''${EXPOSE_PORTS[@]}"; do
+          is_port "$port" || die "not a port number: $port"
+
+          local was_extra=0
+          case ",$PORTS," in
+            *",$port,"*) was_extra=1 ;;
+          esac
+          PORTS=$(printf '%s' "$PORTS" | tr ',' '\n' | grep -vx "$port" | paste -sd, - || true)
+
+          if is_running "$EXPOSE_NAME"; then
+            # hostfwd_remove reports success with a message ("...removed"),
+            # unlike hostfwd_add which is silent on success.
+            out=$(qmp_hmp "$dir/sandbox.sock" "hostfwd_remove usernet0 tcp:$ADDR:$port")
+            case "$out" in
+              "" | *removed*) ;;
+              *) echo "sandvm: $port: $out" >&2 ;;
+            esac
+          fi
+          if [ "$was_extra" -eq 0 ]; then
+            echo "sandvm: $port is in the default forwarded set - closed for this run, back on next start" >&2
+          fi
+        done
+        save_config "$EXPOSE_NAME"
+      }
+
       # --- dispatch -----------------------------------------------------------
       case "''${1:-}" in
         new) shift; cmd_new "$@" ;;
@@ -560,6 +783,8 @@ let
         ssh) shift; cmd_ssh "$@" ;;
         list|ls) cmd_list ;;
         resize) shift; cmd_resize "$@" ;;
+        expose) shift; cmd_expose "$@" ;;
+        unexpose) shift; cmd_unexpose "$@" ;;
         -h|--help|help) usage ;;
         "")
           # Bare `sandvm` in a project folder: new-or-start for $PWD.

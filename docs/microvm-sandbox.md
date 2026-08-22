@@ -27,28 +27,35 @@ sandvm start [opts] [<name>]    start an existing sandbox
 sandvm stop [<name>]            stop it (state is kept)
 sandvm rm [<name>...]           stop + delete it, storage and all (irreversible)
 sandvm ssh [<name>] [-- cmd]    ssh in, starting it first if stopped
-sandvm list                     list every sandbox, its type, state, port, disk use and workspace
+sandvm list                     list every sandbox, its type, state, address, disk use and workspace
 sandvm resize [<name>] [opts]   grow a sandbox's disks
+sandvm expose [<name>] <port>   forward a port into a running sandbox (no restart)
+sandvm unexpose [<name>] <port> stop forwarding one
 sandvm <path>                   shorthand: new-or-start for a folder
 ```
 
 new/start options: `--type minimal|generic|devenv|workstation` (new only), `--workspace <path>` (new only), `--cpu N`,
-`--mem MiB`, `--disk MiB`, `--home-disk MiB`, `--port N` (repeatable), `--ssh`/`-s`, `-f`/`--foreground`, `--fresh`.
+`--mem MiB`, `--disk MiB`, `--home-disk MiB`, `--port N` (repeatable; only for ports outside the default forwarded set),
+`--ssh`/`-s`, `-f`/`--foreground`, `--fresh`.
 
 ```console
 $ sandvm new --type generic --cpu 8 --ssh scratch     # named, no host folder, drops you into a shell
 $ sandvm new --workspace ~/dev/myproject              # name derived from the folder; type devenv
 $ sandvm ssh myproject-a1b2c3d4 -- claude -p 'run the tests'
 $ sandvm list
-NAME                     TYPE      STATUS   SSH-PORT ON-DISK WORKSPACE
-myproject-a1b2c3d4       devenv    running  22703    2.1G    /home/df/dev/myproject
-scratch                  generic   stopped  27118    412M    /home/df/.local/state/sandvm/scratch/workspace
+NAME                     TYPE      STATUS   ADDRESS         ON-DISK WORKSPACE
+myproject-a1b2c3d4       devenv    running  127.44.19.1     2.1G    /home/df/dev/myproject
+scratch                  generic   stopped  127.212.6.1     412M    /home/df/.local/state/sandvm/scratch/workspace
 ```
+
+A guest web server is viewable from the host at that address on the **same port it uses inside the guest** — a Vite dev
+server on `:5173` is `http://127.44.19.1:5173`, with no flag and no restart (see [Networking](#networking) for the
+forwarded-by-default set, and `sandvm expose` for anything outside it).
 
 A sandbox does **not** need a host folder. Without `--workspace` it gets a private one inside its own state dir, so
 `/workspace` always exists and is always writable — and is still visible from the host for handing files in and out.
 With `--workspace`, the name defaults to `basename` + an 8-char hash of the realpath, so the same folder always maps to
-the same name/SSH alias/port; a renamed or moved folder gets a fresh identity.
+the same name/SSH alias/address; a renamed or moved folder gets a fresh identity.
 
 Sandboxes run detached by default (a `systemd-run --user --unit` transient service running `virtiofsd` and the guest
 runner); `journalctl --user -u sandvm-<name> -f` follows the console, `-f`/`--foreground` blocks in the invoking
@@ -88,24 +95,26 @@ closure, and the real instance name arrives at boot as a systemd credential (`sa
 its own NixOS generation.
 
 The per-launch env-var contract (read with `builtins.getEnv` in `virtualization.microvm-guest`, hence
-`nix build --impure`) is: `MICROVM_WORKDIR`, `MICROVM_SSH_PORT`, `MICROVM_PORTS`, `MICROVM_CPU`, `MICROVM_MEM`,
-`MICROVM_DISK`, `MICROVM_HOME_DISK`, and the credential paths `MICROVM_AGENT_ENV`, `MICROVM_GITCONFIG`,
+`nix build --impure`) is: `MICROVM_WORKDIR`, `MICROVM_SSH_PORT`, `MICROVM_HOST_ADDR`, `MICROVM_PORTS`, `MICROVM_CPU`,
+`MICROVM_MEM`, `MICROVM_DISK`, `MICROVM_HOME_DISK`, and the credential paths `MICROVM_AGENT_ENV`, `MICROVM_GITCONFIG`,
 `MICROVM_CLAUDE_CREDS`, `MICROVM_INSTANCE_FILE`.
 
 ### Per-instance state
 
 `~/.local/state/sandvm/<name>/`:
 
-| file                    | what                                                                             |
-| ----------------------- | -------------------------------------------------------------------------------- |
-| `config`                | `KEY=value` — type, workspace, cpu, mem, disk sizes, ports, ssh port. Sourced by |
-|                         | every later command; this is what makes `sandvm start <name>` possible at all.   |
-| `runner` / `runner.key` | `nix build --out-link` result (also a GC root) + its cache fingerprint.          |
-| `nix-store-overlay.img` | overlayfs upper for `/nix/.rw-store`. Persistent, sparse.                        |
-| `home.img`              | `/home/iosta`. Persistent, sparse.                                               |
-| `agent.env`, `instance` | per-launch credential files handed to qemu over fw_cfg.                          |
-| `workspace/`            | only when created without `--workspace`.                                         |
-| `sandbox*.sock`         | qemu's QMP socket and virtiofsd's socket.                                        |
+| file                    | what                                                                           |
+| ----------------------- | ------------------------------------------------------------------------------ |
+| `config`                | `KEY=value` — type, workspace, cpu, mem, disk sizes, extra ports, ssh port,    |
+|                         | loopback address. Sourced by every later command; this is what makes           |
+|                         | `sandvm start <name>` possible at all. An instance created before per-instance |
+|                         | addresses has no `ADDR` and is migrated (and told so) on its next start.       |
+| `runner` / `runner.key` | `nix build --out-link` result (also a GC root) + its cache fingerprint.        |
+| `nix-store-overlay.img` | overlayfs upper for `/nix/.rw-store`. Persistent, sparse.                      |
+| `home.img`              | `/home/iosta`. Persistent, sparse.                                             |
+| `agent.env`, `instance` | per-launch credential files handed to qemu over fw_cfg.                        |
+| `workspace/`            | only when created without `--workspace`.                                       |
+| `sandbox*.sock`         | qemu's QMP socket and virtiofsd's socket.                                      |
 
 The guest's `/` stays ephemeral tmpfs, discarded on stop. `sandvm rm` deletes the whole directory — which also drops the
 GC root, so the guest closure becomes collectable again.
@@ -121,10 +130,10 @@ Files:
 - `modules/den/roles/sandbox.nix` — the four tiers.
 - `modules/den/users/iosta.nix` — the guest user; tier-independent.
 - `modules/den/hosts/sandvm.nix` — the four Den hosts + the `sandvm-guest-<type>` flake outputs.
-- `pkgs/by-name/sandvm/package.nix` — the CLI (instance bookkeeping, `~/.ssh/config.d/sandvm`, runner cache,
-  `systemd-run --user --unit` lifecycle, QMP resize) plus `completions.fish`, merged into the same output via
-  `symlinkJoin` (`writeShellApplication`'s `buildCommand` can't take a `postInstall` — it bypasses `genericBuild`'s
-  phases entirely).
+- `pkgs/by-name/sandvm/package.nix` — the CLI (instance bookkeeping, per-instance loopback address, forwarded-port
+  selection, `~/.ssh/config.d/sandvm`, runner cache, `systemd-run --user --unit` lifecycle, QMP resize and
+  `hostfwd_add`/`hostfwd_remove`) plus `completions.fish`, merged into the same output via `symlinkJoin`
+  (`writeShellApplication`'s `buildCommand` can't take a `postInstall` — it bypasses `genericBuild`'s phases entirely).
 - `modules/den/aspects/dev/tools/sandvm.nix` — installs the CLI onto df's `$PATH` (via `roles.dev`) and sets
   `ForwardAgent` for `sandvm-*`.
 - `modules/den/aspects/dev/tools/headless-browser.nix` — headless Chromium + playwright/puppeteer wiring, in the
@@ -366,9 +375,43 @@ mode 2.
 ## Networking
 
 Usermode (SLIRP) networking (`microvm.interfaces = [{ type = "user"; ... }]`) — no host tap/bridge setup, and
-reachability is host-only by design (matches "connections from the local machine", not the LAN). SSH is one
-`microvm.forwardPorts` entry (host port assigned at `sandvm new` and persisted per-instance in
-`~/.local/state/sandvm/<name>/config`); `--port N` adds more, mapped 1:1.
+reachability is host-only by design (matches "connections from the local machine", not the LAN).
+
+**Every instance owns a loopback address of its own** — `127.<a>.<b>.1`, hashed from the instance name by `free_addr`,
+persisted as `ADDR` in `~/.local/state/sandvm/<name>/config` and shown by `sandvm list`. All of `127.0.0.0/8` is bound
+to `lo` on Linux, so any of it is bindable unprivileged with no `ip addr add` and no root. Every `microvm.forwardPorts`
+entry sets `host.address` to it, which buys three things at once:
+
+- **Guest ports map 1:1.** A dev server on `:5173` in the guest is `http://127.<a>.<b>.1:5173` on the host — no
+  renumbering to remember. SSH is therefore a fixed `2222` on every instance rather than a hashed per-instance port.
+- **No collisions.** A guest's `:8080` is `127.<a>.<b>.1:8080`, which does not touch abhaile's llama-server on
+  `127.0.0.1:8080` (nor harmonia `:5000`, nor the omp broker `:8765`). `free_addr` deliberately avoids `127.0.x.y` for
+  exactly this reason, and two sandboxes never share an address (it checks the other instances' configs and bumps).
+- **It is actually host-only.** `microvm.forwardPorts` defaults `host.address` to `""`, which qemu renders as _bind all
+  interfaces_ — before 2026-08-22 every sandbox's forwarded ports, ssh included, were offered to the LAN, contradicting
+  the design intent stated above. Loopback is not routable off-box.
+
+A wide set of common dev ports (3000–3009, 4000–4009, 5000–5009, 5173–5182, 6006, 8000–8009, 8080–8089, 9000–9009) is
+forwarded on **every** launch, so viewing a guest web server usually needs no flag and no restart at all. `--port N`
+adds one outside that set at launch; `sandvm expose [<name>] <port>` adds one to an **already-running** guest via qemu's
+HMP `hostfwd_add` over the QMP socket (`sandvm unexpose` removes it), and persists it so a restart keeps it.
+
+The default set lives in the CLI (`DEFAULT_DEV_PORTS`), not in the guest module, because which of those ports can
+actually be bound depends on live host state: **qemu aborts the entire VM over a single failed `hostfwd` rule** ("Could
+not set up host forwarding rule ..."), so anything a host process is holding on a _wildcard_ address must be dropped
+before launch rather than allowed to take the sandbox down with it. `effective_ports` does that filtering per launch
+(reporting what it skipped) and feeds the result to `MICROVM_PORTS`; the guest module only de-duplicates and keeps the
+ssh port from being forwarded twice, the other two shapes qemu refuses to start with. A listener on a _specific_ address
+never blocks anything — that is the payoff of per-instance addresses.
+
+**The guest runs no firewall** (`networking.firewall.enable = false` in `microvm-guest.nix`). SLIRP gives a sandbox
+exactly one inbound path — a `hostfwd` rule qemu holds on the host — so the forwarded-port list _is_ the access-control
+list; an in-guest firewall is a second, invisible one that has to be kept in sync. Nothing used to set this, so guests
+ran NixOS's default: enabled, port 22 only (from `services.openssh.openFirewall`), **policy DROP**. That silently
+black-holed every `sandvm --port N` ever used — the host-side connect succeeded (qemu accepts before it dials the
+guest), the request then hit a DROP with no RST, and `curl` hung forever with no error on either side, while `curl`
+_inside_ the guest worked (the `lo` accept rule is first in the chain). Ports nothing forwards stay unreachable for the
+solid reason that qemu is not listening on them.
 
 Inside the guest, eth0 gets DHCP from **systemd-networkd** (`networking.useNetworkd`, in `microvm-guest.nix`) — not
 NetworkManager. `roles.default` used to ship NetworkManager + avahi to every consumer; they moved to `roles.workstation`
@@ -454,8 +497,8 @@ the guest, because agents reach for different ones:
   Not registered anywhere by default; per project it's
   `claude mcp add playwright -- playwright-mcp --headless --isolated`.
 
-The browser runs _inside_ the guest, so it reaches the project's dev server on plain `127.0.0.1` — `sandvm --port N` is
-only needed when a human wants to look from the host.
+The browser runs _inside_ the guest, so it reaches the project's dev server on plain `127.0.0.1` — the forwarding in
+[Networking](#networking) only matters when a human wants to look from the host.
 
 Two supporting decisions:
 

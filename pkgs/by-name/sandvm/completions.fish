@@ -1,5 +1,5 @@
 # Fish completions for `sandvm` (see package.nix and docs/microvm-sandbox.md).
-set -l subcommands new start stop rm ssh list ls resize
+set -l subcommands new start stop rm ssh list ls resize expose unexpose
 
 function __sandvm_names --description 'Known sandvm instance names'
     sandvm list 2>/dev/null | tail -n +2 | string match -r '^\S+'
@@ -15,10 +15,12 @@ complete -c sandvm -n "not __fish_seen_subcommand_from $subcommands" -a rm -d 'S
 complete -c sandvm -n "not __fish_seen_subcommand_from $subcommands" -a ssh -d 'SSH in, starting the sandbox first if needed'
 complete -c sandvm -n "not __fish_seen_subcommand_from $subcommands" -a list -d 'List every sandbox and its state'
 complete -c sandvm -n "not __fish_seen_subcommand_from $subcommands" -a resize -d 'Grow a sandbox'\''s disks'
+complete -c sandvm -n "not __fish_seen_subcommand_from $subcommands" -a expose -d 'Forward a port into a running sandbox (no restart)'
+complete -c sandvm -n "not __fish_seen_subcommand_from $subcommands" -a unexpose -d 'Stop forwarding a port'
 complete -c sandvm -n "not __fish_seen_subcommand_from $subcommands" -a '(__fish_complete_directories)' -d 'Folder shorthand'
 
 # Instance names.
-complete -c sandvm -n "__fish_seen_subcommand_from start stop rm ssh resize" -a '(__sandvm_names)' -d Sandbox
+complete -c sandvm -n "__fish_seen_subcommand_from start stop rm ssh resize expose unexpose" -a '(__sandvm_names)' -d Sandbox
 
 # new/start options.
 complete -c sandvm -n "__fish_seen_subcommand_from new" -l type -x -a 'minimal generic devenv workstation' -d 'Guest flavour (default devenv)'
