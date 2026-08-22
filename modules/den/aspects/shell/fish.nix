@@ -42,11 +42,11 @@
           vim = "nvim";
           vi = "nvim";
 
-          ltree = "${pkgs.eza}/bin/eza --all --tree --long --color=automatic --level=2";
+          ltree = "${pkgs.eza}/bin/eza --all --tree --long --color=auto --level=2";
           ldirs = "${pkgs.eza}/bin/eza --D --icons=auto";
-          ls = "${pkgs.eza}/bin/eza --git --color=automatic";
-          ll = "${pkgs.eza}/bin/eza --all --long --git --color=automatic";
-          la = "${pkgs.eza}/bin/eza --all --binary --group --header --long --git --color=automatic";
+          ls = "${pkgs.eza}/bin/eza --git --color=auto";
+          ll = "${pkgs.eza}/bin/eza --all --long --git --color=auto";
+          la = "${pkgs.eza}/bin/eza --all --binary --group --header --long --git --color=auto";
           l = "la --octal-permissions";
 
           gl = "glo"; # forgit version
