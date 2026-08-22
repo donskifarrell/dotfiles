@@ -41,7 +41,7 @@ modules/                everything else, auto-imported as flake-parts modules
     aspects/             feature modules by category: core, hardware, shell, dev,
                          services, secrets, apps, gaming, virtualisation
     roles/               aspect bundles: default, workstation, dev, desktop,
-                         dev-sandbox (TUI-only, for sandvm guests)
+                         dev-sandbox (TUI-only + headless chromium, for sandvm guests)
     users/df.nix         the df user aspect (home-manager)
     users/iosta.nix      the sandvm-guest-only user: uid pinned 1000 (virtiofs), only roles.dev-sandbox
 hosts/<host>/          machine data imported by that host: disko.nix + facter.json

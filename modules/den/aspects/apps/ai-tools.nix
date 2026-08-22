@@ -4,10 +4,12 @@
 # (numtide/nix-ai-tools, formerly llm-agents.nix), which provides `claude-code`.
 { inputs, ... }:
 {
-  flake-file.inputs.nix-ai-tools = {
-    url = "github:numtide/nix-ai-tools";
-    inputs.nixpkgs.follows = "nixpkgs-unstable";
-  };
+  # Intentionally NOT following nixpkgs-unstable: numtide builds + pushes to
+  # cache.numtide.com against nix-ai-tools' own locked nixpkgs. Overriding the
+  # follows changes derivation hashes and turns claude-code/omp into local
+  # rebuilds. Keeping the pin costs a second nixpkgs in the lock but gets cache
+  # hits. (Cache configured in aspects/core/nix/nix.nix.)
+  flake-file.inputs.nix-ai-tools.url = "github:numtide/nix-ai-tools";
 
   den.aspects.apps.ai-tools.homeManager =
     { pkgs, ... }:
