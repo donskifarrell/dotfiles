@@ -21,6 +21,20 @@
         "d /var/lib/sandvm/hostkey 0700 df users - -"
       ];
 
+      # A binary cache in front of this host's own /nix/store, on loopback
+      # only. Guests reach it at qemu's SLIRP gateway (http://10.0.2.2:5000 —
+      # see nix.settings.substituters in virtualisation/microvm-guest.nix), so
+      # anything abhaile has already built or downloaded is copied in at
+      # loopback speed instead of being rebuilt or refetched from
+      # cache.nixos.org. Guests already mount this exact store read-only, so
+      # serving it to them grants nothing new — which is why it runs unsigned
+      # (no signKeyPaths) and the guest sets require-sigs = false: no key to
+      # manage just to talk to ourselves.
+      services.harmonia.cache = {
+        enable = true;
+        settings.bind = "127.0.0.1:5000";
+      };
+
       # Don't rely on the tmpfiles rule above having already run by the time
       # this fires — activation script ordering vs. tmpfiles isn't
       # guaranteed, so this makes its own directory too.

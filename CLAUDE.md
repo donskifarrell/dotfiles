@@ -41,9 +41,10 @@ modules/                everything else, auto-imported as flake-parts modules
     aspects/             feature modules by category: core, hardware, shell, dev,
                          services, secrets, apps, gaming, virtualisation
     roles/               aspect bundles: default, workstation, dev, desktop,
-                         dev-sandbox (TUI-only + headless chromium, for sandvm guests)
+                         sandbox.{minimal,generic,devenv,workstation} (the four sandvm guest tiers)
     users/df.nix         the df user aspect (home-manager)
-    users/iosta.nix      the sandvm-guest-only user: uid pinned 1000 (virtiofs), only roles.dev-sandbox
+    users/iosta.nix      the sandvm-guest-only user: uid pinned 1000 (virtiofs); its tier
+                         is chosen per guest host, not here
 hosts/<host>/          machine data imported by that host: disko.nix + facter.json
 secrets/*.yaml         sops-nix encrypted secrets (shared.yaml = multi-host, <host>.yaml = per-host)
 .sops.yaml             sops recipients + creation rules
@@ -121,6 +122,28 @@ Gotchas (easy to forget):
 `.stignore` excludes `.git`), obsidian-git plugin (installed manually — HM plugin installs are store symlinks that break
 sync to Android) pushes to a private GitHub repo, and the isolated agent = `sandvm ~/vaults/main` (abbr `vault-agent`;
 the vault is the guest's only writable host view). Follow-ups + phone→agent/Telegram sketches: TODO.md item 17.
+
+## Sandboxed microVMs for agents — `sandvm` (abhaile)
+
+**Full reference: [docs/microvm-sandbox.md](docs/microvm-sandbox.md)** — `sandvm new|start|stop|rm|ssh|list|resize`,
+four guest types (`minimal` / `generic` / `devenv` / `workstation`, one Den host each in `hosts/sandvm.nix`, tiers in
+`roles/sandbox.nix`), guest user `iosta`, `/workspace` the only writable host channel. Per-instance state lives in
+`~/.local/state/sandvm/<name>/` (a `config` file plus two sparse volumes: the nix store overlay and a persistent
+`/home/iosta`).
+
+Gotchas (easy to forget):
+
+- **Nothing per-instance may enter the guest's `system.build.toplevel`** — that invariant is what lets every sandbox of
+  a type share one built closure. Per-launch values (workdir, ports, cpu/mem, disk sizes, credential paths) may only
+  touch `microvm.*` options that end on qemu's command line. The guest hostname is the static string `sandbox` for
+  exactly this reason; the real name arrives as a boot credential.
+- `sandvm` is home-manager-installed: edits to `pkgs/by-name/sandvm/package.nix` need a `nixos-rebuild switch` before
+  they reach `$PATH`.
+- Guests reach abhaile at `10.0.2.2` (SLIRP gateway → host loopback): llama-server on :8080, the omp auth-broker on
+  :8765, and the harmonia binary cache on :5000 (unsigned, deliberately — guests already mount that store read-only).
+- Credentials reach the guest as qemu `fw_cfg` systemd credentials, never through `/nix/store`: pass **string** paths,
+  never Nix path literals, or the file gets copied into the world-readable store at eval time.
+- Running sandboxes don't pick up config changes — stop and start them.
 
 ## Local LLM inference (abhaile)
 

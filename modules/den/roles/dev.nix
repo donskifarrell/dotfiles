@@ -2,7 +2,7 @@
 # languages, git stack, devenv/direnv, and the agent/sandbox tooling (sandvm,
 # herdr, omp-auth-broker). A role is just an aspect that `includes` concern
 # aspects. (The sandvm guest deliberately does NOT use this role — it carries
-# roles.dev-sandbox, a leaner slice.)
+# the roles.sandbox.* tiers, leaner slices.)
 { den, ... }:
 {
   den.aspects.roles.dev.includes = with den.aspects; [

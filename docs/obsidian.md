@@ -83,19 +83,24 @@ real files under `.obsidian/plugins/` and then sync to other desktops as ordinar
 ## Using the agent
 
 ```fish
-vault-agent                       # = sandvm ~/vaults/main
-ssh sandvm-main--<hash>           # alias printed by the launch banner
-# or: herdr --remote sandvm-main--<hash>
-cd /workspace && claude
-sandvm stop main--<hash>          # when done (or leave it; ephemeral anyway)
+vault-agent                       # = sandvm ~/vaults/main (creates a `devenv` sandbox on first run)
+sandvm ssh main-<hash>            # or `ssh sandvm-main-<hash>` — the alias the banner prints
+# or: herdr --remote sandvm-main-<hash>
+claude                            # sessions land in /workspace already
+sandvm stop main-<hash>           # when done; the guest's home and store overlay persist
 ```
 
 The guest's `sandvm-workspace-init` no-ops on the vault (no `flake.nix` / `devenv.nix`) — that's expected.
 
+Note (2026-08-22): the sandvm rework renamed instances (the old double-dash `main--<hash>` form was a bug) and changed
+the guest's volume layout, so the pre-existing vault sandbox is listed as `legacy` and must be recreated —
+`sandvm rm main--e57b201a`, then `vault-agent`. The guest home now persists across stops, so `claude`'s own state and
+any tools the agent installs survive; `sandvm rm` is what resets it.
+
 ## Future extensions (tracked in TODO.md)
 
 - **Phone→agent inbox**: phone writes `inbox.md` / drops files in `drop/`; a systemd --user **path unit** on abhaile
-  watches the synced path and triggers headless Claude in the sandbox (`ssh sandvm-main--<hash> -- claude -p ...`);
+  watches the synced path and triggers headless Claude in the sandbox (`sandvm ssh main-<hash> -- claude -p ...`);
   replies sync back. Needs locking + a processed-marker convention.
 - **Telegram bot**: bridges chat to the same inbox convention; token in sops; host it on abhaile now or eachtrach when
   it exists.

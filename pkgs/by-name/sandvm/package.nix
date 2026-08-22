@@ -3,22 +3,28 @@
   symlinkJoin,
   coreutils,
   gawk,
+  gnugrep,
   iproute2,
   nix,
+  openssh,
   procps,
+  socat,
   systemd,
   virtiofsd,
 }:
 let
   sandvm-unwrapped = writeShellApplication {
     name = "sandvm";
-    meta.description = "Launch a sandboxed per-folder microVM (see docs/microvm-sandbox.md in ~/.dotfiles)";
+    meta.description = "Launch and manage sandboxed microVMs for coding agents (see docs/microvm-sandbox.md in ~/.dotfiles)";
     runtimeInputs = [
       coreutils
       gawk
+      gnugrep
       iproute2
       nix
+      openssh
       procps
+      socat
       systemd
       virtiofsd
     ];
@@ -28,55 +34,71 @@ let
       SSH_CONFIG_D="$HOME/.ssh/config.d"
       SSH_CONFIG_FILE="$SSH_CONFIG_D/sandvm"
 
+      DEFAULT_TYPE=devenv
+      DEFAULT_CPU=4
+      DEFAULT_MEM=32768
+      DEFAULT_DISK=32768
+      DEFAULT_HOME_DISK=16384
+
       usage() {
         cat <<'USAGE'
       Usage:
-        sandvm [--port N ...] [--cpu N] [--mem N] [-f|--foreground] [<path>]
-            Launch (or re-attach to) a sandboxed microVM for <path> (default:
-            current directory). Runs detached in the background by default —
-            `sandvm stop` stops it, `journalctl --user -u sandvm-<name> -f`
-            follows its console. -f/--foreground instead blocks in this
-            terminal (Ctrl-C to stop). --port forwards an extra host<->guest
-            TCP port (repeatable).
+        sandvm new [opts] [<name>]      create a sandbox (and start it)
+        sandvm start [opts] [<name>]    start an existing sandbox
+        sandvm stop [<name>]            stop it (state is kept)
+        sandvm rm [<name>...]           stop + delete it, storage and all
+        sandvm ssh [<name>] [-- cmd]    ssh in (starts it first if stopped)
+        sandvm list                     list every sandbox and its state
+        sandvm resize [<name>] [opts]   grow a sandbox's disks
+        sandvm <path>                   shorthand: new-or-start for a folder
 
-        sandvm stop [<name>]
-            Stop a running sandbox (default: the one for the current directory).
+      new/start options:
+        --type minimal|generic|devenv|workstation   guest flavour (new only, default: devenv)
+        --workspace <path>   host folder to mount at /workspace (new only;
+                             default: a private folder in the instance's state dir)
+        --cpu <n>            vCPUs (default: 4)
+        --mem <MiB>          RAM ceiling, lazily allocated (default: 32768)
+        --disk <MiB>         nix store overlay image size (default: 32768)
+        --home-disk <MiB>    /home/iosta image size (default: 16384)
+        --port <n>           forward a host<->guest TCP port (repeatable)
+        --ssh, -s            wait for boot, then ssh straight in
+        -f, --foreground     block in this terminal instead of detaching
+        --fresh              rebuild the runner even if nothing changed
 
-        sandvm rm [<name>]
-            Stop (if running) and completely delete a sandbox: its state dir
-            (assigned port, writable-store-overlay image) and ssh config.d
-            entry. Irreversible — devenv/nix state built up in the guest is
-            gone; the project folder itself is untouched either way.
+      resize options:
+        --disk <MiB>         grow the nix store overlay
+        --home-disk <MiB>    grow /home/iosta
+      Disks only ever grow; images are sparse, so a size is a ceiling, not a
+      cost. A running guest picks the new size up within ~2 minutes (the
+      guest's sandvm-grow-fs timer), a stopped one on next start.
 
-        sandvm list
-            List known sandboxes, their running state and assigned SSH port.
+      Guest types:
+        minimal      shell + git + agent harness. No dev toolchain.
+        generic      + compilers, nix-ld, full TUI shell. The agent installs
+                     its own tools; /home and the nix store overlay persist.
+        devenv       + devenv.sh/direnv/herdr/headless chromium. The project's
+                     own devenv.nix/flake.nix is pre-built at boot.
+        workstation  + df's language toolchains, for parity with abhaile.
       USAGE
       }
 
-      # Both drop the "sandvm-" prefix if given (accepts either the raw
-      # instance name or the "sandvm-<name>" ssh-alias form users copy from
-      # `sandvm`'s own launch banner / `sandvm list`).
+      die() { echo "sandvm: $*" >&2; exit 1; }
+
+      # Accepts either the raw instance name or the "sandvm-<name>" ssh-alias
+      # form users copy out of `sandvm list`.
       resolve_name() {
-        local name=''${1:-$(name_for "$PWD")}
+        local name=''${1:-}
+        [ -n "$name" ] || name=$(name_for "$PWD")
         printf '%s' "''${name#sandvm-}"
       }
 
-      # Drop this instance's "Host sandvm-<name>" block from ssh config.d.
-      strip_ssh_block() {
-        local name=$1
-        [ -f "$SSH_CONFIG_FILE" ] || return 0
-        awk -v h="Host sandvm-$name" '
-          $0==h {skip=1; next}
-          skip && /^Host / {skip=0}
-          !skip
-        ' "$SSH_CONFIG_FILE" > "$SSH_CONFIG_FILE.tmp"
-        mv "$SSH_CONFIG_FILE.tmp" "$SSH_CONFIG_FILE"
-      }
-
+      # basename + 8 chars of the realpath's hash, so the same folder always
+      # maps to the same name/alias/port. `tr -d '\n'` first: without it the
+      # trailing newline becomes a second dash (the old `myproject--a1b2c3d4`).
       name_for() {
         local real base hash
         real=$(realpath "$1")
-        base=$(basename "$real" | tr -c 'a-zA-Z0-9' '-')
+        base=$(basename "$real" | tr -d '\n' | tr -c 'a-zA-Z0-9' '-')
         hash=$(printf '%s' "$real" | sha256sum | cut -c1-8)
         printf '%s-%s' "$base" "$hash"
       }
@@ -90,75 +112,51 @@ let
         echo "$port"
       }
 
-      cmd_list() {
-        printf '%-48s %-10s %-8s\n' 'NAME (ssh alias)' STATUS SSH-PORT
-        shopt -s nullglob
-        for dir in "$STATE_ROOT"/*/; do
-          name=$(basename "$dir")
-          port=$(cat "$dir/ssh_port" 2>/dev/null || echo -)
-          status=stopped
-          systemctl --user is-active --quiet "sandvm-$name.service" 2>/dev/null && status=running
-          # Show the "sandvm-<name>" form: that's the literal ssh Host alias
-          # and what `sandvm stop` prints in its own hint — showing the bare
-          # name here was misleading (ssh has no Host entry for it).
-          printf '%-48s %-10s %-8s\n' "sandvm-$name" "$status" "$port"
-        done
+      is_running() { systemctl --user is-active --quiet "sandvm-$1.service" 2>/dev/null; }
+
+      # --- per-instance config ------------------------------------------------
+      # A plain KEY=value file, sourced on start/resize/ssh so a sandbox keeps
+      # the shape it was created with. This is what makes `sandvm start <name>`
+      # possible at all: nothing about an instance lives in the CLI's argv
+      # after `new`.
+      load_config() {
+        local name=$1
+        [ -f "$STATE_ROOT/$name/config" ] || die "no such sandbox: $name (try: sandvm list)"
+        # shellcheck disable=SC1090
+        . "$STATE_ROOT/$name/config"
       }
 
-      cmd_stop() {
-        local name; name=$(resolve_name "''${1:-}")
-        systemctl --user stop "sandvm-$name.service" 2>/dev/null || echo "not running: $name"
+      save_config() {
+        local dir=$STATE_ROOT/$1
+        cat > "$dir/config" <<CFG
+      TYPE=$TYPE
+      WORKSPACE=$WORKSPACE
+      CPU=$CPU
+      MEM=$MEM
+      DISK=$DISK
+      HOME_DISK=$HOME_DISK
+      PORTS=$PORTS
+      SSH_PORT=$SSH_PORT
+      CFG
       }
 
-      cmd_rm() {
-        local name; name=$(resolve_name "''${1:-}")
-        if [ ! -d "$STATE_ROOT/$name" ]; then
-          echo "no such sandbox: $name"
-          return 1
-        fi
-        systemctl --user stop "sandvm-$name.service" 2>/dev/null || true
-        rm -rf "''${STATE_ROOT:?}/''${name:?}"
-        strip_ssh_block "$name"
-        echo "removed: sandvm-$name"
+      # --- ssh config.d bookkeeping ------------------------------------------
+      strip_ssh_block() {
+        local name=$1
+        [ -f "$SSH_CONFIG_FILE" ] || return 0
+        awk -v h="Host sandvm-$name" '
+          $0==h {skip=1; next}
+          skip && /^Host / {skip=0}
+          !skip
+        ' "$SSH_CONFIG_FILE" > "$SSH_CONFIG_FILE.tmp"
+        mv "$SSH_CONFIG_FILE.tmp" "$SSH_CONFIG_FILE"
       }
 
-      cmd_run() {
-        # mem is a ceiling, not a reservation: the guest runs a virtio balloon
-        # with free-page-reporting (microvm-guest.nix), so the host only pays
-        # for pages the guest actually uses.
-        local ports=() cpu=4 mem=32768 workdir="$PWD" foreground=0
-        while [ $# -gt 0 ]; do
-          case "$1" in
-            --port) ports+=("$2"); shift 2 ;;
-            --cpu) cpu=$2; shift 2 ;;
-            --mem) mem=$2; shift 2 ;;
-            -f|--foreground) foreground=1; shift ;;
-            -h|--help) usage; exit 0 ;;
-            *) workdir=$1; shift ;;
-          esac
-        done
-
-        workdir=$(realpath "$workdir")
-        local name; name=$(name_for "$workdir")
-        local state_dir="$STATE_ROOT/$name"
-        mkdir -p "$state_dir"
-
-        local ssh_port
-        if [ -f "$state_dir/ssh_port" ]; then
-          ssh_port=$(cat "$state_dir/ssh_port")
-        else
-          ssh_port=$(free_port "$name")
-          echo "$ssh_port" > "$state_dir/ssh_port"
-        fi
-
-        local ports_csv=""
-        if [ ''${#ports[@]} -gt 0 ]; then
-          ports_csv=$(IFS=,; echo "''${ports[*]}")
-        fi
-
+      write_ssh_block() {
+        local name=$1 port=$2
         mkdir -p "$SSH_CONFIG_D"
         touch "$SSH_CONFIG_FILE"
-        strip_ssh_block "$name" # idempotent: drop any stale block before re-adding
+        strip_ssh_block "$name"
         # NOTE: no ForwardAgent here, deliberately — this file is Include'd
         # *after* the HM config's `Host *` block (`ForwardAgent no`), and
         # ssh_config is first-match-wins, so it would be silently shadowed.
@@ -168,147 +166,417 @@ let
           echo ""
           echo "Host sandvm-$name"
           echo "  HostName 127.0.0.1"
-          echo "  Port $ssh_port"
+          echo "  Port $port"
           echo "  User iosta"
+          echo "  StrictHostKeyChecking accept-new"
         } >> "$SSH_CONFIG_FILE"
+      }
 
-        # ~/.ssh/config itself is home-manager-managed (a read-only symlink) —
-        # modules/den/aspects/core/network/ssh.nix already declares
-        # `Include ~/.ssh/config.d/*`, so nothing to do here but write into
-        # that directory, which isn't home-manager-owned.
+      # --- credentials --------------------------------------------------------
+      # Everything here reaches the guest as a systemd credential over qemu's
+      # fw_cfg: read from the host file at VM start, never copied into the
+      # world-readable /nix/store. Absent file -> absent credential; the guest
+      # copes with any of them missing.
+      collect_credentials() {
+        local dir=$STATE_ROOT/$1
 
-        echo "sandvm '$name' -> $workdir"
-        echo "  ssh sandvm-$name"
-        echo "  code --remote ssh-remote+sandvm-$name /workspace"
-        if [ "$foreground" -eq 1 ]; then
-          echo "  running in the foreground — Ctrl-C or \`sandvm stop\` to stop it"
-        else
-          echo "  running in the background — \`sandvm stop\` to stop it, \`journalctl --user -u sandvm-$name -f\` for its console"
-        fi
-        echo
-
-        # Optional cloud-LLM keys/tokens for the agent harness: KEY=value lines
-        # in this file are handed to the guest at launch as a systemd
-        # credential (qemu fw_cfg — read at VM start, never in /nix/store) and
-        # end up exported in the guest's shells. No file, no credential — the
-        # local llama-server provider works either way. Two sources, merged
-        # into one per-launch temp file (state_dir, so it doesn't linger
-        # outside the instance's own lifecycle):
-        #   - ~/.config/sandvm/agent.env: whatever df put there by hand
-        #     (plain API keys — OPENAI_API_KEY, XAI_API_KEY, ...).
-        #   - the omp auth-broker's token, auto-detected: if
-        #     dev.tools.omp-auth-broker's service has been logged into a
-        #     provider (`omp auth-broker login anthropic` — one-time, gets df's
-        #     Pro subscription via OAuth, not per-token API billing), point the
-        #     guest at it so every launch gets a live, auto-refreshed
-        #     credential instead of a copy that goes stale the moment the
-        #     guest that could refresh it is torn down.
-        local agent_env="$state_dir/agent.env"
-        (umask 077; : > "$agent_env") # never world-readable, even briefly
-        chmod 600 "$agent_env"        # `: >` keeps perms of pre-fix 0644 files
+        # Cloud LLM keys: hand-maintained ~/.config/sandvm/agent.env plus, if
+        # the host's omp auth-broker has been logged in, a pointer at it
+        # (`omp auth-broker login anthropic`) so the guest gets a live,
+        # auto-refreshed credential rather than a copy that goes stale.
+        AGENT_ENV=$dir/agent.env
+        (umask 077; : > "$AGENT_ENV")
+        chmod 600 "$AGENT_ENV"
         if [ -f "$HOME/.config/sandvm/agent.env" ]; then
-          cat "$HOME/.config/sandvm/agent.env" >> "$agent_env"
+          cat "$HOME/.config/sandvm/agent.env" >> "$AGENT_ENV"
         fi
         if [ -f "$HOME/.omp/auth-broker.token" ]; then
           {
             echo "OMP_AUTH_BROKER_URL=http://10.0.2.2:8765"
             echo "OMP_AUTH_BROKER_TOKEN=$(cat "$HOME/.omp/auth-broker.token")"
-          } >> "$agent_env"
+          } >> "$AGENT_ENV"
         fi
-        if [ ! -s "$agent_env" ]; then
-          rm -f "$agent_env"
-          agent_env=""
+        if [ ! -s "$AGENT_ENV" ]; then rm -f "$AGENT_ENV"; AGENT_ENV=""; fi
+
+        # Git identity (user.name/user.email; a sops secret on the host, no key
+        # material). Without it commits in the guest fail with "Author identity
+        # unknown".
+        GITCONFIG=$HOME/.config/git/gitconfig.local
+        [ -r "$GITCONFIG" ] || GITCONFIG=""
+
+        # claude-code's OAuth credential, refreshed on every launch so a
+        # long-stopped sandbox still starts with a live token.
+        CLAUDE_CREDS=$HOME/.claude/.credentials.json
+        [ -r "$CLAUDE_CREDS" ] || CLAUDE_CREDS=""
+
+        # The instance's own name, for the guest's hostname.
+        INSTANCE_FILE=$dir/instance
+        printf '%s' "$1" > "$INSTANCE_FILE"
+      }
+
+      # --- runner build + cache ----------------------------------------------
+      # Every launch used to pay a full impure NixOS eval. The guest's *system
+      # closure* no longer depends on any per-instance value (see
+      # virtualisation/microvm-guest.nix), so the only thing a relaunch can
+      # change is the ~2 kB runner script — and if none of its inputs moved,
+      # not even that. Key on the flake's contents (committed + unstaged +
+      # untracked) plus every value that reaches the qemu command line.
+      flake_fingerprint() {
+        {
+          git -C "$FLAKE" rev-parse HEAD 2>/dev/null || echo no-git
+          git -C "$FLAKE" diff HEAD 2>/dev/null || true
+          git -C "$FLAKE" ls-files --others --exclude-standard 2>/dev/null \
+            | while read -r f; do sha256sum "$FLAKE/$f" 2>/dev/null || true; done
+        } | sha256sum | cut -d' ' -f1
+      }
+
+      build_runner() {
+        local name=$1 fresh=$2 dir=$STATE_ROOT/$1 key
+        key=$(printf '%s\n' "$(flake_fingerprint)" "$TYPE" "$CPU" "$MEM" "$DISK" \
+          "$HOME_DISK" "$PORTS" "$SSH_PORT" "$WORKSPACE" \
+          "''${AGENT_ENV:-}" "''${GITCONFIG:-}" "''${CLAUDE_CREDS:-}" \
+          | sha256sum | cut -d' ' -f1)
+
+        if [ "$fresh" -eq 0 ] && [ -L "$dir/runner" ] && [ -e "$dir/runner" ] \
+          && [ "$(cat "$dir/runner.key" 2>/dev/null || true)" = "$key" ]; then
+          readlink -f "$dir/runner"
+          return
         fi
 
-        # Git identity for the guest: user.name/user.email (+ the includeIf
-        # org lines) live in ~/.config/git/gitconfig.local — a sops secret on
-        # the host, so it can't be baked into the guest declaratively without
-        # putting the email in the world-readable /nix/store. Same credential
-        # mechanism as agent.env above; the guest-side sandvm-gitconfig
-        # service installs it where dev.git's include.path already points.
-        # No file, no credential — commits in the guest then fail with
-        # "Author identity unknown", same as before.
-        local gitconfig="$HOME/.config/git/gitconfig.local"
-        if [ ! -r "$gitconfig" ]; then
-          gitconfig=""
-        fi
+        echo "sandvm: building the $TYPE guest runner..." >&2
+        # --out-link doubles as a GC root, so the runner and the whole guest
+        # closure survive `nix-collect-garbage` for as long as the instance does.
+        MICROVM_WORKDIR="$WORKSPACE" \
+        MICROVM_SSH_PORT="$SSH_PORT" \
+        MICROVM_PORTS="$PORTS" \
+        MICROVM_CPU="$CPU" \
+        MICROVM_MEM="$MEM" \
+        MICROVM_DISK="$DISK" \
+        MICROVM_HOME_DISK="$HOME_DISK" \
+        MICROVM_AGENT_ENV="''${AGENT_ENV:-}" \
+        MICROVM_GITCONFIG="''${GITCONFIG:-}" \
+        MICROVM_CLAUDE_CREDS="''${CLAUDE_CREDS:-}" \
+        MICROVM_INSTANCE_FILE="$INSTANCE_FILE" \
+          nix build --impure --no-warn-dirty --out-link "$dir/runner" \
+            "$FLAKE#sandvm-guest-$TYPE" >&2
+        printf '%s' "$key" > "$dir/runner.key"
+        readlink -f "$dir/runner"
+      }
 
-        export MICROVM_WORKDIR="$workdir"
-        export MICROVM_NAME="$name"
-        export MICROVM_SSH_PORT="$ssh_port"
-        export MICROVM_PORTS="$ports_csv"
-        export MICROVM_CPU="$cpu"
-        export MICROVM_MEM="$mem"
-        export MICROVM_AGENT_ENV="$agent_env"
-        export MICROVM_GITCONFIG="$gitconfig"
+      # --- boot ---------------------------------------------------------------
+      boot() {
+        local name=$1 foreground=$2 fresh=$3
+        local dir=$STATE_ROOT/$name runner
 
-        # Build (not `nix run`) so both the virtiofsd companion and the runner
-        # itself come from the exact same store path.
-        local runner
-        runner=$(nix build --impure --no-link --print-out-paths "$FLAKE#sandvm-guest")
+        if is_running "$name"; then echo "sandvm: '$name' is already running"; return 0; fi
 
-        # Defensive cleanup: a prior crashed/interrupted launch can leave an
-        # orphaned virtiofsd holding this instance's socket lock file — systemd
-        # unit teardown doesn't reliably reap a backgrounded child if the
-        # unit's main process (qemu) exited/errored on its own rather than the
-        # unit being stopped via `sandvm stop`. Without this, every relaunch
-        # after a crash fails with "Resource temporarily unavailable" forever.
-        pkill -f "virtiofsd --socket-path=$name-virtiofs-workspace.sock" 2>/dev/null || true
-        rm -f "$state_dir/$name-virtiofs-workspace.sock" "$state_dir/$name-virtiofs-workspace.sock.pid"
+        collect_credentials "$name"
+        runner=$(build_runner "$name" "$fresh")
 
-        # --working-directory: qemu, virtiofsd's socket, and the guest's
-        # writable-store-overlay image (all relative paths) run with CWD = the
-        # per-instance state dir, not the project folder — otherwise stray
-        # runtime files would land inside /workspace's *host* side, polluting
-        # the actual project directory.
+        write_ssh_block "$name" "$SSH_PORT"
+
+        # Defensive cleanup: a crashed launch can leave an orphaned virtiofsd
+        # holding this instance's socket lock, after which every relaunch fails
+        # with "Resource temporarily unavailable" forever. The socket path is
+        # absolute precisely so this pattern can't match a sibling instance —
+        # the guest hostname (and so microvm.nix's socket basename) is now the
+        # same string for every sandbox.
+        local sock=$dir/sandbox-virtiofs-workspace.sock
+        pkill -f "virtiofsd --socket-path=$sock" 2>/dev/null || true
+        rm -f "$sock" "$sock.pid"
+
+        # --working-directory: qemu's relative paths (volume images, the QMP
+        # socket, the virtiofs socket) resolve inside the instance's state dir
+        # rather than polluting the project folder.
         #
-        # The workspace share is virtiofs (see microvm-guest.nix for why), which
-        # needs a virtiofsd process started first. NOT via microvm.nix's own
-        # generated `bin/virtiofsd-run`: that script hardcodes
-        # `supervisord user = "root"` (it assumes the host-managed systemd path,
-        # where it normally runs as root) and immediately fails with "Can't
-        # drop privilege as nonroot user" under this unprivileged imperative
-        # setup — so invoke virtiofsd directly instead, matching the socket
-        # naming convention (`<name>-virtiofs-<tag>.sock`) qemu itself expects.
-        # No systemd Type=notify readiness wiring here either, so poll for the
-        # socket before handing off to microvm-run instead of racing it.
+        # virtiofsd is started by hand rather than via microvm.nix's generated
+        # bin/virtiofsd-run: that script hardcodes `supervisord user = "root"`
+        # (it assumes the host-managed systemd path) and fails with "Can't drop
+        # privilege as nonroot user" under this unprivileged imperative setup.
+        # No Type=notify readiness wiring here either, so poll for the socket
+        # rather than racing qemu against it.
         #
-        # Plain service unit (not --scope) so it can run detached from this
-        # terminal; --collect so a crashed/nonzero exit auto-unloads the unit
-        # instead of sitting "failed" forever and blocking the next relaunch
-        # of the same $name (systemd refuses to reuse a unit name that's still
-        # loaded). --pty is what turns this back into a foreground, blocking
-        # invocation for -f/--foreground: systemd-run waits for the command to
-        # exit whenever it allocates a pty, same as running it directly.
+        # Plain service unit (not --scope) so it can outlive this terminal;
+        # --collect so a crashed unit auto-unloads instead of sitting "failed"
+        # and blocking the next launch; --pty is what makes -f block.
         local pty_flag=()
-        if [ "$foreground" -eq 1 ]; then
-          pty_flag=(--pty)
-        fi
-        exec systemd-run --user --collect --unit "sandvm-$name" "''${pty_flag[@]}" \
-          --working-directory="$state_dir" \
-          --setenv=MICROVM_WORKDIR="$workdir" \
-          --setenv=MICROVM_NAME="$name" \
-          --setenv=MICROVM_SSH_PORT="$ssh_port" \
-          --setenv=MICROVM_PORTS="$ports_csv" \
-          --setenv=MICROVM_CPU="$cpu" \
-          --setenv=MICROVM_MEM="$mem" \
+        if [ "$foreground" -eq 1 ]; then pty_flag=(--pty); fi
+
+        systemd-run --user --collect --unit "sandvm-$name" "''${pty_flag[@]}" \
+          --working-directory="$dir" \
           bash -c "
-            ${virtiofsd}/bin/virtiofsd --socket-path='$name-virtiofs-workspace.sock' \
-              --shared-dir='$workdir' --xattr --cache=auto &
+            ${virtiofsd}/bin/virtiofsd --socket-path='$sock' \
+              --shared-dir='$WORKSPACE' --xattr --cache=auto &
             for _ in \$(seq 300); do
-              [ -S '$name-virtiofs-workspace.sock' ] && break
+              [ -S '$sock' ] && break
               sleep 0.1
             done
             exec '$runner/bin/microvm-run'
           "
       }
 
+      wait_for_ssh() {
+        local name=$1 _i
+        for _i in $(seq 120); do
+          if ssh -o ConnectTimeout=2 -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
+               "sandvm-$name" true 2>/dev/null; then
+            return 0
+          fi
+          is_running "$name" || die "'$name' stopped while booting (journalctl --user -u sandvm-$name)"
+          sleep 1
+        done
+        # The commonest cause by far is an empty host ssh-agent: the guest
+        # authorizes df's public key and nothing else, and no private key
+        # exists guest-side by design.
+        echo "sandvm: agent identities: $(ssh-add -l 2>&1 | head -1)" >&2
+        die "'$name' did not accept ssh in 120s (journalctl --user -u sandvm-$name; check \`ssh-add -l\`)"
+      }
+
+      banner() {
+        local name=$1
+        echo "sandvm '$name' [$TYPE] -> $WORKSPACE"
+        echo "  ssh sandvm-$name"
+        echo "  code --remote ssh-remote+sandvm-$name /workspace"
+      }
+
+      # --- option parsing -----------------------------------------------------
+      # Shared by new/start/resize; each caller decides which results it honours.
+      OPT_NAME="" OPT_SSH=0 OPT_FG=0 OPT_FRESH=0
+      OPT_TYPE="" OPT_WORKSPACE="" OPT_CPU="" OPT_MEM="" OPT_DISK="" OPT_HOME_DISK=""
+      OPT_PORTS=()
+      parse_opts() {
+        OPT_NAME="" OPT_SSH=0 OPT_FG=0 OPT_FRESH=0
+        OPT_TYPE="" OPT_WORKSPACE="" OPT_CPU="" OPT_MEM="" OPT_DISK="" OPT_HOME_DISK=""
+        OPT_PORTS=()
+        while [ $# -gt 0 ]; do
+          case "$1" in
+            --type) OPT_TYPE=$2; shift 2 ;;
+            --workspace) OPT_WORKSPACE=$2; shift 2 ;;
+            --cpu) OPT_CPU=$2; shift 2 ;;
+            --mem) OPT_MEM=$2; shift 2 ;;
+            --disk) OPT_DISK=$2; shift 2 ;;
+            --home-disk) OPT_HOME_DISK=$2; shift 2 ;;
+            --port) OPT_PORTS+=("$2"); shift 2 ;;
+            -s|--ssh) OPT_SSH=1; shift ;;
+            -f|--foreground) OPT_FG=1; shift ;;
+            --fresh) OPT_FRESH=1; shift ;;
+            -h|--help) usage; exit 0 ;;
+            -*) die "unknown option: $1" ;;
+            *) OPT_NAME=$1; shift ;;
+          esac
+        done
+      }
+
+      valid_type() {
+        case "$1" in
+          minimal|generic|devenv|workstation) return 0 ;;
+          *) die "unknown --type '$1' (minimal|generic|devenv|workstation)" ;;
+        esac
+      }
+
+      # --- commands -----------------------------------------------------------
+      cmd_new() {
+        parse_opts "$@"
+        local name=''${OPT_NAME:-}
+
+        TYPE=''${OPT_TYPE:-$DEFAULT_TYPE}
+        valid_type "$TYPE"
+
+        # A sandbox does not need a host folder. Without --workspace it gets a
+        # private one inside its own state dir, so /workspace always exists and
+        # is always writable — and is still visible from the host for handing
+        # files in and out.
+        WORKSPACE=""
+        if [ -n "$OPT_WORKSPACE" ]; then
+          WORKSPACE=$(realpath "$OPT_WORKSPACE")
+          [ -d "$WORKSPACE" ] || die "no such directory: $WORKSPACE"
+          [ -n "$name" ] || name=$(name_for "$WORKSPACE")
+        else
+          [ -n "$name" ] || die "give a name, or --workspace <path> to derive one"
+        fi
+
+        if [ -e "$STATE_ROOT/$name/config" ]; then die "'$name' already exists (sandvm start $name)"; fi
+
+        local dir=$STATE_ROOT/$name
+        mkdir -p "$dir"
+        if [ -z "$WORKSPACE" ]; then
+          WORKSPACE=$dir/workspace
+          mkdir -p "$WORKSPACE"
+        fi
+
+        CPU=''${OPT_CPU:-$DEFAULT_CPU}
+        MEM=''${OPT_MEM:-$DEFAULT_MEM}
+        DISK=''${OPT_DISK:-$DEFAULT_DISK}
+        HOME_DISK=''${OPT_HOME_DISK:-$DEFAULT_HOME_DISK}
+        PORTS=$(IFS=,; echo "''${OPT_PORTS[*]:-}")
+        SSH_PORT=$(free_port "$name")
+        save_config "$name"
+
+        banner "$name"
+        boot "$name" "$OPT_FG" "$OPT_FRESH"
+        if [ "$OPT_SSH" -eq 1 ]; then wait_for_ssh "$name"; exec ssh "sandvm-$name"; fi
+      }
+
+      cmd_start() {
+        parse_opts "$@"
+        local name; name=$(resolve_name "''${OPT_NAME:-}")
+        load_config "$name"
+
+        # --type/--workspace are fixed at creation; the rest can be retuned on
+        # any start and are remembered from then on.
+        if [ -n "$OPT_TYPE" ]; then die "--type is set at creation; make a new sandbox instead"; fi
+        if [ -n "$OPT_WORKSPACE" ]; then die "--workspace is set at creation; make a new sandbox instead"; fi
+        if [ -n "$OPT_CPU" ]; then CPU=$OPT_CPU; fi
+        if [ -n "$OPT_MEM" ]; then MEM=$OPT_MEM; fi
+        if [ ''${#OPT_PORTS[@]} -gt 0 ]; then PORTS=$(IFS=,; echo "''${OPT_PORTS[*]}"); fi
+        save_config "$name"
+
+        banner "$name"
+        boot "$name" "$OPT_FG" "$OPT_FRESH"
+        if [ "$OPT_SSH" -eq 1 ]; then wait_for_ssh "$name"; exec ssh "sandvm-$name"; fi
+      }
+
+      cmd_stop() {
+        local name; name=$(resolve_name "''${1:-}")
+        systemctl --user stop "sandvm-$name.service" 2>/dev/null || echo "not running: $name"
+      }
+
+      cmd_rm() {
+        local arg name dir
+        if [ $# -eq 0 ]; then set -- "$(resolve_name "")"; fi
+        for arg in "$@"; do
+          name=$(resolve_name "$arg")
+          dir=$STATE_ROOT/$name
+          [ -d "$dir" ] || { echo "no such sandbox: $name"; continue; }
+          systemctl --user stop "sandvm-$name.service" 2>/dev/null || true
+          # The runner out-link is a GC root; dropping the directory drops it,
+          # so the guest closure becomes collectable again.
+          rm -rf "''${STATE_ROOT:?}/''${name:?}"
+          strip_ssh_block "$name"
+          echo "removed: sandvm-$name"
+        done
+      }
+
+      cmd_ssh() {
+        local name; name=$(resolve_name "''${1:-}")
+        shift || true
+        if [ "''${1:-}" = "--" ]; then shift; fi
+        load_config "$name"
+        if ! is_running "$name"; then
+          banner "$name"
+          boot "$name" 0 0
+        fi
+        wait_for_ssh "$name"
+        if [ $# -gt 0 ]; then
+          exec ssh "sandvm-$name" -- "$@"
+        else
+          exec ssh "sandvm-$name"
+        fi
+      }
+
+      cmd_list() {
+        printf '%-34s %-12s %-9s %-8s %-7s %s\n' NAME TYPE STATUS SSH-PORT ON-DISK WORKSPACE
+        shopt -s nullglob
+        for dir in "$STATE_ROOT"/*/; do
+          local name status used
+          name=$(basename "$dir")
+          status=stopped
+          if is_running "$name"; then status=running; fi
+          used=$(du -sh "$dir" 2>/dev/null | cut -f1)
+          if [ -f "$dir/config" ]; then
+            ( # subshell: don't leak one instance's config into the next
+              # shellcheck disable=SC1091
+              . "$dir/config"
+              printf '%-34s %-12s %-9s %-8s %-7s %s\n' \
+                "$name" "$TYPE" "$status" "$SSH_PORT" "$used" "$WORKSPACE"
+            )
+          else
+            # A state dir from before the four-type rework — `sandvm rm` it.
+            printf '%-34s %-12s %-9s %-8s %-7s %s\n' \
+              "$name" "legacy" "$status" "-" "$used" "-"
+          fi
+        done
+      }
+
+      # --- resize -------------------------------------------------------------
+      # Images are sparse: growing one costs nothing until the guest writes into
+      # it. Grow the backing file, tell a running qemu about it over QMP, and
+      # let the guest's sandvm-grow-fs timer stretch the filesystem to match.
+      qmp() {
+        local sock=$1 device=$2 bytes=$3
+        printf '%s\n%s\n' \
+          '{"execute":"qmp_capabilities"}' \
+          "{\"execute\":\"block_resize\",\"arguments\":{\"device\":\"$device\",\"size\":$bytes}}" \
+          | socat - "UNIX-CONNECT:$sock" >/dev/null 2>&1 || return 1
+      }
+
+      grow_image() {
+        local dir=$1 image=$2 device=$3 new_mib=$4 running=$5
+        local path=$dir/$image cur_mib=0
+        if [ -f "$path" ]; then
+          cur_mib=$(( $(stat -c %s "$path") / 1048576 ))
+        fi
+        if [ "$new_mib" -le "$cur_mib" ]; then
+          echo "  $image: already ''${cur_mib}M (disks only grow) - skipped"
+          return 0
+        fi
+        truncate -s "''${new_mib}M" "$path"
+        echo "  $image: ''${cur_mib}M -> ''${new_mib}M"
+        if [ "$running" -eq 1 ]; then
+          if qmp "$dir/sandbox.sock" "$device" "$(( new_mib * 1048576 ))"; then
+            echo "    live-resized $device; the guest grows the filesystem within ~2min"
+          else
+            echo "    could not reach qemu's QMP socket - takes effect on next start"
+          fi
+        fi
+      }
+
+      cmd_resize() {
+        parse_opts "$@"
+        local name; name=$(resolve_name "''${OPT_NAME:-}")
+        load_config "$name"
+        [ -n "$OPT_DISK$OPT_HOME_DISK" ] || die "give --disk <MiB> and/or --home-disk <MiB>"
+
+        local dir=$STATE_ROOT/$name running=0
+        if is_running "$name"; then running=1; fi
+
+        if [ -n "$OPT_DISK" ]; then
+          grow_image "$dir" nix-store-overlay.img vda "$OPT_DISK" "$running"
+          if [ "$OPT_DISK" -gt "$DISK" ]; then DISK=$OPT_DISK; fi
+        fi
+        if [ -n "$OPT_HOME_DISK" ]; then
+          grow_image "$dir" home.img vdb "$OPT_HOME_DISK" "$running"
+          if [ "$OPT_HOME_DISK" -gt "$HOME_DISK" ]; then HOME_DISK=$OPT_HOME_DISK; fi
+        fi
+        save_config "$name"
+      }
+
+      # --- dispatch -----------------------------------------------------------
       case "''${1:-}" in
+        new) shift; cmd_new "$@" ;;
+        start|up) shift; cmd_start "$@" ;;
         stop) shift; cmd_stop "$@" ;;
-        rm) shift; cmd_rm "$@" ;;
-        list) cmd_list ;;
-        -h|--help) usage ;;
-        *) cmd_run "$@" ;;
+        rm|delete) shift; cmd_rm "$@" ;;
+        ssh) shift; cmd_ssh "$@" ;;
+        list|ls) cmd_list ;;
+        resize) shift; cmd_resize "$@" ;;
+        -h|--help|help) usage ;;
+        "")
+          # Bare `sandvm` in a project folder: new-or-start for $PWD.
+          name=$(name_for "$PWD")
+          if [ -f "$STATE_ROOT/$name/config" ]; then cmd_start "$name"; else cmd_new --workspace "$PWD"; fi
+          ;;
+        *)
+          # `sandvm <path>` shorthand (what the vault-agent abbr uses).
+          [ -d "$1" ] || die "unknown command '$1' (sandvm --help)"
+          path=$1; shift
+          name=$(name_for "$path")
+          if [ -f "$STATE_ROOT/$name/config" ]; then
+            cmd_start "$name" "$@"
+          else
+            cmd_new --workspace "$path" "$@"
+          fi
+          ;;
       esac
     '';
   };
@@ -316,11 +584,11 @@ in
 symlinkJoin {
   name = "sandvm";
   paths = [ sandvm-unwrapped ];
-  # Fish auto-discovers vendor_completions.d from every package in the
-  # profile (see modules/den/aspects/shell/fish.nix); writeShellApplication's
-  # own buildCommand can't be extended with a postInstall (it bypasses
-  # genericBuild's phases entirely), hence merging the completions in here
-  # via symlinkJoin instead of adding them to sandvm-unwrapped directly.
+  # Fish auto-discovers vendor_completions.d from every package in the profile
+  # (see modules/den/aspects/shell/fish.nix); writeShellApplication's own
+  # buildCommand can't be extended with a postInstall (it bypasses
+  # genericBuild's phases entirely), hence merging the completions in here via
+  # symlinkJoin instead of adding them to sandvm-unwrapped directly.
   postBuild = ''
     mkdir -p $out/share/fish/vendor_completions.d
     cp ${./completions.fish} $out/share/fish/vendor_completions.d/sandvm.fish

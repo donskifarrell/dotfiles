@@ -1,101 +1,176 @@
-# `sandvm` — per-folder sandboxed microVMs for coding agents
+# `sandvm` — sandboxed microVMs for coding agents
 
 ## What this is
 
-`sandvm <path>` boots a throwaway NixOS microVM (microvm.nix, qemu) whose _only_ writable channel back to the host
-filesystem is `<path>`, mounted at `/workspace`. It exists so a coding-agent harness (oh-my-pi, packaged as `omp`) can
-run against a real project with a real dev toolchain (devenv.sh, direnv, git, a full TUI shell config, herdr for session
-management) without being able to write — or even see — anything outside that one folder, even if the agent or the LLM
-behind it goes rogue.
+`sandvm` boots throwaway NixOS microVMs (microvm.nix, qemu) for coding agents to work in. A sandbox's _only_ writable
+channel back to the host filesystem is one folder, mounted at `/workspace`. It exists so an agent harness (claude-code,
+or oh-my-pi packaged as `omp`) can run against a real project with a real toolchain without being able to write — or
+even see — anything outside that one folder, even if the agent or the LLM behind it goes rogue.
+
+Sandboxes come in four **types**, so the closure you pay for matches the work:
+
+| `--type`      | what it is                                                                                      | closure |
+| ------------- | ----------------------------------------------------------------------------------------------- | ------- |
+| `minimal`     | shell, git, agent harness. No dev toolchain at all.                                             | ~3.0 G  |
+| `generic`     | + compilers, nix-ld, full TUI shell. A plain Linux box the agent installs its own tools into.   | ~6.8 G  |
+| `devenv`      | + devenv.sh/direnv/herdr/headless chromium; the project's own environment is pre-built at boot. | ~9.2 G  |
+| `workstation` | + df's language toolchains, for parity with abhaile.                                            | ~9.7 G  |
+
+Each type is one Den host (`modules/den/hosts/sandvm.nix`) built from one role tier (`modules/den/roles/sandbox.nix`);
+the tiers nest, so `generic` is `minimal` plus more. `devenv` is the default.
 
 ## Usage
 
 ```
-sandvm [--port N ...] [--cpu N] [--mem N] [-f|--foreground] [<path>]   # default <path>: $PWD
-sandvm stop [<name>]                                                    # default: current dir's
-sandvm rm [<name>]                                                      # stop + delete state (irreversible)
-sandvm list
+sandvm new [opts] [<name>]      create a sandbox (and start it)
+sandvm start [opts] [<name>]    start an existing sandbox
+sandvm stop [<name>]            stop it (state is kept)
+sandvm rm [<name>...]           stop + delete it, storage and all (irreversible)
+sandvm ssh [<name>] [-- cmd]    ssh in, starting it first if stopped
+sandvm list                     list every sandbox, its type, state, port, disk use and workspace
+sandvm resize [<name>] [opts]   grow a sandbox's disks
+sandvm <path>                   shorthand: new-or-start for a folder
 ```
 
-`sandvm` runs detached in the background by default (it's a `systemd-run --user --unit` transient service running
-`virtiofsd-run` and `microvm-run` from the `nix build --impure .#sandvm-guest` result) and returns control to the
-terminal immediately — `sandvm stop` ends it, `journalctl --user -u sandvm-<name> -f` follows its console.
-`-f`/`--foreground` instead blocks in the invoking terminal (Ctrl-C to stop), the original behavior. Fish completions
-for subcommands/flags/known instance names ship in the package itself (`share/fish/vendor_completions.d`), so they're
-live for `df` automatically — no separate wiring. It prints, on start:
+new/start options: `--type minimal|generic|devenv|workstation` (new only), `--workspace <path>` (new only), `--cpu N`,
+`--mem MiB`, `--disk MiB`, `--home-disk MiB`, `--port N` (repeatable), `--ssh`/`-s`, `-f`/`--foreground`, `--fresh`.
 
-```
-sandvm 'myproject-a1b2c3d4' -> /home/df/dev/myproject
-  ssh sandvm-myproject-a1b2c3d4
-  code --remote ssh-remote+sandvm-myproject-a1b2c3d4 /workspace
+```console
+$ sandvm new --type generic --cpu 8 --ssh scratch     # named, no host folder, drops you into a shell
+$ sandvm new --workspace ~/dev/myproject              # name derived from the folder; type devenv
+$ sandvm ssh myproject-a1b2c3d4 -- claude -p 'run the tests'
+$ sandvm list
+NAME                     TYPE      STATUS   SSH-PORT ON-DISK WORKSPACE
+myproject-a1b2c3d4       devenv    running  22703    2.1G    /home/df/dev/myproject
+scratch                  generic   stopped  27118    412M    /home/df/.local/state/sandvm/scratch/workspace
 ```
 
-The instance name is `basename(realpath(path))` + an 8-char hash of the realpath, so the same folder always maps to the
-same name/SSH alias/port — relaunching after a stop reuses them; a renamed or moved folder gets a fresh identity (its
-old sandbox, if still running, is untouched).
+A sandbox does **not** need a host folder. Without `--workspace` it gets a private one inside its own state dir, so
+`/workspace` always exists and is always writable — and is still visible from the host for handing files in and out.
+With `--workspace`, the name defaults to `basename` + an 8-char hash of the realpath, so the same folder always maps to
+the same name/SSH alias/port; a renamed or moved folder gets a fresh identity.
+
+Sandboxes run detached by default (a `systemd-run --user --unit` transient service running `virtiofsd` and the guest
+runner); `journalctl --user -u sandvm-<name> -f` follows the console, `-f`/`--foreground` blocks in the invoking
+terminal instead. Every shell in the guest lands in `/workspace`. Fish completions for subcommands, flags, types and
+known instance names ship in the package itself.
 
 ## Architecture
 
-One Den "host", `sandvm` (`modules/den/hosts/sandvm.nix`), defines the guest shape once, statically. Three scalars are
-runtime-parameterized via env vars (`MICROVM_WORKDIR`, `MICROVM_NAME`, `MICROVM_SSH_PORT`, `MICROVM_PORTS`,
-`MICROVM_CPU`, `MICROVM_MEM`) and read with `builtins.getEnv` in `virtualization.microvm-guest` — the one deliberate bit
-of impurity in the whole feature (hence `nix run --impure`). Everything else is ordinary static Nix, composed exactly
-like a real host: `roles.default`, `roles.dev-sandbox`, and the guest user **`iosta`** (`users.iosta = { }`,
-`modules/den/users/iosta.nix`) — a sandbox-only user, uid-pinned to 1000 to match the host-side project owner (df) for
-the virtiofs `/workspace` share, carrying only `roles.dev-sandbox`. That role is role-workstation's TUI slice: the full
-fish/starship/neovim/yazi/etc. shell config, git + lazygit + gh, devenv/direnv, herdr (the startup multiplexer —
-deliberately not zellij) and the agent tools (claude-code, omp) — no browsers, no ghostty, no desktop packages.
-(Originally the guest ran df's _full_ HM identity, workstation/desktop packages included; the lean iosta identity
-replaced that on 2026-07-13.)
+Four Den hosts — `sandvm-minimal`, `sandvm-generic`, `sandvm-devenv`, `sandvm-workstation`
+(`modules/den/hosts/sandvm.nix`) — share one guest base (`roles.default` + `virtualization.microvm-guest`) and differ
+only by which `roles.sandbox.*` tier they carry. Each emits a flake package `sandvm-guest-<type>` (the tier's
+`config.microvm.declaredRunner`), which is what the CLI builds and execs.
 
-Two sandbox-specific behaviours are wired in on top:
+The guest user is **`iosta`** (`modules/den/users/iosta.nix`) — a sandbox-only account, uid-pinned to 1000 to match the
+host-side project owner for the virtiofs `/workspace` share, with none of df's identity and no key material of its own.
+The tier role is attached both to the host (for its `nixos` keys) and to `users.iosta` (for its `homeManager` keys),
+because Den resolves an entity's `aspect` for its own class only. Note that Den entities take a single `aspect` _value_
+— a free-form `includes` on `den.hosts.<sys>.<name>` is silently ignored, which is why the tiers are composed inline in
+the host file.
 
-- **herdr on startup**: interactive SSH logins `exec herdr` directly (`dev.tools.herdr.autostart` — fish init guarded on
-  `SSH_TTY`, so the qemu serial console and VSCode-remote terminals stay plain fish, and on `HERDR_ENV`, so herdr's own
-  panes don't recurse).
-- **Dependency pre-install**: a boot-time oneshot (`sandvm-workspace-init`, in `microvm-guest.nix`, runs as iosta in
-  `/workspace`) builds the project's declared toolchain — `devenv shell true` if `devenv.nix` exists, else
-  `nix develop --command true` if `flake.nix` exists — so the environment is already in the persistent store overlay
-  before anyone attaches; failures are logged, never fatal. Interactively, direnv whitelists `/workspace`
-  (role-dev-sandbox), so a project `.envrc` activates without a manual `direnv allow` (allow-state would be lost with
-  the ephemeral home on every boot anyway).
+### Nothing per-instance is baked into the system closure
+
+Everything the CLI varies per launch — workspace path, ssh/forwarded ports, cpu, mem, disk sizes, credential paths —
+touches only options that end up on **qemu's command line**, never `system.build.toplevel`. That is verifiable:
+
+```console
+$ MICROVM_WORKDIR=/a MICROVM_CPU=2  nix eval --impure --raw .#nixosConfigurations.sandvm-devenv.config.system.build.toplevel.drvPath
+/nix/store/s6dbj4ng…-nixos-system-sandbox-26.11.…drv
+$ MICROVM_WORKDIR=/b MICROVM_CPU=8  nix eval --impure --raw .#nixosConfigurations.sandvm-devenv.config.system.build.toplevel.drvPath
+/nix/store/s6dbj4ng…-nixos-system-sandbox-26.11.…drv   # identical
+```
+
+So every sandbox of a type shares one already-built guest system; a relaunch can at most rebuild the ~2 kB runner
+script. The one thing that had to move to make this true was the hostname: it is now the static string `sandbox` in the
+closure, and the real instance name arrives at boot as a systemd credential (`sandvm-hostname.service`). Previously
+`networking.hostName` was the per-launch instance name, which put that name into `/etc` and so gave every single sandbox
+its own NixOS generation.
+
+The per-launch env-var contract (read with `builtins.getEnv` in `virtualization.microvm-guest`, hence
+`nix build --impure`) is: `MICROVM_WORKDIR`, `MICROVM_SSH_PORT`, `MICROVM_PORTS`, `MICROVM_CPU`, `MICROVM_MEM`,
+`MICROVM_DISK`, `MICROVM_HOME_DISK`, and the credential paths `MICROVM_AGENT_ENV`, `MICROVM_GITCONFIG`,
+`MICROVM_CLAUDE_CREDS`, `MICROVM_INSTANCE_FILE`.
+
+### Per-instance state
+
+`~/.local/state/sandvm/<name>/`:
+
+| file                    | what                                                                             |
+| ----------------------- | -------------------------------------------------------------------------------- |
+| `config`                | `KEY=value` — type, workspace, cpu, mem, disk sizes, ports, ssh port. Sourced by |
+|                         | every later command; this is what makes `sandvm start <name>` possible at all.   |
+| `runner` / `runner.key` | `nix build --out-link` result (also a GC root) + its cache fingerprint.          |
+| `nix-store-overlay.img` | overlayfs upper for `/nix/.rw-store`. Persistent, sparse.                        |
+| `home.img`              | `/home/iosta`. Persistent, sparse.                                               |
+| `agent.env`, `instance` | per-launch credential files handed to qemu over fw_cfg.                          |
+| `workspace/`            | only when created without `--workspace`.                                         |
+| `sandbox*.sock`         | qemu's QMP socket and virtiofsd's socket.                                        |
+
+The guest's `/` stays ephemeral tmpfs, discarded on stop. `sandvm rm` deletes the whole directory — which also drops the
+GC root, so the guest closure becomes collectable again.
 
 Files:
 
-- `modules/den/aspects/virtualisation/microvm-host.nix` — host-side: just a persistent SSH host key at
-  `/var/lib/sandvm/hostkey`, generated once via `system.activationScripts` (not left to the guest to generate per-boot,
-  which would both churn `known_hosts` and race between concurrent instances' first boot).
-- `modules/den/aspects/virtualisation/microvm-guest.nix` — guest-side: `microvm.shares`/`forwardPorts`/`interfaces`,
-  sshd pointed at the shared host key, the console fallback password, the `sandvm-workspace-init` dependency
-  pre-installer, the agent.env/omp wiring.
-- `modules/den/users/iosta.nix` — the guest user aspect: uid 1000 (virtiofs), df's authorized key (public — see "What's
-  deliberately not shared" below), includes `roles.dev-sandbox` and nothing else.
-- `modules/den/roles/dev-sandbox.nix` — the TUI-only role iosta carries (shell config, git, devenv/direnv, herdr +
-  autostart, agent tools; no graphical apps, no zellij).
-- `modules/den/hosts/sandvm.nix` — the Den host declaration + the `packages.sandvm-guest` flake output
-  (`nixosConfigurations.sandvm.config. microvm.declaredRunner`).
-- `pkgs/by-name/sandvm/package.nix` — the CLI wrapper (name/port bookkeeping, `~/.ssh/config.d/sandvm`,
-  `systemd-run --user --unit` lifecycle) plus `pkgs/by-name/sandvm/completions.fish`, merged into the same package
-  output via `symlinkJoin` (`writeShellApplication`'s own `buildCommand` can't take a `postInstall`, since it bypasses
-  `genericBuild`'s phases entirely — see the comment in package.nix).
-- `modules/den/aspects/dev/tools/sandvm.nix` — installs the CLI onto df's `$PATH`, included via `roles.dev`.
-- `modules/den/aspects/dev/vscode.nix` — not sandvm-specific, but load-bearing for it: df's editor carries the
-  Remote-SSH extension, and `remote.SSH.configFile` must point at `~/.ssh/config` (see "VS Code Remote-SSH" below).
-- `modules/den/aspects/dev/tools/herdr.nix` — installs herdr (herdr.dev — terminal multiplexer for coding-agent
-  sessions, `nix-ai-tools`, not nixpkgs); included by `roles.dev` (abhaile's df) _and_ `roles.dev-sandbox` (the guest's
-  iosta) — one aspect, no duplication. Also defines `dev.tools.herdr.autostart` (guest-only via the sandbox role): the
-  fish snippet that lands interactive SSH logins straight in herdr. `herdr --remote sandvm-<name>` attaches from the
-  host to a session running inside a guest, over the ssh alias `sandvm` itself sets up — herdr tunnels entirely over
-  plain ssh, no daemon/server toggle needed on either end.
-- `omp` (oh-my-pi, also `nix-ai-tools`) reaches the guest via `apps.ai-tools` in `roles.dev-sandbox` — the same aspect
-  that installs omp + claude-code for df on real hosts (via `roles.workstation`), so one aspect covers both. (Until
-  2026-07-14 `microvm-guest.nix` also carried a duplicate guest-only `environment.systemPackages` omp entry, with a
-  comment wrongly claiming omp wasn't installed on real hosts.)
+- `modules/den/aspects/virtualisation/microvm-host.nix` — host-side: the persistent SSH host key at
+  `/var/lib/sandvm/hostkey` (generated once via `system.activationScripts`, so `known_hosts`/VS Code never see a changed
+  identity and concurrent first boots can't race), plus the harmonia binary cache (see "Sharing with the host").
+- `modules/den/aspects/virtualisation/microvm-guest.nix` — guest-side: shares/volumes/ports/credentials, sshd pointed at
+  the shared host key, the boot-time credential installers, the grow-fs unit + timer, the workspace pre-installer, the
+  console fallback password, the LLM wiring.
+- `modules/den/roles/sandbox.nix` — the four tiers.
+- `modules/den/users/iosta.nix` — the guest user; tier-independent.
+- `modules/den/hosts/sandvm.nix` — the four Den hosts + the `sandvm-guest-<type>` flake outputs.
+- `pkgs/by-name/sandvm/package.nix` — the CLI (instance bookkeeping, `~/.ssh/config.d/sandvm`, runner cache,
+  `systemd-run --user --unit` lifecycle, QMP resize) plus `completions.fish`, merged into the same output via
+  `symlinkJoin` (`writeShellApplication`'s `buildCommand` can't take a `postInstall` — it bypasses `genericBuild`'s
+  phases entirely).
+- `modules/den/aspects/dev/tools/sandvm.nix` — installs the CLI onto df's `$PATH` (via `roles.dev`) and sets
+  `ForwardAgent` for `sandvm-*`.
+- `modules/den/aspects/dev/tools/headless-browser.nix` — headless Chromium + playwright/puppeteer wiring, in the
+  `devenv` tier and up (see "UI validation").
+- `modules/den/aspects/dev/vscode.nix` — not sandvm-specific but load-bearing: Remote-SSH extension +
+  `remote.SSH.configFile` pointing at `~/.ssh/config`.
+- `modules/den/aspects/dev/tools/herdr.nix` — herdr (herdr.dev, from `nix-ai-tools`), used by `roles.dev` on real hosts
+  and by the `devenv` tier in guests. `herdr --remote sandvm-<name>` attaches from the host over the ssh alias.
 
 Named `sandvm`, not `devbox`: nixpkgs already has an unrelated package literally called `devbox` (Jetify's tool). Using
 that name for `pkgs.devbox` in home-manager would have silently resolved to the wrong package — there's no overlay
 merging this flake's own `pkgs/by-name` into the nixpkgs instance NixOS/HM modules see, so this flake's own packages
 must be referenced via `inputs.self.packages.${system}.<name>`, not `pkgs.<name>`.
+
+## Sharing with the host: not rebuilding what abhaile already has
+
+Three separate mechanisms, because "don't rebuild" has three separate failure modes:
+
+1. **The host's `/nix/store` is mounted read-only** at `/nix/.ro-store` and overlaid, so every store path abhaile has is
+   already _present_ in the guest at zero copy cost. This is the standard microvm.nix pattern and predates the rework.
+2. **The host serves its store as a binary cache** — `services.harmonia.cache` on `127.0.0.1:5000`
+   (`virtualisation/microvm-host.nix`), which SLIRP exposes to guests at `http://10.0.2.2:5000`; the guest lists it
+   ahead of `cache.nixos.org` in `nix.settings.substituters`. Mechanism 1 makes host paths readable but doesn't register
+   them in the guest's Nix _database_, so a guest build of something abhaile already has would otherwise refetch it from
+   the internet or rebuild it. It runs **unsigned** (no signing key on either side, `require-sigs = false` in the
+   guest): the guest can already read that exact store through mechanism 1, so serving it grants nothing new, and there
+   is no key to manage just to talk to ourselves. The guest also sets `connect-timeout = 3` + `fallback = true` so a
+   stopped host cache can never stall a guest build.
+3. **The runner build is cached per instance.** Launches used to pay a full impure NixOS eval every time (tens of
+   seconds). Now the guest system closure is instance-independent (above), so the only thing a relaunch can rebuild is
+   the runner script — and `sandvm` skips even that when nothing moved, keying `runner.key` on the flake's contents
+   (HEAD + unstaged diff + untracked files) and every value that reaches the qemu command line. Measured on a warm
+   store: **~11 s when something changed, ~2.6 s when nothing did.** `--fresh` forces a rebuild.
+
+## Disks: sparse ceilings that grow
+
+Both volumes are sparse raw images: the declared size is a ceiling, and the host only pays for blocks the guest actually
+writes. A fresh 4 GiB store overlay + 2 GiB home occupy ~134 MiB between them. Defaults are `--disk 32768` (the nix
+store overlay) and `--home-disk 16384` (`/home/iosta`), both MiB.
+
+`sandvm resize <name> --disk N --home-disk N` grows them, running or not. It truncates the backing file, and for a
+running guest also issues a QMP `block_resize` on qemu's socket so the virtio-blk device grows live. The guest's
+`sandvm-grow-fs` unit then stretches the filesystem onto the new space: it runs at boot (picking up a resize done while
+stopped) and on a 2-minute timer (picking up a live one), so no host→guest signalling channel is needed. Online
+`resize2fs` on a filesystem that already fills its device is a fast no-op, which is what makes running it that often
+free. Disks only ever grow — `resize` refuses to shrink.
 
 ## The security boundary
 
@@ -106,14 +181,20 @@ microVMs only ever see the host filesystem through explicit `microvm.shares`. Th
   time — read-only content-addressed store paths aren't an escape vector).
 - `/etc/sandvm-hostkey` ← the persistent SSH host key directory, read-write but containing nothing except that key.
 
-Nothing else is shared from the real host filesystem. The guest also gets one writable _volume_ (not a share — an
-auto-created disk image file, see "Why a writable store overlay" below) for `/nix/.rw-store`, living in the per-instance
-state dir (`~/.local/state/sandvm/<name>/nix-store-overlay.img`) rather than anywhere on the real host filesystem, so it
-doesn't weaken this boundary — it only ever holds new, content-addressed Nix store paths the guest builds/fetches for
-itself, the same trust level as the read-only store share. It does persist across `sandvm stop`/ relaunch (so a
-project's devenv toolchain doesn't need refetching every launch); the guest's actual root filesystem (`/`) stays
-ephemeral tmpfs, discarded on stop. Even a fully compromised agent inside the guest cannot touch host files outside
-`/workspace`, see df's `$HOME`, other projects, or secrets.
+Nothing else is shared from the real host filesystem. The guest also gets two writable _volumes_ (not shares —
+auto-created disk image files) that live in the per-instance state dir rather than anywhere on the real host filesystem,
+so they don't weaken this boundary:
+
+- `nix-store-overlay.img` → `/nix/.rw-store`, the overlayfs upper layer (see "Why a writable store overlay" below). It
+  only ever holds new, content-addressed Nix store paths the guest builds or fetches for itself — the same trust level
+  as the read-only store share.
+- `home.img` → `/home/iosta`, **persistent since 2026-08-22**. This is what makes the `generic` tier's premise real:
+  `nix profile install`, `npm i -g`, `pip install --user`, shell history, `~/.vscode-server`, the agent's own state all
+  survive stop→start, and `sandvm rm` is what throws them away. Before this the home was tmpfs and only
+  `~/.vscode-server` had a volume of its own, so an agent re-installed and re-logged-in on every boot.
+
+The guest's actual root filesystem (`/`) stays ephemeral tmpfs, discarded on stop. Even a fully compromised agent inside
+the guest cannot touch host files outside `/workspace`, see df's `$HOME`, other projects, or secrets.
 
 ### Why a writable store overlay
 
@@ -141,7 +222,7 @@ trying to remap anything, which works here specifically because the guest user's
 owner's — this is exactly why `users/iosta.nix` pins `uid = 1000` instead of trusting NixOS's allocation.
 
 The cost: virtiofs needs a separate `virtiofsd` process started as a prerequisite (`bin/virtiofsd-run`, bundled
-alongside `bin/microvm-run` in the same `sandvm-guest` build once any share uses `proto = "virtiofs"`), and that
+alongside `bin/microvm-run` in the same `sandvm-guest-<type>` build once any share uses `proto = "virtiofs"`), and that
 companion-process lifecycle normally only gets managed automatically under microvm.nix's systemd-managed
 `microvm.host`/`microvm.vms.*` path, which `sandvm` deliberately doesn't use (see below) — so the `sandvm` wrapper
 starts `virtiofsd-run` itself (backgrounded inside the same `systemd-run --user --unit`, so `sandvm stop` tears down
@@ -158,7 +239,18 @@ but that it shouldn't be able to _read and exfiltrate_ real credentials either, 
 talk to an LLM. Outbound git push/pull auth works via SSH-agent **forwarding** instead (below) — the guest can ask the
 host's agent to sign while a session is connected, but no private key ever exists on the guest side to exfiltrate.
 
-One narrow exception (2026-07-19): `~/.config/git/gitconfig.local` — df's git _identity_ (user.name/user.email + the
+Two narrow, deliberate exceptions travel in as fw_cfg credentials (never through the store):
+
+**claude-code's OAuth credential (2026-08-22).** `~/.claude/.credentials.json` is copied from the host into
+`/home/iosta/.claude/.credentials.json` on **every** launch, so a sandbox never has to run `claude login` of its own and
+a long-stopped sandbox still starts with a live token (refreshing per launch beats letting a copy age in the persistent
+home). df chose this over the alternative — persist the home and log in once per instance — for the zero-touch
+ergonomics. State it plainly: this **is** a real credential inside the sandbox. A rogue agent can't escape the
+filesystem boundary with it, but it can spend down the Pro subscription's quota and act as df against Anthropic. It is
+the same trust tier as the auth-broker reachability described under "LLM access", just arriving by a different route. To
+opt a launch out, remove the host file — no file, no credential.
+
+**Git identity (2026-07-19)**: `~/.config/git/gitconfig.local` — df's git _identity_ (user.name/user.email + the
 includeIf org lines), a sops secret on the host — **is** handed into the guest, because without it commits fail with
 "Author identity unknown" (the guest's git config includes that path via `dev.git`, but iosta's ephemeral home had no
 such file). It travels the same route as agent.env — wrapper exports `MICROVM_GITCONFIG` when the host file exists,
@@ -214,17 +306,17 @@ edited as if local, integrated terminals landing in the guest as iosta. Four pie
   sessions (where profile sourcing is shaky) because nix-ld falls back to
   `/run/current-system/sw/share/nix-ld/lib/ld.so` when the var is unset. The bootstrap's download tooling (curl/wget,
   tar) was already in the guest via `shell.bundles.base` / the NixOS base path.
-- **Guest: a persistent `vscode-server.img` volume** mounted at `/home/iosta/.vscode-server`. The guest home is
-  ephemeral tmpfs, so without this every boot re-downloaded the server + remote extensions (tens of MB, ~a minute before
-  the editor connects). Same mechanism/lifecycle/trust tier as the store-overlay volume: lives in the per-instance state
-  dir, survives `sandvm stop`/relaunch, deleted by `sandvm rm`, only ever holds VS Code's own downloads (2G sparse cap).
-  Fresh ext4 mounts root-owned; a root oneshot (`vscode-server-volume-perms`) chowns the mount root to iosta. A tmpfiles
-  `z` rule was tried first and **does not work**: tmpfiles refuses to touch a root-owned path under a user-owned home
-  ("Detected unsafe path transition /home/iosta → /home/iosta/.vscode-server", seen in a live guest's journal) — the
-  refusal triggers on exactly the state the rule exists to fix. The symptom was VS Code dying with "Connecting with SSH
-  timed out" (the bootstrap piped over ssh can't write into `~/.vscode-server`, produces no output VS Code recognises,
-  and the extension just waits out its `remote.SSH.connectTimeout` — now set to 60s in `dev.vscode`, since a
-  first-connect server download over SLIRP can also outlast the 15s default).
+- **Guest: `~/.vscode-server` has to persist.** Without that, every boot re-downloaded the server + remote extensions
+  (tens of MB, ~a minute before the editor connects). It originally had a dedicated `vscode-server.img` volume; since
+  the whole home is a persistent volume (2026-08-22) it just lives there and that volume is gone. Fresh ext4 mounts
+  root-owned, so a root oneshot (`sandvm-home-perms`, formerly `vscode-server-volume-perms`) chowns the mount root to
+  iosta before home-manager activation and sshd start. A tmpfiles `z` rule was tried for the old volume and **does not
+  work**: tmpfiles refuses to touch a root-owned path under a user-owned home ("Detected unsafe path transition
+  /home/iosta → /home/iosta/.vscode-server", seen in a live guest's journal) — the refusal triggers on exactly the state
+  the rule exists to fix. The symptom was VS Code dying with "Connecting with SSH timed out" (the bootstrap piped over
+  ssh can't write into `~/.vscode-server`, produces no output VS Code recognises, and the extension just waits out its
+  `remote.SSH.connectTimeout` — now set to 60s in `dev.vscode`, since a first-connect server download over SLIRP can
+  also outlast the 15s default).
 - **Host: `dev.vscode` changes.** The `ms-vscode-remote.remote-ssh` extension is now declared, and
   `remote.SSH.configFile` was re-pointed from `~/.ssh/sshconfig.local` to `~/.ssh/config`. The old value predated the
   HM-managed ssh config and was the silent killer: VS Code read _only_ that file, which contains no
@@ -275,8 +367,8 @@ mode 2.
 
 Usermode (SLIRP) networking (`microvm.interfaces = [{ type = "user"; ... }]`) — no host tap/bridge setup, and
 reachability is host-only by design (matches "connections from the local machine", not the LAN). SSH is one
-`microvm.forwardPorts` entry (host port assigned by the wrapper, persisted per-instance in
-`~/.local/state/sandvm/<name>/ssh_port`); `--port N` adds more, mapped 1:1.
+`microvm.forwardPorts` entry (host port assigned at `sandvm new` and persisted per-instance in
+`~/.local/state/sandvm/<name>/config`); `--port N` adds more, mapped 1:1.
 
 Inside the guest, eth0 gets DHCP from **systemd-networkd** (`networking.useNetworkd`, in `microvm-guest.nix`) — not
 NetworkManager. `roles.default` used to ship NetworkManager + avahi to every consumer; they moved to `roles.workstation`
@@ -301,10 +393,11 @@ Two lanes, both wired in `microvm-guest.nix`:
 **Local (llama-server, zero config):** qemu's usermode gateway (`10.0.2.2` from the guest) forwards to the host's
 loopback interface, so abhaile's llama-server on `127.0.0.1:8080` (`modules/den/aspects/services/llm.nix`) is reachable
 from inside every sandvm guest at `http://10.0.2.2:8080/v1` with **no change** to llm.nix's bind address. The guest
-seeds `~/.omp/agent/models.yml` at boot (tmpfiles `C` — copy-if-absent into iosta's ephemeral home, so omp can rewrite
-it and a fresh boot resets it) declaring this as omp's `local` provider — keep the model ids/context sizes in sync with
-llm.nix's router presets. Inside a guest: `omp --model local/qwen3.6-35b-a3b` (or `/model` in-session). Verified
-end-to-end 2026-07-13 (omp print-mode round trip through the sandbox to the GPU and back).
+seeds `~/.omp/agent/models.yml` at boot (tmpfiles `C` — copy-if-absent, so omp can rewrite it; note that since the home
+persists, a rewritten one now survives a restart rather than resetting) declaring this as omp's `local` provider — keep
+the model ids/context sizes in sync with llm.nix's router presets. Inside a guest: `omp --model local/qwen3.6-35b-a3b`
+(or `/model` in-session). Verified end-to-end 2026-07-13 (omp print-mode round trip through the sandbox to the GPU and
+back).
 
 Only qwen is declared, deliberately: **omp's own harness overhead (system prompt + tool definitions) measured ~17.1k
 tokens** (omp's `~/.omp/logs`: "Pre-prompt context maintenance … contextTokens: 17120"), which overflows llama-3.1-8b's
@@ -342,36 +435,96 @@ all → no credential → local provider only.
   _can_ spend down your Pro subscription's rate limits/quota. Same trust tier as the local-llama-server reachability
   above, just: mind what you `--auto-approve` in a sandbox with a real subscription behind it.
 
+## UI validation: headless Chromium (2026-08-21)
+
+An agent that writes a web UI has to be able to _look_ at it. `dev.tools.headless-browser` (in `roles.sandbox.devenv`
+and up, so guest-only — df's real hosts get graphical browsers from `apps.bundles.browsers`) puts three entry points in
+the guest, because agents reach for different ones:
+
+- **`headless-chromium <url>`** — a `writeShellScriptBin` wrapper around `pkgs.chromium` with
+  `--headless=new --disable-gpu --disable-dev-shm-usage --no-first-run --no-default-browser-check` already applied, e.g.
+  `headless-chromium --screenshot=/workspace/ui.png --window-size=1280,800 http://127.0.0.1:5173`.
+- **playwright / puppeteer from the project's own `node_modules`** — the aspect exports `PLAYWRIGHT_BROWSERS_PATH`
+  (nixpkgs' patchelf'd browser set), `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD`, `PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS`,
+  `PUPPETEER_SKIP_DOWNLOAD`, `PUPPETEER_EXECUTABLE_PATH`, `CHROME_PATH`, `CHROME_BIN` as home-manager session variables,
+  so those tools find a browser that runs instead of downloading one that can't (a browser fetched by
+  `npx playwright install` is dynamically linked against paths NixOS doesn't have). Verified to reach non-interactive
+  `ssh <guest> <cmd>` sessions, not just interactive logins.
+- **`playwright-mcp`** — the MCP server, so claude-code/omp can drive the browser as a tool rather than by shelling out.
+  Not registered anywhere by default; per project it's
+  `claude mcp add playwright -- playwright-mcp --headless --isolated`.
+
+The browser runs _inside_ the guest, so it reaches the project's dev server on plain `127.0.0.1` — `sandvm --port N` is
+only needed when a human wants to look from the host.
+
+Two supporting decisions:
+
+- **Fonts.** The aspect's `nixos` key sets `fonts.enableDefaultPackages = true`. Without any fonts installed, every
+  headless screenshot renders as tofu boxes and visual validation is worthless. It costs abhaile nothing extra — the
+  same default set is already in its store via `core.desktop.fonts`. Confirmed by screenshot: Latin, CJK and colour
+  emoji all render (185 fonts in `fc-list` in the guest).
+- **Chromium only.** `playwright-driver.browsers` is overridden with `withFirefox = false; withWebkit = false;` — the
+  full set adds ~1G of guest closure for browsers nothing here asks for. Flip them on in the aspect if a project needs
+  cross-browser runs. Even so, the browsers are the bulk of what this aspect costs: the guest's system closure went 6.2
+  GiB → 8.5 GiB (playwright's chromium 804 MiB + headless-shell 261 MiB, plus `pkgs.chromium` and its desktop-library
+  deps — most of which abhaile's store already had for df's own browsers).
+
+Gotchas:
+
+- **Version coupling.** `PLAYWRIGHT_BROWSERS_PATH` is a linkFarm of browser _revisions_ pinned by the nixpkgs driver
+  version (`chromium-1228` for playwright 1.61.1). A project pinning a different npm `playwright` will look for a
+  revision that isn't in it and fail. Pin the project to the guest's version (`playwright --version`), or let that
+  project fetch its own browsers inside a devenv/FHS environment.
+- Chromium's namespace sandbox works in the guest as-is — `--no-sandbox` is **not** needed and shouldn't be added
+  reflexively.
+
+Verified end-to-end on 2026-08-21 by booting a sandbox on a scratch project: `headless-chromium` and
+`playwright screenshot` both captured correct PNGs of a `file://` page and of one served over `busybox httpd` on
+`127.0.0.1:8080`, and `playwright-mcp` starts.
+
 ## Known quirks
 
 - (Historical, fixed 2026-07-13: when the guest ran df's full HM identity via `roles.dev`, it also inherited the
-  `sandvm` binary itself and a spare `omp auth-broker serve` per boot. The iosta/`roles.dev-sandbox` guest identity
+  `sandvm` binary itself and a spare `omp auth-broker serve` per boot. The iosta/`roles.sandbox.*` guest identity
   includes neither.)
-- `nix run`/`nix build .#sandvm-guest` needs `--impure` and `MICROVM_WORKDIR` set in the environment first (the `sandvm`
-  wrapper always does both; don't invoke the flake output directly except for debugging). Without it, the guest module
-  falls back to sharing `/var/empty` as `/workspace` and prints a `lib.warn` rather than hard-failing — a hard assertion
-  here would break `nix flake check` for everyone, always, since flake check evaluates
+- **`sandvm ssh` failing with `Permission denied (publickey)` almost always means the host ssh-agent is empty**, not
+  that the guest is broken. The guest authorizes df's public key and nothing else, and by design no private key exists
+  guest-side; `ssh-add -l` on the host is the first thing to check (the CLI prints it when a wait times out).
+- `nix build .#sandvm-guest-<type>` needs `--impure` and `MICROVM_WORKDIR` set in the environment first (the `sandvm`
+  CLI always does both; don't invoke the flake output directly except for debugging). Without it, the guest module falls
+  back to sharing `/var/empty` as `/workspace` and prints a `lib.warn` rather than hard-failing — a hard assertion here
+  would break `nix flake check` for everyone, always, since flake check evaluates
   `nixosConfigurations.*.config.system.build.toplevel` purely (no `--impure`).
 - A crashed/interrupted launch can orphan the `virtiofsd` process for that instance — systemd's cgroup teardown doesn't
   reliably reap a backgrounded child when the unit's main process (qemu) exits/errors on its own rather than being
   stopped via `sandvm stop`. The orphan holds `virtiofsd`'s pid-file lock, so every subsequent relaunch fails
-  immediately with "Resource temporarily unavailable" until it's cleared. `sandvm` now defensively `pkill`s any matching
-  stale `virtiofsd` and removes its lock file before each launch.
+  immediately with "Resource temporarily unavailable" until it's cleared. `sandvm` defensively `pkill`s any matching
+  stale `virtiofsd` and removes its lock file before each launch. Note the socket path it matches on is **absolute**:
+  now that every guest's hostname is the static string `sandbox`, microvm.nix names every instance's virtiofs socket
+  identically, and a relative pattern would match siblings.
 - The transient unit is launched with `systemd-run --collect`, so a nonzero exit (a crash) auto-unloads it instead of
   sitting "failed" — without that, relaunching the same `<name>` would hit "Unit … was already loaded or has a fragment
   file" until a manual `systemctl --user reset-failed`.
 - `sandvm` is home-manager-installed, so changes to `pkgs/by-name/sandvm/package.nix` don't reach `$PATH` until the next
   `nixos-rebuild switch`/`test` — a plain `git commit`/`nix build` isn't enough. Easy to forget and then debug a "fix"
   that was never actually deployed.
-- The console (`sandvm`'s own foreground output — `ssh`'s fallback if SSH itself is broken) logs in as `iosta` /
+- The console (`sandvm -f`'s own foreground output — `ssh`'s fallback if SSH itself is broken) logs in as `iosta` /
   password `iosta`. Autologin was tried first and rejected (silently dropping into a shell on every launch); a throwaway
   typeable password — same pattern as `virtualisation/vm-login.nix`'s debug VM — was the alternative. The console
   deliberately does _not_ auto-start herdr (the autostart is gated on `SSH_TTY`), so it stays usable for debugging.
-- `sandvm list`'s NAME column shows the `sandvm-<name>` form — that's the literal SSH `Host` alias (`ssh sandvm-<name>`
-  works; the bare name without the prefix does not, since no `Host` entry matches it).
+- `sandvm list`'s NAME column shows the **bare** instance name; the SSH alias is that name with a `sandvm-` prefix.
+  Every subcommand accepts either form.
+- State dirs created before the four-type rework have no `config` file and list as type `legacy`; they are not startable
+  (the volume layout and guest hosts changed underneath them). `sandvm rm <name>` each of them.
+- The old `name_for` piped `basename` through `tr -c 'a-zA-Z0-9' '-'`, which turned the trailing newline into a second
+  dash — hence the `myproject--a1b2c3d4` names in old state dirs. Fixed (`tr -d '\n'` first), which is part of why old
+  instances don't carry over.
 
 ## Not built yet (tracked in TODO.md)
 
 - LAN-wide (non-loopback) exposure of guest-hosted services (would need tap+bridge networking instead of usermode).
 - Network egress allowlisting inside the guest (smolvm has a good pattern for this: default-deny + an explicit
   allowed-hosts list).
+- Replacing the read-write `hostkey` 9p share with a `microvm.credentialFiles` entry — removes a virtio device and
+  closes "guest root can read/corrupt the SSH host key shared by all instances" (in-guest root is trivially reachable:
+  iosta is in wheel with password `iosta`).

@@ -177,23 +177,21 @@ Aspects defined but included by no host/role/user (inert, several carry stale le
 **intentional for now** (df 2026-07-14: will game on abhaile eventually, not yet — re-add a gaming include and the
 `steam-config-nix` input then). The rest: delete or wire when their host materialises.
 
-### 13. sandvm follow-ups (from 2026-07-14 repo review; the lightweighting half is done)
+### 13. sandvm follow-ups
 
-Still open, independent items:
+Items 1 (runner reuse) and 3 (instance-name double dash) were closed by the 2026-08-22 rework — see Done. Still open:
 
-1. **Reuse the built runner on relaunch**: every `sandvm` launch pays a full impure NixOS eval (`nix build --impure`,
-   tens of seconds) even when nothing changed. Cache the runner store path in the instance state dir keyed on (flake git
-   rev + dirty-tree hash + cpu/mem/ports env tuple); reuse on match, `--fresh` flag to force.
-2. **Replace the rw `hostkey` 9p share with a `microvm.credentialFiles` entry** (same fw_cfg mechanism as AGENT_ENV):
-   guest oneshot installs it for sshd. Removes a whole virtio device and closes "guest root can read/corrupt the SSH
-   host key shared by all instances" (share is currently rw; in-guest root is trivially reachable — iosta is wheel with
-   password `iosta`).
-3. **Instance-name double dash**: `name_for` in `pkgs/by-name/sandvm/package.nix` pipes `basename` through
-   `tr -c 'a-zA-Z0-9' '-'`, which converts the trailing newline to `-` → names render `myproject--4a8bb99e`, not the
-   single-dash form the docs/banner show. Fix: `tr -d '\n' | tr -c ...` or trim in bash. **Caveat**: fixing this changes
-   every existing instance's identity (state dir, ssh alias, unit name) — old state dirs become orphans
-   (`sandvm rm <old-name>` them) and any still-running old-name sandbox must be stopped via
-   `systemctl --user stop sandvm-<old-name>`. Do it deliberately, not as a drive-by.
+1. **Replace the rw `hostkey` 9p share with a `microvm.credentialFiles` entry** (same fw_cfg mechanism as AGENT_ENV /
+   CLAUDE_CREDS): a guest oneshot installs it for sshd. Removes a whole virtio device and closes "guest root can
+   read/corrupt the SSH host key shared by all instances" (the share is currently rw, and in-guest root is trivially
+   reachable — iosta is wheel with password `iosta`).
+2. **Retire the legacy state dirs.** `sandvm list` shows `-dotfiles--608a3d81`, `lsit--1eb9652b`, `main--e57b201a`,
+   `mono--18915ff1`, `ynab--e8009d75` as type `legacy` — pre-rework layouts that can't be started (different volume set,
+   different guest hosts). `mono--18915ff1` is ~9.9 G and `main--e57b201a` ~1.1 G on disk. `sandvm rm <name>` each once
+   df confirms nothing in them is wanted; `docs/obsidian.md`'s vault agent must then be recreated
+   (`sandvm ~/vaults/main`, which now creates a `devenv` sandbox with a persistent home).
+3. **Per-type default sizing.** All four types currently share `--cpu 4 --mem 32768 --disk 32768 --home-disk 16384`. A
+   `minimal` sandbox almost certainly wants less; worth measuring actual use before picking numbers.
 4. (Context, decided) Not worth switching hypervisor: qemu is load-bearing (SLIRP user networking + virtiofs + fw_cfg
    credentials — firecracker has no virtiofs, cloud-hypervisor no SLIRP), and `microvm.qemu.machine` already defaults to
    the slim `microvm` machine type on x86_64.
@@ -246,6 +244,35 @@ order:
    `vault-main`; `apps.obsidian` is already portable (registers the vault via the HM module's darwin paths).
 
 ## Done
+
+- 2026-08-22 — **sandvm rework: four types, real lifecycle, shared closures** (closed items 13.1 and 13.3). Full
+  writeup: `docs/microvm-sandbox.md`. What changed:
+  - **Four guest types** (`modules/den/roles/sandbox.nix`, nesting tiers `minimal` ⊂ `generic` ⊂ `devenv` ⊂
+    `workstation`; closures 3.0 / 6.8 / 9.2 / 9.7 GiB), one Den host each (`modules/den/hosts/sandvm.nix`), each
+    emitting `packages.sandvm-guest-<type>`. `roles/dev-sandbox.nix` is gone; `users/iosta.nix` is now tier-independent
+    and the tier is attached per host — both to the host (for `nixos` keys) and to `users.iosta` (for `homeManager`
+    keys). **Den gotcha found doing this**: entities take a single `aspect` _value_; a free-form `includes` on
+    `den.hosts.<sys>.<name>` is silently ignored (it evaluated fine and produced four identical toplevels).
+  - **CLI**: `sandvm new|start|stop|rm|ssh|list|resize`, named instances with an optional `--workspace` folder, `--ssh`
+    to boot-and-attach, `--type`, `--disk`/`--home-disk`, per-instance `config` file so `start` remembers a sandbox's
+    shape. `sandvm <path>` still works (the `vault-agent` abbr).
+  - **Instance-independent system closure**: every per-launch value now only touches runner-side `microvm.*` options,
+    verified by evaluating `system.build.toplevel.drvPath` under two different env tuples and getting the same path. The
+    enabler was making `networking.hostName` the static string `sandbox` and delivering the real name as a boot
+    credential. Combined with a fingerprint-keyed runner cache (`runner.key`, `--out-link` doubling as a GC root),
+    relaunch went **~11 s → ~2.6 s** and no longer rebuilds a NixOS generation per instance.
+  - **Persistent `/home/iosta` volume** (df's call) replacing the tmpfs home + the separate `vscode-server.img`; tool
+    installs, shell history and agent state survive stop→start.
+  - **Disks grow**: sparse images (a fresh 4 G + 2 G pair occupies ~134 MiB), `sandvm resize` truncates + issues a QMP
+    `block_resize` to a live qemu, and the guest's `sandvm-grow-fs` unit + 2-minute timer stretches the filesystem — no
+    host→guest signalling needed. Verified live via `query-block`.
+  - **Host binary cache**: `services.harmonia.cache` on `127.0.0.1:5000` (`virtualisation/microvm-host.nix`), guests
+    substitute from `http://10.0.2.2:5000` unsigned with `require-sigs = false` — they already mount that store
+    read-only, so it grants nothing new and needs no signing key.
+  - **claude-code credentials** (df's call): `~/.claude/.credentials.json` copied in per launch over fw_cfg, so
+    sandboxes are zero-touch. Trade-off documented in the "what's deliberately NOT shared" section.
+  - Sessions now land in `/workspace` (fish `loginShellInit`, before herdr's autostart).
+  - Pre-rework state dirs list as type `legacy` and are not startable — item 13.2.
 
 - 2026-07-14 — **`roles.default` split** (was item 11): `core.network.manager` + `core.network.avahi` moved to
   `roles.workstation` (df-approved); the sandvm guest now runs systemd-networkd DHCP (`networking.useNetworkd` +

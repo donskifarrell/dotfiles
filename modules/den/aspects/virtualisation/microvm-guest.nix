@@ -1,12 +1,17 @@
-# Guest-side shape of a `sandvm` sandbox — see modules/den/hosts/sandvm.nix
-# for the host that carries this aspect, and docs/microvm-sandbox.md for the
-# full picture (why 9p not virtiofs, why the SSH host key is shared not
-# generated per-boot, what's deliberately NOT shared into the guest).
+# Guest-side shape of a `sandvm` sandbox — see modules/den/hosts/sandvm.nix for
+# the four hosts that carry this aspect (one per sandbox type) and
+# docs/microvm-sandbox.md for the full picture (why virtiofs for /workspace,
+# why the SSH host key is shared not generated per-boot, what's deliberately
+# NOT shared).
 #
-# Only the three scalars below are runtime-parameterized (via env vars the
-# `sandvm` wrapper script sets before `nix run --impure`), read with
-# `builtins.getEnv` — that's the one bit of impurity this whole feature
-# needs; everything else here is ordinary static Nix.
+# Everything read impurely below (`builtins.getEnv`, set by the `sandvm` CLI)
+# is deliberately confined to options that only affect the *runner script* —
+# qemu's command line — never `system.build.toplevel`. That's what lets every
+# instance of a type share one already-built system closure: relaunching with
+# a different workdir/port/cpu/mem rebuilds a ~2 kB shell script, not a NixOS
+# generation. Anything genuinely per-instance that the *guest* needs to know
+# (its name, its credentials) arrives at boot as a systemd credential over
+# fw_cfg instead, which costs no eval at all.
 { inputs, lib, ... }:
 let
   getEnvOr =
@@ -28,31 +33,46 @@ let
       lib.warn "MICROVM_WORKDIR unset — sharing /var/empty as /workspace. Launch via the `sandvm` command (pkgs/by-name/sandvm), not `nix run`/`nix build` directly." "/var/empty"
     else
       workdirRaw;
-  vmName = getEnvOr "MICROVM_NAME" "sandvm";
+
   sshPort = lib.toIntBase10 (getEnvOr "MICROVM_SSH_PORT" "2222");
   vcpu = lib.toIntBase10 (getEnvOr "MICROVM_CPU" "4");
   mem = lib.toIntBase10 (getEnvOr "MICROVM_MEM" "32768");
+
+  # Volume sizes (MiB). Both images are sparse files that only cost host disk
+  # as the guest actually writes into them, and both are grown in place by
+  # `sandvm resize` (truncate + QMP block_resize + the boot-time grow-fs unit
+  # below), so these are generous ceilings rather than reservations.
+  diskMib = lib.toIntBase10 (getEnvOr "MICROVM_DISK" "32768");
+  homeMib = lib.toIntBase10 (getEnvOr "MICROVM_HOME_DISK" "16384");
+
   extraPorts =
     let
       raw = builtins.getEnv "MICROVM_PORTS";
     in
     map lib.toIntBase10 (lib.filter (s: s != "") (lib.splitString "," raw));
 
-  # Host path of an optional KEY=value env file with cloud LLM API keys
-  # (~/.config/sandvm/agent.env — the wrapper only sets this when the file
-  # exists). Kept as a *string*: microvm.credentialFiles embeds the path in
-  # the runner script and qemu reads the contents at VM start via fw_cfg, so
-  # the key material never enters the world-readable /nix/store. (A Nix
-  # *path literal* here would defeat the whole point by copying the file to
-  # the store at eval time.)
-  agentEnvFile = builtins.getEnv "MICROVM_AGENT_ENV";
-
-  # Host path of df's ~/.config/git/gitconfig.local (sops secret:
-  # user.name/user.email + the includeIf org identities) — same
-  # string-not-path-literal reasoning as agentEnvFile above. The wrapper only
-  # sets this when the file exists and is readable.
-  gitconfigFile = builtins.getEnv "MICROVM_GITCONFIG";
-
+  # Host paths of per-launch credential files. Kept as *strings*, never Nix
+  # path literals: microvm.credentialFiles embeds the path in the runner
+  # script and qemu reads the contents at VM start via fw_cfg, so the material
+  # never enters the world-readable /nix/store. (A path literal would defeat
+  # the whole point by copying the file into the store at eval time.) The CLI
+  # only sets each var when the corresponding host file exists.
+  credentialEnv = {
+    # ~/.config/sandvm/agent.env + the omp auth-broker token: KEY=value lines
+    # exported into every guest shell.
+    AGENT_ENV = builtins.getEnv "MICROVM_AGENT_ENV";
+    # df's ~/.config/git/gitconfig.local (a sops secret on the host):
+    # user.name/user.email, no key material.
+    GITCONFIG_LOCAL = builtins.getEnv "MICROVM_GITCONFIG";
+    # df's live claude-code OAuth credential, refreshed into the guest on
+    # every launch so a sandbox never has to run `claude login` of its own.
+    CLAUDE_CREDS = builtins.getEnv "MICROVM_CLAUDE_CREDS";
+    # A file holding the instance name — the one genuinely per-instance
+    # *guest-visible* fact. Delivered as a credential rather than baked into
+    # networking.hostName so the system closure stays identical across
+    # instances. (credentialFiles values are paths, never inline values.)
+    INSTANCE = builtins.getEnv "MICROVM_INSTANCE_FILE";
+  };
 in
 {
   den.aspects.virtualization.microvm-guest.nixos =
@@ -60,25 +80,20 @@ in
     {
       imports = [ inputs.microvm.nixosModules.microvm ];
 
-      # (The agent harness — omp — and claude-code come to iosta via
-      # apps.ai-tools in roles.dev-sandbox, the same aspect that installs
-      # them for df on real hosts. A duplicate guest-only systemPackages omp
-      # lived here until 2026-07-14.)
-
       # Guest networking: systemd-networkd DHCP on the SLIRP interface.
       # roles.default no longer ships NetworkManager/avahi (2026-07-14) — a
       # desktop network daemon was the single biggest guest boot-time/RAM
-      # cost, and mDNS behind SLIRP reaches nothing. useNetworkd +
-      # useDHCP(default true) generates networkd's ethernet-default-dhcp
-      # network for eth0; anyInterface lets network-online.target (the
-      # workspace-init gate) fire as soon as that one link is up.
+      # cost, and mDNS behind SLIRP reaches nothing.
       networking.useNetworkd = true;
       systemd.network.wait-online.anyInterface = true;
 
-      # Den sets networking.hostName from the static Den host name ("sandvm")
-      # — mkForce so the per-launch instance name (e.g. the project's own
-      # name) wins instead.
-      networking.hostName = lib.mkForce vmName;
+      # Static, deliberately: Den would derive this from the Den host name
+      # ("sandvm-devenv", …) and the previous design forced it to the
+      # per-launch instance name — which put the instance name inside
+      # /etc and so gave every sandbox its own system closure. The real
+      # hostname is set at boot from the INSTANCE credential by
+      # sandvm-hostname.service below.
+      networking.hostName = lib.mkForce "sandbox";
 
       microvm = {
         inherit vcpu mem;
@@ -88,14 +103,10 @@ in
         # pages the guest touches cost host memory), and microvm.nix's qemu
         # runner wires this balloon with free-page-reporting=on — freed guest
         # pages are returned to the host automatically, no QMP babysitting.
-        # So the 32G default `mem` is a cap, not a reservation. deflate-on-oom
-        # is on by default. (Fixed per-guest cost remains: the guest kernel's
-        # struct page array, ~1.5% of `mem`, ~500M at 32G.)
         balloon = true;
 
         # Usermode (SLIRP) networking: no host tap/bridge setup, host-only
-        # reachability by design (matches "connections from the local
-        # machine", not the LAN — see docs/microvm-sandbox.md).
+        # reachability by design (see docs/microvm-sandbox.md).
         interfaces = [
           {
             type = "user";
@@ -119,15 +130,11 @@ in
 
         # ro-store/hostkey stay 9p (built into qemu, no companion process,
         # and read-mostly so 9p's ownership quirks don't matter). workspace
-        # is virtiofs: qemu's 9p "none"/"mapped" security models squash
-        # pre-existing files' ownership to root as seen by the guest (they
-        # only work for files the guest itself creates through the share, not
-        # ones already on disk) since qemu runs unprivileged here — tried
-        # both, neither let df write into an already-populated project dir.
-        # virtiofsd passes through real host uid/gid directly, which just
-        # works since the guest's df is uid 1000, matching the host. Costs a
-        # companion `bin/virtiofsd-run` process (see the `sandvm` wrapper) —
-        # see docs/microvm-sandbox.md for the full story.
+        # is virtiofs: qemu's 9p security models squash pre-existing files'
+        # ownership to root as seen by the guest since qemu runs unprivileged
+        # here, so df could not write into an already-populated project dir.
+        # virtiofsd passes through real host uid/gid, which works because the
+        # guest's iosta is uid 1000, matching the host.
         shares = [
           {
             tag = "ro-store";
@@ -147,58 +154,59 @@ in
           }
         ];
 
-        # Host's /nix/store is shared read-only (above) — without this, the
-        # guest's entire /nix/store is read-only and nix-daemon auto-disables
-        # (it "works only with a writable /nix/store", per microvm.nix), which
-        # breaks home-manager activation *and* the actual point of having
-        # devenv.sh in the guest: installing a project's own dependencies at
-        # runtime. This overlay is what makes that possible. It's an
-        # auto-created disk image, not a share, per microvm.nix's own
-        # constraint (overlayfs can't use 9p/virtiofs as an upper layer) — the
-        # `sandvm` wrapper runs qemu with its CWD set to the per-instance
-        # state dir, so the relative path below lands there, not in the
-        # project folder.
+        # Host's /nix/store is shared read-only (above) — without a writable
+        # overlay the guest's whole store is read-only and nix-daemon
+        # auto-disables, which breaks home-manager activation *and* the point
+        # of the generic/devenv tiers: installing a project's (or an agent's)
+        # own dependencies at runtime. overlayfs can't use 9p/virtiofs as an
+        # upper layer, so it has to be a disk image.
         writableStoreOverlay = "/nix/.rw-store";
         volumes = [
           {
             image = "nix-store-overlay.img";
             mountPoint = "/nix/.rw-store";
-            size = 8192;
+            size = diskMib;
           }
-          # ~/.vscode-server (the Remote-SSH server + its remote extensions)
-          # would otherwise land in the ephemeral tmpfs home and be
-          # re-downloaded on every boot — persist it per-instance, same
-          # lifecycle/trust tier as the store overlay above (only ever holds
-          # VS Code's own downloads; image is sparse, so 2G is a cap not a
-          # cost). Fresh ext4 mounts root-owned — the
-          # `vscode-server-volume-perms` oneshot below hands it to iosta.
+          # Persistent /home. This is what makes "a box the agent installs its
+          # own tools into" actually stick: `nix profile install`, npm/pip
+          # --user, shell history, claude-code's own state and ~/.vscode-server
+          # all survive stop→start, and `sandvm rm` is what throws them away.
+          # (Until 2026-08-22 the home was tmpfs and only ~/.vscode-server had
+          # a volume of its own.)
           {
-            image = "vscode-server.img";
-            mountPoint = "/home/iosta/.vscode-server";
-            size = 2048;
+            image = "home.img";
+            mountPoint = "/home/iosta";
+            size = homeMib;
           }
         ];
 
-        # Cloud LLM API keys (optional): qemu reads the host file at VM start
-        # and hands it to the guest's systemd as a system credential over
-        # fw_cfg — contents never touch the /nix/store on either side. See
-        # `sandvm-agent-env.service` below for the guest-side consumption.
-        credentialFiles =
-          lib.optionalAttrs (agentEnvFile != "") {
-            AGENT_ENV = agentEnvFile;
-          }
-          // lib.optionalAttrs (gitconfigFile != "") {
-            GITCONFIG_LOCAL = gitconfigFile;
-          };
+        credentialFiles = lib.filterAttrs (_: v: v != "") credentialEnv;
       };
 
       # roles.default's core.nix sets this repo-wide for disk savings; it's
       # asserted incompatible with microvm.writableStoreOverlay above.
       nix.settings.auto-optimise-store = lib.mkForce false;
 
+      # Build/fetch from the *host's* store before reaching for the internet.
+      # abhaile serves its own store over harmonia on loopback
+      # (virtualisation.microvm-host), which SLIRP exposes to the guest at
+      # 10.0.2.2 — so anything the host has already built or downloaded is a
+      # LAN-speed copy instead of a rebuild or a cache.nixos.org fetch. The
+      # guest already mounts that same store read-only, so this grants it
+      # nothing it couldn't already read; unsigned is therefore fine, and
+      # avoids having to manage a signing key on the host just to talk to
+      # ourselves.
+      nix.settings = {
+        substituters = lib.mkBefore [ "http://10.0.2.2:5000" ];
+        require-sigs = false;
+        # Never let a stopped host cache stall a guest build.
+        connect-timeout = lib.mkForce 3;
+        fallback = true;
+      };
+
       # `core.network.openssh` (via roles.default) already enables sshd with
-      # publickey-only auth, no root password login, agent forwarding on —
-      # exactly what's wanted here. Only `hostKeys` is guest-specific.
+      # publickey-only auth, no root password login, agent forwarding on.
+      # Only `hostKeys` is guest-specific.
       services.openssh.hostKeys = [
         {
           path = "/etc/sandvm-hostkey/ssh_host_ed25519_key";
@@ -206,93 +214,105 @@ in
         }
       ];
 
-      # VSCode Remote-SSH (`code --remote ssh-remote+sandvm-<name> /workspace`,
-      # the hint the wrapper prints): the extension downloads a prebuilt server
-      # into ~/.vscode-server whose node binary is dynamically linked against
-      # /lib64/ld-linux-x86-64.so.2 — absent on NixOS, so it dies on launch
-      # without this. nix-ld provides that loader path; no NIX_LD env plumbing
-      # is needed for it to reach sshd exec sessions — nix-ld falls back to
+      # VSCode Remote-SSH (`code --remote ssh-remote+sandvm-<name> /workspace`):
+      # the extension downloads a prebuilt server whose node binary is
+      # dynamically linked against /lib64/ld-linux-x86-64.so.2 — absent on
+      # NixOS, so it dies on launch without this. nix-ld provides that loader;
+      # no NIX_LD plumbing needed, it falls back to
       # /run/current-system/sw/share/nix-ld/lib/ld.so when the var is unset.
       programs.nix-ld.enable = true;
 
-      # The vscode-server volume's mount root: freshly-created ext4 is
-      # root-owned, and iosta must be able to write into it or the Remote-SSH
-      # bootstrap fails silently (VS Code just reports "Connecting with SSH
-      # timed out"). NOT a tmpfiles `z` rule: tmpfiles refuses to touch a
-      # root-owned path under a user-owned home ("Detected unsafe path
-      # transition /home/iosta → /home/iosta/.vscode-server", observed in a
-      # live guest) — the refusal triggers on exactly the state this needs to
-      # fix. Default unit deps already order this after local-fs.target, i.e.
-      # after the mount.
-      systemd.services.vscode-server-volume-perms = {
-        wantedBy = [ "multi-user.target" ];
-        serviceConfig = {
-          Type = "oneshot";
-          RemainAfterExit = true;
-        };
-        script = ''
-          chown iosta:users /home/iosta/.vscode-server
-        '';
-      };
-
-      # (iosta's authorized key — df's public key — comes with the iosta user
-      # aspect itself, modules/den/users/iosta.nix.)
-
-      # Console fallback: iosta/root have no password set (deliberately — SSH
-      # pubkey is the intended path in), which meant a broken SSH connection
-      # left the console login prompt with no usable credentials at all. A
-      # typeable throwaway password instead of autologin (which was tried and
-      # rejected — an auto-dropped-into shell on every launch was unwanted) —
-      # same "throwaway creds" pattern as virtualisation/vm-login.nix's debug
-      # VM. Not a security regression: the console is qemu's own stdout, only
-      # ever reachable by whoever can already read the `sandvm`-launching
-      # systemd-run unit (df on the host) — the same principal SSH already
-      # trusts. (herdr auto-start deliberately skips the console: it only
-      # fires on SSH_TTY, so this fallback stays a plain fish shell.)
+      # Console fallback: SSH pubkey is the intended way in, but a broken SSH
+      # connection would otherwise leave the console login prompt with no
+      # usable credentials. Not a security regression — the console is qemu's
+      # own stdout, only reachable by whoever can already read the
+      # `sandvm`-launching systemd-run unit.
       users.users.iosta.initialPassword = "iosta";
 
-      # Dependency pre-install: if the mounted project declares its toolchain
-      # (devenv.nix or flake.nix), build it once at boot so the environment is
-      # already in the guest's (persistent) store overlay before anyone
-      # ssh'es in — and a relaunch after `sandvm stop` is a warm cache. Runs
-      # as iosta (same uid as the host-side project owner; devenv writes its
-      # .devenv/ state into /workspace). Failures are logged, never fatal — a
-      # broken flake must not stop the sandbox from booting.
-      systemd.services.sandvm-workspace-init = {
-        description = "Pre-install /workspace project dependencies (devenv/flake)";
+      # --- per-instance boot wiring ----------------------------------------
+
+      # The instance's real name, from the fw_cfg credential (see the comment
+      # on networking.hostName above).
+      systemd.services.sandvm-hostname = {
+        description = "Set the hostname from the launch-time INSTANCE credential";
         wantedBy = [ "multi-user.target" ];
-        wants = [ "network-online.target" ];
-        after = [ "network-online.target" ];
-        unitConfig.ConditionPathIsDirectory = "/workspace";
-        path = [
-          pkgs.devenv
-          pkgs.git
-          pkgs.nix
-        ];
+        before = [ "sshd.service" ];
         serviceConfig = {
           Type = "oneshot";
           RemainAfterExit = true;
-          User = "iosta";
-          Group = "users";
-          WorkingDirectory = "/workspace";
+          ImportCredential = "INSTANCE";
         };
         script = ''
-          if [ -f devenv.nix ]; then
-            echo "devenv.nix found - building the devenv environment"
-            devenv shell true || echo "devenv setup failed (non-fatal)"
-          elif [ -f flake.nix ]; then
-            echo "flake.nix found - building the flake devShell"
-            nix develop --command true || echo "devShell setup failed (non-fatal)"
+          if [ -s "$CREDENTIALS_DIRECTORY/INSTANCE" ]; then
+            ${pkgs.nettools}/bin/hostname "$(cat "$CREDENTIALS_DIRECTORY/INSTANCE")"
           fi
         '';
       };
 
-      # --- LLM access for the agent harness (omp) ---
+      # Fresh ext4 mounts root-owned, and iosta must own its own home before
+      # home-manager activation or the Remote-SSH bootstrap runs. NOT a
+      # tmpfiles `z` rule: tmpfiles refuses to touch a root-owned path under a
+      # user-owned home ("Detected unsafe path transition"), which is exactly
+      # the state this exists to fix. Default unit deps already order it after
+      # local-fs.target, i.e. after the mount.
+      systemd.services.sandvm-home-perms = {
+        description = "Hand the persistent /home/iosta volume to iosta";
+        wantedBy = [ "multi-user.target" ];
+        before = [
+          "home-manager-iosta.service"
+          "sshd.service"
+        ];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+        };
+        script = ''
+          chown iosta:users /home/iosta
+          chmod 0700 /home/iosta
+        '';
+      };
 
-      # Cloud keys: install the AGENT_ENV system credential (if the launch
-      # passed one — see microvm.credentialFiles above) where iosta's shells
-      # can read it. /run is tmpfs, so like everything else in the guest it
-      # evaporates on stop.
+      # "Expand in size as needed": `sandvm resize` grows the backing image on
+      # the host and, for a running guest, the virtio-blk device via QMP. This
+      # stretches the filesystem onto whatever space the device now has.
+      # Online resize2fs on a mounted ext4 is a fast no-op when the fs already
+      # fills its device, which is what lets this run both at boot (picking up
+      # a resize done while stopped) and on a timer (picking up a live one)
+      # without any host->guest signalling channel.
+      systemd.services.sandvm-grow-fs = {
+        description = "Grow the sandbox filesystems to fill their (possibly resized) volumes";
+        wantedBy = [ "multi-user.target" ];
+        before = [
+          "home-manager-iosta.service"
+          "nix-daemon.service"
+        ];
+        after = [ "local-fs.target" ];
+        path = [
+          pkgs.e2fsprogs
+          pkgs.util-linux
+        ];
+        # Not RemainAfterExit: the timer below has to be able to run it again.
+        serviceConfig.Type = "oneshot";
+        script = ''
+          for mp in /nix/.rw-store /home/iosta; do
+            dev=$(findmnt -no SOURCE "$mp" || true)
+            [ -b "$dev" ] || continue
+            # Quiet: the overwhelmingly common outcome is "nothing to do".
+            resize2fs "$dev" >/dev/null 2>&1 || true
+          done
+        '';
+      };
+
+      systemd.timers.sandvm-grow-fs = {
+        wantedBy = [ "timers.target" ];
+        timerConfig = {
+          OnBootSec = "2min";
+          OnUnitActiveSec = "2min";
+        };
+      };
+
+      # Cloud LLM keys: install the AGENT_ENV credential where iosta's shells
+      # can read it. /run is tmpfs, so it evaporates on stop.
       systemd.services.sandvm-agent-env = {
         wantedBy = [ "multi-user.target" ];
         serviceConfig = {
@@ -308,18 +328,14 @@ in
         '';
       };
 
-      # Git identity: install the GITCONFIG_LOCAL credential (df's
-      # gitconfig.local — user.name/user.email + includeIf lines) exactly
-      # where dev.git's `include.path = ~/.config/git/gitconfig.local`
-      # already looks. Without it, commits in the guest fail with "Author
-      # identity unknown" — iosta's ephemeral home has no identity of its
-      # own. The includeIf targets it references (gitconfig.pgstar, …) stay
-      # absent in the guest and git silently skips missing includes, so only
-      # the default identity applies. The parent dirs come from the tmpfiles
-      # rules below (same pattern as .omp), which run before multi-user
-      # services.
+      # Git identity: install the GITCONFIG_LOCAL credential exactly where
+      # dev.git's `include.path = ~/.config/git/gitconfig.local` already looks.
+      # Without it, commits in the guest fail with "Author identity unknown".
+      # Name/email only — the includeIf org targets it references stay absent
+      # and git silently skips missing includes.
       systemd.services.sandvm-gitconfig = {
         wantedBy = [ "multi-user.target" ];
+        after = [ "sandvm-home-perms.service" ];
         serviceConfig = {
           Type = "oneshot";
           RemainAfterExit = true;
@@ -327,6 +343,8 @@ in
         };
         script = ''
           if [ -f "$CREDENTIALS_DIRECTORY/GITCONFIG_LOCAL" ]; then
+            install -d -m 0755 -o iosta -g users /home/iosta/.config
+            install -d -m 0700 -o iosta -g users /home/iosta/.config/git
             install -m 0600 -o iosta -g users \
               "$CREDENTIALS_DIRECTORY/GITCONFIG_LOCAL" \
               /home/iosta/.config/git/gitconfig.local
@@ -334,14 +352,83 @@ in
         '';
       };
 
+      # claude-code's own OAuth credential, copied from the host on every
+      # launch (df's decision, 2026-08-22: zero-touch beats one `claude login`
+      # per instance). It is refreshed each launch rather than left to age in
+      # the persistent home, so a sandbox that has been stopped for a week
+      # still starts with a live token. This *is* a real credential inside the
+      # sandbox — see docs/microvm-sandbox.md, "What's deliberately NOT
+      # shared", for why that trade was accepted and what it exposes.
+      systemd.services.sandvm-claude-creds = {
+        wantedBy = [ "multi-user.target" ];
+        after = [ "sandvm-home-perms.service" ];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+          ImportCredential = "CLAUDE_CREDS";
+        };
+        script = ''
+          if [ -f "$CREDENTIALS_DIRECTORY/CLAUDE_CREDS" ]; then
+            install -d -m 0700 -o iosta -g users /home/iosta/.claude
+            install -m 0600 -o iosta -g users \
+              "$CREDENTIALS_DIRECTORY/CLAUDE_CREDS" \
+              /home/iosta/.claude/.credentials.json
+          fi
+        '';
+      };
+
+      # Dependency pre-install (devenv/workstation tiers care most, but it is
+      # harmless everywhere): if the mounted project declares its toolchain,
+      # build it once at boot so the environment is already in the guest's
+      # persistent store overlay before anyone attaches. Failures are logged,
+      # never fatal — a broken flake must not stop the sandbox from booting.
+      systemd.services.sandvm-workspace-init = {
+        description = "Pre-install /workspace project dependencies (devenv/flake)";
+        wantedBy = [ "multi-user.target" ];
+        wants = [ "network-online.target" ];
+        after = [
+          "network-online.target"
+          "sandvm-grow-fs.service"
+        ];
+        unitConfig.ConditionPathIsDirectory = "/workspace";
+        path = [
+          pkgs.devenv
+          pkgs.git
+          pkgs.nix
+        ];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+          User = "iosta";
+          Group = "users";
+          WorkingDirectory = "/workspace";
+        };
+        script = ''
+          if [ -f devenv.nix ] && command -v devenv >/dev/null; then
+            echo "devenv.nix found - building the devenv environment"
+            devenv shell true || echo "devenv setup failed (non-fatal)"
+          elif [ -f flake.nix ]; then
+            echo "flake.nix found - building the flake devShell"
+            nix develop --command true || echo "devShell setup failed (non-fatal)"
+          fi
+        '';
+      };
+
+      # Land every session in /workspace, not in $HOME — that is the only
+      # thing a sandbox exists to work on. loginShellInit runs before
+      # interactiveShellInit, so herdr's autostart (dev.tools.herdr.autostart)
+      # inherits the directory too.
+      programs.fish.loginShellInit = ''
+        if test -d /workspace; and test "$PWD" = "$HOME"
+          cd /workspace
+        end
+      '';
+
       # Export /run/agent.env's KEY=value lines into every fish session
-      # (iosta's shell — covers ssh logins, VSCode terminals, herdr panes, and
-      # non-interactive `ssh guest cmd`, since fish sources /etc/fish/
-      # config.fish for all of those). omp picks its API keys up from the
-      # standard env vars (ANTHROPIC_API_KEY, OPENAI_API_KEY, …). Native fish
-      # syntax on the fish-specific option — sh put into the generic
-      # environment.shellInit would get babelfish-translated for fish at
-      # build time, which can't translate sourcing a runtime sh file.
+      # (covers ssh logins, VSCode terminals, herdr panes, and non-interactive
+      # `ssh guest cmd`). Native fish syntax on the fish-specific option — sh
+      # in environment.shellInit would get babelfish-translated at build time,
+      # which can't translate sourcing a runtime sh file.
       programs.fish.shellInit = ''
         if test -r /run/agent.env
           for line in (grep -E '^[A-Za-z_][A-Za-z0-9_]*=' /run/agent.env)
@@ -350,15 +437,10 @@ in
           end
         end
 
-        # Forwarded ssh-agent (dev.tools.sandvm sets ForwardAgent for
-        # sandvm-* hosts): pin SSH_AUTH_SOCK to a stable path. sshd mints a
-        # fresh random /tmp socket per connection, so long-lived herdr panes
-        # would otherwise hold a dead path after an ssh drop/reattach — each
-        # new login re-points the symlink and every pane using the stable
-        # path is live again. Sessions without a forwarded agent (console,
-        # VSCode-remote terminals) adopt the symlink too when some ssh
-        # session keeps it alive; with no ssh session connected, signing
-        # requests just fail — key material never exists in the guest.
+        # Forwarded ssh-agent (dev.tools.sandvm sets ForwardAgent for sandvm-*
+        # hosts): pin SSH_AUTH_SOCK to a stable path. sshd mints a fresh
+        # random socket per connection, so long-lived herdr panes would
+        # otherwise hold a dead path after an ssh drop/reattach.
         if set -q SSH_AUTH_SOCK; and test "$SSH_AUTH_SOCK" != "$HOME/.ssh/agent.sock"; and test -S "$SSH_AUTH_SOCK"
           mkdir -p "$HOME/.ssh"
           ln -sf "$SSH_AUTH_SOCK" "$HOME/.ssh/agent.sock"
@@ -369,28 +451,19 @@ in
       '';
 
       # git push/pull over the forwarded agent shouldn't stall on an
-      # interactive host-key prompt (agents run non-interactively; the
-      # ephemeral home also forgets accepted keys on every stop). GitHub's
-      # published ed25519 key, from
-      # https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints
+      # interactive host-key prompt. GitHub's published ed25519 key.
       programs.ssh.knownHosts."github.com".publicKey =
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl";
 
       # Local LLM: abhaile's llama-server (services.llm, 127.0.0.1:8080) is
-      # reachable from the guest at qemu's SLIRP gateway — 10.0.2.2 forwards
-      # to the host's loopback. Pre-declare it as an omp provider; the model
-      # ids and context sizes must match the llama-server router presets in
+      # reachable from the guest at qemu's SLIRP gateway. Pre-declare it as an
+      # omp provider; model ids/context sizes must match the router presets in
       # modules/den/aspects/services/llm.nix. Seeded with tmpfiles `C` (copy,
-      # not symlink; only if absent) into iosta's ephemeral home so omp can
-      # rewrite it at runtime and a fresh boot resets it.
+      # only if absent) so omp can rewrite it at runtime.
       systemd.tmpfiles.rules =
         let
-          # Only qwen: omp's own harness overhead (system prompt + tool
-          # definitions) measured ~17.1k tokens, so llama-3.1-8b's 16k
-          # server-side ctx-size 400s on every request — declaring it here
-          # would just be a foot-gun (llama-server still serves it fine to
-          # smaller-context clients; raising its ctx-size is an llm.nix
-          # tuning decision, see TODO.md).
+          # Only qwen: omp's own harness overhead measured ~17.1k tokens, so
+          # llama-3.1-8b's 16k server-side ctx-size 400s on every request.
           ompModels = pkgs.writeText "omp-models.yml" ''
             providers:
               local:
@@ -408,10 +481,6 @@ in
           "d /home/iosta/.omp 0755 iosta users - -"
           "d /home/iosta/.omp/agent 0755 iosta users - -"
           "C /home/iosta/.omp/agent/models.yml 0644 iosta users - ${ompModels}"
-          # Parent dirs for sandvm-gitconfig's install (mirrors the host-side
-          # secrets/home.nix tmpfiles layout for the same file).
-          "d /home/iosta/.config 0755 iosta users - -"
-          "d /home/iosta/.config/git 0700 iosta users - -"
         ];
     };
 }

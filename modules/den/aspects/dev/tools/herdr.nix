@@ -12,7 +12,7 @@
         home.packages = [ inputs.nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.herdr ];
       };
 
-    # Startup multiplexer for sandbox guests (roles.dev-sandbox): interactive
+    # Startup multiplexer for sandbox guests (roles.sandbox.devenv): interactive
     # SSH logins land straight in herdr — the sandbox analogue of
     # shell.zellij's auto-start on real hosts. Guards:
     #   - SSH_TTY: only real ssh logins. The qemu serial console stays plain

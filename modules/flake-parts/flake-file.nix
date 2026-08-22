@@ -71,8 +71,14 @@
       microvm.inputs.nixpkgs.follows = "nixpkgs-unstable";
       microvm.url = "github:microvm-nix/microvm.nix";
 
-      nix-ai-tools.inputs.nixpkgs.follows = "nixpkgs-unstable";
-      nix-ai-tools.url = "github:numtide/nix-ai-tools";
+      # nix-ai-tools deliberately does NOT follow nixpkgs-unstable, and is
+      # declared in modules/den/aspects/apps/ai-tools.nix rather than here:
+      # numtide build+push claude-code/omp to cache.numtide.com against their
+      # own locked nixpkgs, so overriding the follows changes derivation
+      # hashes and turns both into local rebuilds. (A stale `follows` line
+      # lived here until 2026-08-22 and made `nix flake check`'s
+      # check-flake-file fail against the committed flake.nix, which has never
+      # carried it.)
 
       # nix-darwin/homebrew/rosetta-builder: unused today, kept for the
       # planned macbook host (2026-07-14).
