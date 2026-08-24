@@ -198,9 +198,22 @@ Items 1 (runner reuse) and 3 (instance-name double dash) were closed by the 2026
    different guest hosts). `mono--18915ff1` is ~9.9 G and `main--e57b201a` ~1.1 G on disk. `sandvm rm <name>` each once
    df confirms nothing in them is wanted; `docs/obsidian.md`'s vault agent must then be recreated
    (`sandvm ~/vaults/main`, which now creates a `devenv` sandbox with a persistent home).
-3. **Per-type default sizing.** All four types currently share `--cpu 4 --mem 32768 --disk 32768 --home-disk 16384`. A
+3. **Surface a disabled omp broker credential** (2026-08-23, from the credential-refresh work). When an Anthropic OAuth
+   refresh fails definitively (`invalid_grant` — Anthropic rotates the refresh token on every use, so a second holder of
+   the same grant invalidates yours), the broker sets `disabled_cause` on the row and every consumer, host and guests
+   alike, silently loses omp until df happens to notice and re-runs `omp auth-broker login anthropic`. It happened on
+   abhaile 2026-08-23 09:03 and was invisible except in the journal. Wanted: something that makes it loud — e.g. a
+   `systemd --user` timer polling
+   `curl -H "Authorization: Bearer $(cat ~/.omp/auth-broker.token)" http://127.0.0.1:8765/v1/credentials/disabled` (plus
+   the snapshot, to catch **duplicate/stale anthropic rows** — abhaile had a dead one being retried and finally disabled
+   every 60s for hours alongside the live one) and failing the unit / writing a desktop notification when the list is
+   non-empty. No notification infrastructure exists in this repo yet (no `notify-send`, no libnotify), which is why this
+   was left out of the 2026-08-23 fix rather than built blind. Everything else on that path is already live: the broker
+   re-reads its store on login (no restart needed since omp ≥17.4.2), guests query it per request, and `sandvm creds`
+   keeps a running guest's bearer token current.
+4. **Per-type default sizing.** All four types currently share `--cpu 4 --mem 32768 --disk 32768 --home-disk 16384`. A
    `minimal` sandbox almost certainly wants less; worth measuring actual use before picking numbers.
-4. (Context, decided) Not worth switching hypervisor: qemu is load-bearing (SLIRP user networking + virtiofs + fw_cfg
+5. (Context, decided) Not worth switching hypervisor: qemu is load-bearing (SLIRP user networking + virtiofs + fw_cfg
    credentials — firecracker has no virtiofs, cloud-hypervisor no SLIRP), and `microvm.qemu.machine` already defaults to
    the slim `microvm` machine type on x86_64.
 

@@ -241,7 +241,8 @@
       "Bash(timeout 10 curl -s -w '\\\\nHTTP %{http_code} in %{time_total}s\\\\n' http://127.239.192.1:8000/)",
       "Bash(/nix/store/jqv9d018sy5hbqzi30vhyjdk87nhqqb8-sandvm/bin/sandvm rm *)",
       "Bash(rm -rf /tmp/claude-1000/-home-df--dotfiles/3bf8e883-d5e9-4a93-a046-1ce41aab28d1/scratchpad/nettest /tmp/claude-1000/-home-df--dotfiles/3bf8e883-d5e9-4a93-a046-1ce41aab28d1/scratchpad/runner)",
-      "Bash(/nix/store/jqv9d018sy5hbqzi30vhyjdk87nhqqb8-sandvm/bin/sandvm list *)"
+      "Bash(/nix/store/jqv9d018sy5hbqzi30vhyjdk87nhqqb8-sandvm/bin/sandvm list *)",
+      "Bash(ssh -o BatchMode=yes sandvm-mono-18915ff1 -- 'rm -rf ~/.ssh/testcfg /tmp/df_gh.pub /tmp/sshconfig.local && ls -a ~/.ssh')"
     ],
     "additionalDirectories": ["/tmp", "/var/lib/llm/models"]
   }

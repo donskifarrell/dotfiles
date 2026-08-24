@@ -10,27 +10,34 @@
 #
 # One-time setup (not automated — needs an interactive OAuth browser flow):
 #   omp auth-broker login anthropic
-#   systemctl --user restart omp-auth-broker
-# The restart is required, every time: `login` writes straight to
-# ~/.omp/agent/agent.db from its own short-lived process, but the already-
-# running server loaded its credential list into memory once at startup and
-# has no file-watcher — it can't see the new row until it re-reads the db,
-# which only happens on its own boot. Confirmed 2026-07-13: a fresh login
-# was invisible to a live broker and to every sandbox already pointed at it
-# until `systemctl --user restart omp-auth-broker`; after that, running
-# sandboxes picked it up immediately (no guest relaunch needed — they query
-# the broker fresh per-request, not once at their own boot).
+# No restart needed: the running server re-reads its own store. (It did need
+# one on the omp of 2026-07-13, which is why this comment used to insist on
+# `systemctl --user restart omp-auth-broker`. Re-verified 2026-08-23 on omp
+# 17.4.2 with a throwaway broker on a spare port: a credential written by a
+# separate process bumped the live server's snapshot generation immediately,
+# no restart, and clients saw it at once.)
+#
+# When a refresh fails definitively — Anthropic rotates the refresh token on
+# every use, so a second holder of the same grant gets `invalid_grant` — the
+# broker DISABLES the credential and every consumer, guests included, loses
+# omp silently. Nothing surfaces that yet (TODO.md); check by hand with
+# `curl -H "Authorization: Bearer $(cat ~/.omp/auth-broker.token)" \
+# http://127.0.0.1:8765/v1/credentials/disabled`, and recover with a fresh
+# `omp auth-broker login anthropic`.
 #
 # `sandvm` (pkgs/by-name/sandvm) then auto-detects the resulting
 # ~/.omp/auth-broker.token and forwards OMP_AUTH_BROKER_URL/_TOKEN into every
-# guest it launches; nothing else to configure.
+# guest it launches; nothing else to configure. That forward is a *boot
+# snapshot*, so `sandvm creds [<name>|--all]` (also run on every `sandvm ssh`,
+# and on a 10-minute timer from dev.tools.sandvm) re-pushes it into already-
+# running guests — see docs/microvm-sandbox.md, "LLM access".
 #
-# Runs via roles.dev, so — like `sandvm`/`herdr` themselves — it also starts
-# (harmlessly) inside every sandvm guest: a guest's copy binds its own empty,
-# disconnected local store, never queried by anything (the guest's omp is
-# steered at the *host's* broker via env vars, not its own). Same "known
-# quirk" tradeoff as the rest of roles.dev reaching the guest — see
-# docs/microvm-sandbox.md.
+# Host-only in practice: this rides roles.dev, and sandvm guests run the
+# iosta/roles.sandbox.* identity instead, which doesn't include it. (Until
+# 2026-07-13 the guest inherited df's full HM identity and so started a
+# second, empty broker of its own per boot; verified 2026-08-23 that a guest's
+# user units are now only atuin-daemon + tldr-update.) A guest's omp is
+# steered at the *host's* broker by the env vars in /run/agent.env.
 { inputs, ... }:
 {
   den.aspects.dev.tools.omp-auth-broker = {

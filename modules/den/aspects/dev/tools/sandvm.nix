@@ -27,6 +27,39 @@
         # blocks render before the "*" default block, so it wins.
         programs.ssh.settings."sandvm-*".ForwardAgent = true;
 
+        # Keep running sandboxes' credentials current (2026-08-23). A guest's
+        # /run/agent.env — the omp auth-broker URL + bearer token it needs to
+        # reach the host's credential store — is written once, at its own boot.
+        # Everything downstream of it is live (the broker re-reads its store
+        # when df logs a provider back in, and a guest's omp queries the broker
+        # per request), so that boot snapshot is the single stale link: a
+        # sandbox launched before `omp auth-broker login`, or still running
+        # when the bearer token is rotated, could only be fixed by a
+        # stop/start. `sandvm creds --all` re-pushes it into every *running*
+        # sandbox; `sandvm ssh` does the same on attach, so this timer is
+        # really for the headless ones nobody attaches to.
+        #
+        # No-ops (silently, exit 0) when nothing is running.
+        systemd.user.services.sandvm-creds = {
+          Unit.Description = "Re-push host credentials into running sandvm guests";
+          Service = {
+            Type = "oneshot";
+            ExecStart = "${
+              inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.sandvm
+            }/bin/sandvm creds --all";
+          };
+        };
+
+        systemd.user.timers.sandvm-creds = {
+          Unit.Description = "Periodic sandvm guest credential refresh";
+          Timer = {
+            OnBootSec = "5min";
+            OnUnitActiveSec = "10min";
+            AccuracySec = "1min";
+          };
+          Install.WantedBy = [ "timers.target" ];
+        };
+
         # Launch the isolated vault agent (Claude in a microVM that sees only
         # ~/vaults/main) — docs/obsidian.md. Lives here, not in apps.obsidian,
         # so the abbr only exists where `sandvm` itself does.

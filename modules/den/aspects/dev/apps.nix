@@ -15,6 +15,7 @@
           pkgs.glogg
           pkgs.insomnia
           pkgs.mprocs
+          pkgs.sqlite
           pkgs.sqlitebrowser
         ];
       };

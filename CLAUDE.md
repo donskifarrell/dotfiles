@@ -143,7 +143,16 @@ Gotchas (easy to forget):
   :8765, and the harmonia binary cache on :5000 (unsigned, deliberately — guests already mount that store read-only).
 - Credentials reach the guest as qemu `fw_cfg` systemd credentials, never through `/nix/store`: pass **string** paths,
   never Nix path literals, or the file gets copied into the world-readable store at eval time.
-- Running sandboxes don't pick up config changes — stop and start them.
+- Git auth in a guest = **forwarded ssh-agent + `~/.ssh/sshconfig.local`**. The alias config and the _public_ halves of
+  the keys it names ride in as the `SSH_CONF` credential (`sandvm-ssh-config` unpacks them); private keys never do. A
+  remote using a bare `github.com` URL works either way — one using `<acct>.github.com` needs that config.
+- Running sandboxes don't pick up config changes — stop and start them. Credentials are the exception:
+  `sandvm creds [<name>|--all]` re-pushes `/run/agent.env` (the omp auth-broker URL + bearer token) into a _running_
+  guest, and it also runs on every `sandvm ssh` and on a 10-min host timer. New guest shells only.
+- omp in a guest never holds an Anthropic token — it asks the host broker per request, and the broker refreshes. Two
+  things still break it: a rotated **bearer** token (fix: `sandvm creds`), and a definitive `invalid_grant` refresh
+  failure, after which the broker **disables** the credential silently (fix: `omp auth-broker login anthropic` on the
+  host; check `/v1/credentials/disabled`). A broker restart after a login is NOT needed on omp ≥17.4.2.
 
 ## Local LLM inference (abhaile)
 

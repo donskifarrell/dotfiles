@@ -27,6 +27,7 @@ sandvm start [opts] [<name>]    start an existing sandbox
 sandvm stop [<name>]            stop it (state is kept)
 sandvm rm [<name>...]           stop + delete it, storage and all (irreversible)
 sandvm ssh [<name>] [-- cmd]    ssh in, starting it first if stopped
+sandvm creds [<name>|--all]     re-push host credentials into a running sandbox (no restart)
 sandvm list                     list every sandbox, its type, state, address, disk use and workspace
 sandvm resize [<name>] [opts]   grow a sandbox's disks
 sandvm expose [<name>] <port>   forward a port into a running sandbox (no restart)
@@ -97,7 +98,7 @@ its own NixOS generation.
 The per-launch env-var contract (read with `builtins.getEnv` in `virtualization.microvm-guest`, hence
 `nix build --impure`) is: `MICROVM_WORKDIR`, `MICROVM_SSH_PORT`, `MICROVM_HOST_ADDR`, `MICROVM_PORTS`, `MICROVM_CPU`,
 `MICROVM_MEM`, `MICROVM_DISK`, `MICROVM_HOME_DISK`, and the credential paths `MICROVM_AGENT_ENV`, `MICROVM_GITCONFIG`,
-`MICROVM_CLAUDE_CREDS`, `MICROVM_INSTANCE_FILE`.
+`MICROVM_CLAUDE_CREDS`, `MICROVM_SSH_CONF`, `MICROVM_INSTANCE_FILE`.
 
 ### Per-instance state
 
@@ -113,6 +114,8 @@ The per-launch env-var contract (read with `builtins.getEnv` in `virtualization.
 | `nix-store-overlay.img` | overlayfs upper for `/nix/.rw-store`. Persistent, sparse.                      |
 | `home.img`              | `/home/iosta`. Persistent, sparse.                                             |
 | `agent.env`, `instance` | per-launch credential files handed to qemu over fw_cfg.                        |
+| `ssh-conf.tar`          | ditto: the GitHub ssh aliases + the _public_ halves of their keys, restaged    |
+|                         | from `~/.ssh/sshconfig.local` on every launch (`ssh-conf.d/` is its staging).  |
 | `workspace/`            | only when created without `--workspace`.                                       |
 | `sandbox*.sock`         | qemu's QMP socket and virtiofsd's socket.                                      |
 
@@ -248,7 +251,7 @@ but that it shouldn't be able to _read and exfiltrate_ real credentials either, 
 talk to an LLM. Outbound git push/pull auth works via SSH-agent **forwarding** instead (below) — the guest can ask the
 host's agent to sign while a session is connected, but no private key ever exists on the guest side to exfiltrate.
 
-Two narrow, deliberate exceptions travel in as fw_cfg credentials (never through the store):
+Three narrow, deliberate exceptions travel in as fw_cfg credentials (never through the store):
 
 **claude-code's OAuth credential (2026-08-22).** `~/.claude/.credentials.json` is copied from the host into
 `/home/iosta/.claude/.credentials.json` on **every** launch, so a sandbox never has to run `claude login` of its own and
@@ -267,6 +270,42 @@ such file). It travels the same route as agent.env — wrapper exports `MICROVM_
 `sandvm-gitconfig` oneshot installs it to `/home/iosta/.config/git/gitconfig.local` (0600, ephemeral home — gone on
 stop). It's name/email only — no key material; the org includeIf targets it references (`gitconfig.pgstar`, …) stay
 absent in the guest and git silently skips missing includes, so sandbox commits always use the default identity.
+
+**GitHub ssh aliases (2026-08-23)**: `~/.ssh/sshconfig.local` (a sops secret) is where df's per-account alias hosts live
+— `donskifarrell.github.com`, `fingerfrens.github.com`, …, each `HostName github.com` plus its own
+`IdentityFile ~/.ssh/<acct>_gh` + `IdentitiesOnly yes`. Real repos have remotes like
+`git@donskifarrell.github.com:donskifarrell/obsidian.git`, so without that file a guest cannot even resolve the hostname
+— agent forwarding works perfectly and `git fetch` still dies with `Could not resolve hostname`. That was the symptom
+that prompted this: the key _was_ forwarded; the alias was missing.
+
+The wrapper's `collect_credentials` therefore stages a tar (`ssh-conf.tar`, exported as `MICROVM_SSH_CONF`) holding the
+config plus the **public** halves of the keys it names, and the guest's `sandvm-ssh-config` oneshot unpacks it to
+`/home/iosta/.ssh/` — `config.d/sshconfig.local` and `*_gh.pub`. `config.d` is wiped and rewritten on every boot, so a
+block deleted on the host stops applying in the guest. It's picked up by the guest's `/etc/ssh/ssh_config`
+(`programs.ssh.extraConfig`, which NixOS renders first, so it wins first-match-wins):
+
+```
+Match localuser iosta
+  Include /home/iosta/.ssh/config.d/*
+Host *
+```
+
+Two non-obvious constraints are baked into those three lines and the file modes, both found the hard way:
+
+- **`~` is rejected in the system-wide config** (`bad include path ~/.ssh/config.d/*`, and ssh then terminates), so the
+  path must be absolute — hence `Match localuser` to keep it scoped to iosta, and the trailing `Host *` to close that
+  Match before the generated directives below it.
+- **ssh parses `Include` eagerly, even for a user the `Match` excludes**, and refuses a config file owned by neither
+  root nor the caller. With `config.d/sshconfig.local` owned by iosta, every `ssh` run _as root_ in the guest died with
+  `Bad owner or permissions`. So `sandvm-ssh-config` leaves `config.d` root-owned 0755 with the config 0644, which both
+  users accept; the `.pub`s stay iosta's.
+
+Why the pub halves are enough — and why they're needed: ssh resolves an `IdentityFile` whose _private_ half is missing
+but whose `.pub` is present against the **agent**, so each alias still selects its own account's key while every private
+key stays on abhaile. Dropping `IdentitiesOnly`/`IdentityFile` instead would be worse, not simpler: ssh would offer
+every agent key and GitHub would authenticate as whichever account it recognised first — a silent wrong-account
+"Repository not found" on a multi-account push. Public keys are public; the file list itself (which accounts df has) is
+no more than the forwarded agent already exposes.
 
 ## Git auth: SSH-agent forwarding (2026-07-13)
 
@@ -289,7 +328,10 @@ Three pieces, all small:
   ControlMaster, reconnect, panes' agent works again without restarting anything.
 - **`github.com` in the guest's known_hosts** (`programs.ssh.knownHosts`, GitHub's published ed25519 key) — so a
   non-interactive agent's first `git fetch` can't stall on a host-key prompt (the ephemeral home would forget an
-  accepted key on every stop anyway).
+  accepted key on every stop anyway). It covers the `<acct>.github.com` aliases too: they carry `HostName github.com`,
+  which is what ssh checks the host key against.
+- **The alias config itself** (`sandvm-ssh-config`, above) — forwarding alone is not enough for a remote that uses one
+  of df's per-account alias hostnames.
 
 **Why not virtiofs?** TODO 7.4's original idea — "virtiofs can proxy a live UNIX socket" — was tested and is **false**:
 a socket bound on the host inside the shared workspace shows up in the guest as a socket inode (`srwxr-xr-x`), but
@@ -460,19 +502,48 @@ all → no credential → local provider only.
   create it yourself — nothing manages it). Billed per-token against that provider's API.
 - **Anthropic via your Pro/Max subscription, not API billing**: `dev.tools.omp-auth-broker` runs `omp auth-broker serve`
   as a persistent `systemd --user` service on the host — a credential store + HTTP endpoint (`127.0.0.1:8765`) that
-  other omp instances can pull fresh credentials from instead of storing their own copy. One-time setup, on the host:
-  `omp auth-broker login anthropic` **then `systemctl --user restart omp-auth-broker`** — the restart isn't optional.
-  `login` writes straight to `~/.omp/agent/agent.db`; the already-running server loaded its credential list into memory
-  once at startup and has no file-watcher, so it's blind to the new row until it re-reads the db on its own boot
-  (confirmed 2026-07-13 — a fresh login was invisible to a live broker, and to sandboxes already running against it,
-  until the restart; no guest relaunch was needed afterwards, since guests query the broker fresh per-request). `sandvm`
-  auto-detects the resulting `~/.omp/auth-broker.token` and adds `OMP_AUTH_BROKER_URL=http://10.0.2.2:8765` +
-  `OMP_AUTH_BROKER_TOKEN=<token>` to every launch's merged agent.env — the guest never stores the Anthropic OAuth token
-  itself, it asks the broker each time, so **the broker's own background refresher (60s cadence, refreshes anything
-  expiring within 5min) is what keeps a sandbox's session alive**, not anything guest-side. This is exactly the fix for
-  "the sandbox that could refresh the token is gone by the time it expires." Model ids need no guest-side declaration
-  (unlike the custom `local` llama-server provider) — Anthropic is a first-class omp provider; once the broker resolves
-  a credential, `--model anthropic/<id>` just works.
+  other omp instances pull fresh credentials from instead of storing their own copy. One-time setup, on the host:
+  `omp auth-broker login anthropic`. `sandvm` auto-detects the resulting `~/.omp/auth-broker.token` and adds
+  `OMP_AUTH_BROKER_URL=http://10.0.2.2:8765` + `OMP_AUTH_BROKER_TOKEN=<token>` to every launch's merged agent.env — the
+  guest never stores the Anthropic OAuth token itself, it asks the broker each time, so **the broker's own background
+  refresher (60s cadence, refreshes anything expiring within 5min) is what keeps a sandbox's session alive**, not
+  anything guest-side. That is the fix for "the sandbox that could refresh the token is gone by the time it expires."
+  Model ids need no guest-side declaration (unlike the custom `local` llama-server provider) — Anthropic is a
+  first-class omp provider; once the broker resolves a credential, `--model anthropic/<id>` just works.
+
+  **`systemctl --user restart omp-auth-broker` after a login is no longer required** (it was, on the omp of 2026-07-13,
+  and this doc said so). Re-verified 2026-08-23 against omp 17.4.2 with a throwaway broker on a spare port: writing a
+  credential into the store from a separate process bumped the live server's snapshot `generation` (1 → 2) with no
+  restart, and clients saw it immediately. The broker re-reads its own store.
+
+  **What can still go stale — and what fixes it (2026-08-23):**
+  1. _The guest's copy of the bearer token._ `/run/agent.env` is written once, at the guest's boot. A sandbox launched
+     before you ever ran `omp auth-broker login`, or still running when the bearer token is rotated
+     (`omp auth-broker token --regenerate`), holds a token that no longer works and had no way back short of a
+     stop/start. **`sandvm creds [<name>|--all]`** re-stages agent.env and writes it into a _running_ guest over ssh;
+     `sandvm ssh` does it silently on every attach, and a host-side `systemd --user` timer (`sandvm-creds`, 10 min,
+     defined in `dev.tools.sandvm`) covers headless sandboxes nobody attaches to. Only _new_ shells in the guest see the
+     refreshed value — fish exports agent.env at shell start — which is enough, since `omp` reads it at process start.
+     The push always runs with `-o ForwardAgent=no`: the guest's login shell re-points `~/.ssh/agent.sock` at whatever
+     connection it sees, and a scripted connection's forwarded socket dies with that connection, so a forwarding push
+     would leave long-lived herdr panes holding a dead socket. Verified: after a push, the guest's `agent.sock` still
+     points at the previous, live socket.
+  2. _The broker's Anthropic OAuth grant itself._ If a refresh comes back `invalid_grant` ("Refresh token not found or
+     invalid" — Anthropic rotates the refresh token on every use, so a second holder of the same grant invalidates
+     yours), the broker gives up and **disables the credential**, and every guest loses omp at once. Seen on abhaile
+     2026-08-23 09:03. Nothing surfaces this today (TODO item), so it is worth knowing how to check by hand:
+
+     ```bash
+     T=$(cat ~/.omp/auth-broker.token)
+     curl -s -H "Authorization: Bearer $T" http://127.0.0.1:8765/v1/credentials/disabled   # [] when healthy
+     curl -s -H "Authorization: Bearer $T" http://127.0.0.1:8765/v1/snapshot                # live creds + expiry
+     journalctl --user -u omp-auth-broker | grep 'credential disabled'
+     ```
+
+     The fix is a fresh `omp auth-broker login anthropic` on the host; running guests pick it up on their next request.
+     Also check the snapshot for **duplicate anthropic rows** — abhaile had a stale one alongside the live one, and the
+     refresher kept retrying (and finally disabling) the dead one every 60s for hours.
+
 - The broker's bearer token is a skeleton key to **every** credential it holds, to anything on the loopback path — which
   in practice means any sandvm guest you launch. A rogue agent can't escape the filesystem sandbox through this, but it
   _can_ spend down your Pro subscription's rate limits/quota. Same trust tier as the local-llama-server reachability

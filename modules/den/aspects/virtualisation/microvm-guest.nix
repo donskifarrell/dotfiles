@@ -86,6 +86,13 @@ let
     # df's live claude-code OAuth credential, refreshed into the guest on
     # every launch so a sandbox never has to run `claude login` of its own.
     CLAUDE_CREDS = builtins.getEnv "MICROVM_CLAUDE_CREDS";
+    # A tar of df's ~/.ssh/sshconfig.local (the per-account
+    # <acct>.github.com aliases, a sops secret on the host) plus the
+    # *public* halves of the keys it names. No private key material: ssh
+    # resolves an IdentityFile whose private half is missing against the
+    # forwarded agent, which is what keeps per-account identity selection
+    # working with the keys still on abhaile. See sandvm-ssh-config below.
+    SSH_CONF = builtins.getEnv "MICROVM_SSH_CONF";
     # A file holding the instance name — the one genuinely per-instance
     # *guest-visible* fact. Delivered as a credential rather than baked into
     # networking.hostName so the system closure stays identical across
@@ -390,6 +397,46 @@ in
         '';
       };
 
+      # GitHub ssh aliases: install the SSH_CONF credential so a remote like
+      # git@donskifarrell.github.com:… resolves in the guest and picks the
+      # right account's key out of the forwarded agent. Public halves only —
+      # the tar is built by `collect_credentials` in pkgs/by-name/sandvm and
+      # deliberately never touches a private key.
+      systemd.services.sandvm-ssh-config = {
+        wantedBy = [ "multi-user.target" ];
+        after = [ "sandvm-home-perms.service" ];
+        path = [ pkgs.gnutar ];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+          ImportCredential = "SSH_CONF";
+        };
+        script = ''
+          if [ -f "$CREDENTIALS_DIRECTORY/SSH_CONF" ]; then
+            install -d -m 0700 -o iosta -g users /home/iosta/.ssh
+            # config.d is sandvm's alone, so wiping it each boot is how a
+            # block df deleted on the host stops applying in the guest.
+            rm -rf /home/iosta/.ssh/config.d
+            install -d -m 0755 -o root -g root /home/iosta/.ssh/config.d
+            tar -xf "$CREDENTIALS_DIRECTORY/SSH_CONF" -C /home/iosta/.ssh
+            # --no-dereference: ~/.ssh also holds the agent.sock symlink the
+            # login shell maintains; never chase it out of the home.
+            chown -R --no-dereference iosta:users /home/iosta/.ssh
+            # Re-assert modes the tar would otherwise dictate. The included
+            # config is root-owned on purpose: /etc/ssh/ssh_config parses
+            # Include eagerly even for a user the Match doesn't apply to, and
+            # ssh refuses a config file owned by neither root nor the caller —
+            # iosta-owned, it broke root's ssh entirely with "Bad owner or
+            # permissions". Root-owned + 0644 satisfies both users.
+            chmod 0700 /home/iosta/.ssh
+            chown -R root:root /home/iosta/.ssh/config.d
+            chmod 0755 /home/iosta/.ssh/config.d
+            chmod 0644 /home/iosta/.ssh/config.d/* || true
+            chmod 0644 /home/iosta/.ssh/*.pub || true
+          fi
+        '';
+      };
+
       # claude-code's own OAuth credential, copied from the host on every
       # launch (df's decision, 2026-08-22: zero-touch beats one `claude login`
       # per instance). It is refreshed each launch rather than left to age in
@@ -489,9 +536,26 @@ in
       '';
 
       # git push/pull over the forwarded agent shouldn't stall on an
-      # interactive host-key prompt. GitHub's published ed25519 key.
+      # interactive host-key prompt. GitHub's published ed25519 key — it
+      # covers the <acct>.github.com aliases too, since those carry
+      # `HostName github.com` and ssh checks the key against that.
       programs.ssh.knownHosts."github.com".publicKey =
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl";
+
+      # Pick up what sandvm-ssh-config drops in. NixOS renders extraConfig
+      # first in /etc/ssh/ssh_config, and ssh_config is first-match-wins, so
+      # these blocks beat any default that follows. Mirrors the host-side
+      # include in core/network/ssh.nix, with two syntax constraints of the
+      # system-wide file: `~` is rejected there ("bad include path"), so the
+      # path is absolute and therefore scoped to iosta with `Match localuser`;
+      # and that Match has to be closed by a `Host *` or it would swallow every
+      # generated directive below it. A glob matching nothing is ignored, so a
+      # guest launched without the credential is unaffected.
+      programs.ssh.extraConfig = ''
+        Match localuser iosta
+          Include /home/iosta/.ssh/config.d/*
+        Host *
+      '';
 
       # Local LLM: abhaile's llama-server (services.llm, 127.0.0.1:8080) is
       # reachable from the guest at qemu's SLIRP gateway. Pre-declare it as an

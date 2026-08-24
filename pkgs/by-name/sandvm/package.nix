@@ -4,6 +4,7 @@
   coreutils,
   gawk,
   gnugrep,
+  gnutar,
   iproute2,
   nix,
   openssh,
@@ -20,6 +21,7 @@ let
       coreutils
       gawk
       gnugrep
+      gnutar
       iproute2
       nix
       openssh
@@ -63,6 +65,7 @@ let
         sandvm stop [<name>]            stop it (state is kept)
         sandvm rm [<name>...]           stop + delete it, storage and all
         sandvm ssh [<name>] [-- cmd]    ssh in (starts it first if stopped)
+        sandvm creds [<name>|--all]     re-push host credentials into a running sandbox
         sandvm list                     list every sandbox and its state
         sandvm resize [<name>] [opts]   grow a sandbox's disks
         sandvm expose [<name>] <port>   forward a port into a running sandbox
@@ -319,6 +322,38 @@ let
         CLAUDE_CREDS=$HOME/.claude/.credentials.json
         [ -r "$CLAUDE_CREDS" ] || CLAUDE_CREDS=""
 
+        # GitHub ssh aliases. df's repos have remotes like
+        # git@donskifarrell.github.com:… — an alias that only exists in
+        # ~/.ssh/sshconfig.local (a sops secret), so without this a guest
+        # can't even resolve the hostname, forwarded agent or not. Each block
+        # pins `IdentityFile ~/.ssh/<acct>_gh` + IdentitiesOnly, which is what
+        # keeps a multi-account push on the right account.
+        #
+        # Only the *public* halves go with it: ssh resolves an IdentityFile
+        # whose private half is missing but whose .pub is present against the
+        # agent, so the guest gets correct per-alias identity selection while
+        # every private key stays on the host. A tar because the pub-key set
+        # is dynamic and a credential is one file.
+        SSH_CONF=""
+        if [ -r "$HOME/.ssh/sshconfig.local" ]; then
+          local stage=$dir/ssh-conf.d
+          rm -rf "$stage"
+          mkdir -p "$stage/config.d"
+          cp "$HOME/.ssh/sshconfig.local" "$stage/config.d/sshconfig.local"
+          local idf
+          # `|| true`: no IdentityFile lines at all is a legitimate config,
+          # and grep's exit 1 would otherwise trip set -o pipefail.
+          for idf in $(grep -iE '^[[:space:]]*IdentityFile[[:space:]]' \
+            "$HOME/.ssh/sshconfig.local" | awk '{print $2}' || true); do
+            # `~` is literal in ssh_config; expand it the way ssh would.
+            idf=''${idf/#\~\//$HOME/}
+            if [ -r "$idf.pub" ]; then cp "$idf.pub" "$stage/"; fi
+          done
+          SSH_CONF=$dir/ssh-conf.tar
+          (umask 077; tar -cf "$SSH_CONF" -C "$stage" .)
+          chmod 600 "$SSH_CONF"
+        fi
+
         # The instance's own name, for the guest's hostname.
         INSTANCE_FILE=$dir/instance
         printf '%s' "$1" > "$INSTANCE_FILE"
@@ -345,6 +380,7 @@ let
         key=$(printf '%s\n' "$(flake_fingerprint)" "$TYPE" "$CPU" "$MEM" "$DISK" \
           "$HOME_DISK" "$EFFECTIVE_PORTS" "$SSH_PORT" "$ADDR" "$WORKSPACE" \
           "''${AGENT_ENV:-}" "''${GITCONFIG:-}" "''${CLAUDE_CREDS:-}" \
+          "''${SSH_CONF:-}" \
           | sha256sum | cut -d' ' -f1)
 
         if [ "$fresh" -eq 0 ] && [ -L "$dir/runner" ] && [ -e "$dir/runner" ] \
@@ -367,6 +403,7 @@ let
         MICROVM_AGENT_ENV="''${AGENT_ENV:-}" \
         MICROVM_GITCONFIG="''${GITCONFIG:-}" \
         MICROVM_CLAUDE_CREDS="''${CLAUDE_CREDS:-}" \
+        MICROVM_SSH_CONF="''${SSH_CONF:-}" \
         MICROVM_INSTANCE_FILE="$INSTANCE_FILE" \
           nix build --impure --no-warn-dirty --out-link "$dir/runner" \
             "$FLAKE#sandvm-guest-$TYPE" >&2
@@ -575,6 +612,60 @@ let
         done
       }
 
+      # --- live credential refresh -------------------------------------------
+      # /run/agent.env is written once, at boot, from a snapshot of the host's
+      # omp broker bearer token. Everything else on that path is already live —
+      # the broker re-reads its own store when df logs a provider back in, and
+      # a guest's omp queries the broker per request rather than caching a
+      # copy — so the boot snapshot is the one piece that can go stale: a
+      # sandbox launched before `omp auth-broker login`, or still running when
+      # the bearer token is rotated, has no way back to a working credential
+      # short of a stop/start. This re-stages agent.env and writes it into a
+      # running guest instead.
+      #
+      # `-o ForwardAgent=no` is load-bearing, not tidiness: the guest's login
+      # shell re-points ~/.ssh/agent.sock at whatever connection it sees, and a
+      # scripted connection's forwarded socket dies when that connection does —
+      # a push that forwarded the agent would leave long-lived herdr panes
+      # holding a dead socket until the next real login. With no agent
+      # forwarded, the guest-side re-point is skipped entirely.
+      push_credentials() {
+        local name=$1
+        is_running "$name" || return 0
+        collect_credentials "$name"
+        [ -n "''${AGENT_ENV:-}" ] || return 0
+        ssh -o ForwardAgent=no -o BatchMode=yes -o ConnectTimeout=5 \
+          -o StrictHostKeyChecking=accept-new "sandvm-$name" -- \
+          'sudo -n sh -c "cat > /run/agent.env.new && chown iosta:users /run/agent.env.new && chmod 600 /run/agent.env.new && mv /run/agent.env.new /run/agent.env"' \
+          < "$AGENT_ENV"
+      }
+
+      # Only new shells see a refreshed /run/agent.env (fish exports it at
+      # shell start), which is enough for what it's for: `omp` reads the broker
+      # token when it starts, so the next command picks it up. A pane that was
+      # already open keeps the stale value.
+      cmd_creds() {
+        local name rc=0
+        if [ "''${1:-}" = "--all" ]; then
+          shopt -s nullglob
+          for dir in "$STATE_ROOT"/*/; do
+            name=$(basename "$dir")
+            is_running "$name" || continue
+            if push_credentials "$name"; then
+              echo "sandvm: credentials refreshed in '$name'"
+            else
+              echo "sandvm: could not refresh credentials in '$name'" >&2
+              rc=1
+            fi
+          done
+          return $rc
+        fi
+        name=$(resolve_name "''${1:-}")
+        is_running "$name" || die "'$name' is not running"
+        push_credentials "$name" || die "could not refresh credentials in '$name'"
+        echo "sandvm: credentials refreshed in '$name'"
+      }
+
       cmd_ssh() {
         local name; name=$(resolve_name "''${1:-}")
         shift || true
@@ -585,6 +676,9 @@ let
           boot "$name" 0 0
         fi
         wait_for_ssh "$name"
+        # Best-effort, silent: an attach is the natural moment to hand a
+        # long-running sandbox whatever the host's credentials look like now.
+        push_credentials "$name" || true
         if [ $# -gt 0 ]; then
           exec ssh "sandvm-$name" -- "$@"
         else
@@ -781,6 +875,7 @@ let
         stop) shift; cmd_stop "$@" ;;
         rm|delete) shift; cmd_rm "$@" ;;
         ssh) shift; cmd_ssh "$@" ;;
+        creds) shift; cmd_creds "$@" ;;
         list|ls) cmd_list ;;
         resize) shift; cmd_resize "$@" ;;
         expose) shift; cmd_expose "$@" ;;
