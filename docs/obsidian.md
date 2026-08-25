@@ -20,7 +20,7 @@ channels, one folder:
   versioning (14 days) is the backstop against a bad sync from the phone.
 - **obsidian-git** (community plugin, installed manually — see below) is the _backup + history_ channel: auto
   commit-and-sync on abhaile, pushing to a private GitHub repo. Only abhaile talks to GitHub.
-- **The agent** is plain `scoite ~/vaults/main` (abbr: `vault-agent`) — the existing microVM sandbox
+- **The agent** is plain `sc ~/vaults/main` (abbr: `vault-agent`) — the existing microVM sandbox
   (docs/microvm-sandbox.md), no changes needed. The vault is the guest's `/workspace`, its **only** read-write view of
   the host.
 - **drop/** inside the vault is the df↔agent exchange folder. Because it's inside the vault it syncs to the phone too —
@@ -38,11 +38,10 @@ real files under `.obsidian/plugins/` and then sync to other desktops as ordinar
 
 - The guest sees the vault read-write and nothing else of `$HOME` (ephemeral root/home, ro `/nix/store`; see
   docs/microvm-sandbox.md).
-- The agent **can** edit and `git commit` inside the vault (though the guest has no git identity —
-  `~/.config/git/gitconfig.local` is a df-only sops file, so in-guest commits need
-  `-c user.name=... -c user.email=...`). In practice: the agent edits files, the **host-side** obsidian-git commits and
-  pushes them. The agent has **no push credentials** — ssh-agent forwarding exists only while df is attached over
-  `ssh scoite-*`.
+- The agent **can** edit and `git commit` inside the vault: df's `~/.config/git/gitconfig.local` (a sops file on the
+  host) rides in as a launch credential and is re-pushed by `sc creds`, so the guest has a git identity. In practice the
+  agent edits files and the **host-side** obsidian-git commits and pushes them. The agent has **no push credentials** —
+  ssh-agent forwarding exists only while df is attached over `ssh scoite-*`.
 - Anthropic auth reaches the guest via the omp-auth-broker / agent.env flow (docs/microvm-sandbox.md); no API keys land
   in the vault or the store.
 - `drop/` and any note editable from the phone are untrusted agent input (prompt-injection surface). The blast radius
@@ -83,25 +82,25 @@ real files under `.obsidian/plugins/` and then sync to other desktops as ordinar
 ## Using the agent
 
 ```fish
-vault-agent                       # = scoite ~/vaults/main (creates a `devenv` sandbox on first run)
-scoite ssh main-<hash>            # or `ssh scoite-main-<hash>` — the alias the banner prints
-# or: herdr --remote scoite-main-<hash>
+vault-agent                       # = sc ~/vaults/main (creates a `dev` sandbox on first run)
+sc ssh main                       # or `ssh scoite-main` — the alias the banner prints
+# or: herdr --remote scoite-main
 claude                            # sessions land in /workspace already
-scoite stop main-<hash>           # when done; the guest's home and store overlay persist
+sc stop main                      # when done; the guest's home and store overlay persist
 ```
 
 The guest's `scoite-workspace-init` no-ops on the vault (no `flake.nix` / `devenv.nix`) — that's expected.
 
-Note (2026-08-22): the scoite rework renamed instances (the old double-dash `main--<hash>` form was a bug) and changed
-the guest's volume layout, so the pre-existing vault sandbox is listed as `legacy` and must be recreated —
-`scoite rm main--e57b201a`, then `vault-agent`. The guest home now persists across stops, so `claude`'s own state and
-any tools the agent installs survive; `scoite rm` is what resets it.
+Note (2026-08-25): `sandvm` is now `scoite` (alias `sc`), instances are named `scoite-<name>` with no hash suffix, and
+the four tiers became two — the vault agent is a `dev` sandbox. The pre-rename instances were removed on 2026-08-24
+(TASKS.md S1), so recreate the vault agent with `vault-agent`. The guest home persists across stops, so `claude`'s own
+state and the vault's git checkout survive.
 
 ## Future extensions (tracked in TODO.md)
 
 - **Phone→agent inbox**: phone writes `inbox.md` / drops files in `drop/`; a systemd --user **path unit** on abhaile
-  watches the synced path and triggers headless Claude in the sandbox (`scoite ssh main-<hash> -- claude -p ...`);
-  replies sync back. Needs locking + a processed-marker convention.
+  watches the synced path and triggers headless Claude in the sandbox (`sc ssh main -- claude -p ...`); replies sync
+  back. Needs locking + a processed-marker convention.
 - **Telegram bot**: bridges chat to the same inbox convention; token in sops; host it on abhaile now or eachtrach when
   it exists.
 - **MacBook**: HM `services.syncthing` user service (same folder id `vault-main`); `apps.obsidian` is already

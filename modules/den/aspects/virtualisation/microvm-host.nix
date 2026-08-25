@@ -144,7 +144,15 @@
       # manage just to talk to ourselves.
       services.harmonia.cache = {
         enable = true;
-        settings.bind = "127.0.0.1:5000";
+        settings = {
+          bind = "127.0.0.1:5000";
+          # Nix picks substituters by **priority**, not by list order, and
+          # harmonia defaults to 50 — worse than cache.nixos.org's 40, so a
+          # guest that listed this cache first still downloaded from upstream
+          # (caught on 2026-08-25 watching a guest fetch cowsay over the
+          # internet while abhaile had it on disk). Anything below 40 wins.
+          priority = 10;
+        };
       };
 
       # --- the scoite bridge ------------------------------------------------

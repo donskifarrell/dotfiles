@@ -37,10 +37,32 @@ let
       SSH_CONFIG_FILE="$SSH_CONFIG_D/scoite"
 
       DEFAULT_TYPE=dev
-      DEFAULT_CPU=4
-      DEFAULT_MEM=32768
-      DEFAULT_DISK=32768
-      DEFAULT_HOME_DISK=16384
+
+      # Per-type defaults (TASKS.md S18). Measured 2026-08-25 on idle guests:
+      # a `dev` sandbox used 513 MiB of RAM, 906 MiB of store overlay and
+      # 7 MiB of home; a `minimal` one 624 MiB / 44 KiB / 260 KiB. Memory is a
+      # ceiling that qemu allocates lazily (with free-page reporting handing
+      # pages back), and both images are sparse, so these are headroom
+      # settings, not reservations — which is why `dev` keeps a build-sized
+      # ceiling while `minimal`, which has no toolchain to build anything
+      # with, gets a small one. `scoite resize` grows disks later; RAM/CPU
+      # change on the next start.
+      defaults_for() {
+        case "$1" in
+          minimal)
+            DEFAULT_CPU=2
+            DEFAULT_MEM=4096
+            DEFAULT_DISK=8192
+            DEFAULT_HOME_DISK=4096
+            ;;
+          *)
+            DEFAULT_CPU=4
+            DEFAULT_MEM=32768
+            DEFAULT_DISK=32768
+            DEFAULT_HOME_DISK=16384
+            ;;
+        esac
+      }
 
       # Fixed, not allocated: every instance binds its forwards on an address
       # of its own (see free_addr), so the same port number is free on all of
@@ -101,10 +123,13 @@ let
         --type minimal|dev   guest flavour (new only, default: dev)
         --workspace <path>   host folder to mount at /workspace (new only;
                              default: a private folder in the instance's state dir)
-        --cpu <n>            vCPUs (default: 4)
-        --mem <MiB>          RAM ceiling, lazily allocated (default: 32768)
-        --disk <MiB>         nix store overlay image size (default: 32768)
-        --home-disk <MiB>    /home/iosta image size (default: 16384)
+        --cpu <n>            vCPUs (dev: 4, minimal: 2)
+        --mem <MiB>          RAM ceiling, lazily allocated (dev: 32768,
+                             minimal: 4096)
+        --disk <MiB>         nix store overlay image size, sparse (dev: 32768,
+                             minimal: 8192)
+        --home-disk <MiB>    /home/iosta image size, sparse (dev: 16384,
+                             minimal: 4096)
         --port <n>           also forward this TCP port (repeatable; only
                              needed outside the default set above)
         --ssh, -s            wait for boot, then ssh straight in
@@ -711,6 +736,7 @@ let
           mkdir -p "$WORKSPACE"
         fi
 
+        defaults_for "$TYPE"
         CPU=''${OPT_CPU:-$DEFAULT_CPU}
         MEM=''${OPT_MEM:-$DEFAULT_MEM}
         DISK=''${OPT_DISK:-$DEFAULT_DISK}
@@ -1312,22 +1338,11 @@ symlinkJoin {
   # genericBuild's phases entirely), hence merging the completions in here via
   # symlinkJoin instead of adding them to scoite-unwrapped directly.
   #
-  # Two extra entry points beside `scoite`:
-  #   sc      the short alias — a real binary, not a shell abbr, so it works
-  #           from any shell, from scripts, and over `ssh abhaile sc list`.
-  #   sandvm  the pre-2026-08-24 name, kept as a loud shim for muscle memory
-  #           and stale scripts. Delete it (and its completions) once nothing
-  #           reaches for it — TASKS.md S19.
+  # `sc` is the short alias — a real binary, not a shell abbr, so it works from
+  # any shell, from scripts, and over `ssh abhaile sc list`. (A `sandvm` shim
+  # lived here from the 2026-08-24 rename until 2026-08-25; it is gone.)
   postBuild = ''
     ln -s scoite $out/bin/sc
-
-    rm -f $out/bin/sandvm
-    cat > $out/bin/sandvm <<'SHIM'
-    #!/bin/sh
-    echo "sandvm: renamed to 'scoite' (short: 'sc') - update your muscle memory" >&2
-    exec "$(dirname "$(readlink -f "$0")")/scoite" "$@"
-    SHIM
-    chmod +x $out/bin/sandvm
 
     mkdir -p $out/share/fish/vendor_completions.d
     cp ${./completions.fish} $out/share/fish/vendor_completions.d/scoite.fish

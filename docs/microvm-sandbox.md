@@ -7,46 +7,50 @@ channel back to the host filesystem is one folder, mounted at `/workspace`. It e
 or oh-my-pi packaged as `omp`) can run against a real project with a real toolchain without being able to write — or
 even see — anything outside that one folder, even if the agent or the LLM behind it goes rogue.
 
-Sandboxes come in four **types**, so the closure you pay for matches the work:
+Sandboxes come in two **types**, so the closure you pay for matches the work:
 
-| `--type`      | what it is                                                                                      | closure |
-| ------------- | ----------------------------------------------------------------------------------------------- | ------- |
-| `minimal`     | shell, git, agent harness. No dev toolchain at all.                                             | ~3.0 G  |
-| `generic`     | + compilers, nix-ld, full TUI shell. A plain Linux box the agent installs its own tools into.   | ~6.8 G  |
-| `devenv`      | + devenv.sh/direnv/herdr/headless chromium; the project's own environment is pre-built at boot. | ~9.2 G  |
-| `workstation` | + df's language toolchains, for parity with abhaile.                                            | ~9.7 G  |
+| `--type`  | what it is                                                                                                                                   | closure |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `minimal` | shell, git, agent harness, internet. No dev toolchain at all.                                                                                | ~3.7 G  |
+| `dev`     | + python, node, headless chromium, compilers/nix-ld, the full TUI shell + git stack, devenv/direnv, herdr and the paseo daemon. The default. | ~10.7 G |
 
 Each type is one Den host (`modules/den/hosts/scoite.nix`) built from one role tier (`modules/den/roles/sandbox.nix`);
-the tiers nest, so `generic` is `minimal` plus more. `devenv` is the default.
+`dev` includes `minimal`. (Until 2026-08-24 there were four tiers — `minimal`/`generic`/`devenv`/`workstation`; the
+middle two were never chosen deliberately, so they collapsed into `dev`. An existing sandbox of a retired type is
+migrated to `dev` on its next start.)
 
 ## Usage
+
+The command is `scoite`, with `sc` as a short alias (a real binary, so it works from scripts and over ssh too).
 
 ```
 scoite new [opts] [<name>]      create a sandbox (and start it)
 scoite start [opts] [<name>]    start an existing sandbox
 scoite stop [<name>]            stop it (state is kept)
 scoite rm [<name>...]           stop + delete it, storage and all (irreversible)
+scoite rename [<name>] <new>    rename it, without a restart
 scoite ssh [<name>] [-- cmd]    ssh in, starting it first if stopped
-scoite creds [<name>|--all]     re-push host credentials into a running sandbox (no restart)
-scoite list                     list every sandbox, its type, state, address, disk use and workspace
+scoite creds [<name>|--all]     re-push host credentials/config into a running sandbox (no restart)
+scoite list                     list every sandbox: type, state, DNS name, bridge IP, forward address, disk, workspace
 scoite resize [<name>] [opts]   grow a sandbox's disks
 scoite expose [<name>] <port>   forward a port into a running sandbox (no restart)
-scoite unexpose [<name>] <port> stop forwarding one
+scoite expose --lan <port>      also reach that port from the LAN (opt-in, per port)
+scoite unexpose [<name>] [--lan] <port>   stop forwarding one
 scoite <path>                   shorthand: new-or-start for a folder
 ```
 
-new/start options: `--type minimal|generic|devenv|workstation` (new only), `--workspace <path>` (new only), `--cpu N`,
-`--mem MiB`, `--disk MiB`, `--home-disk MiB`, `--port N` (repeatable; only for ports outside the default forwarded set),
-`--ssh`/`-s`, `-f`/`--foreground`, `--fresh`.
+new/start options: `--name <name>` (new only), `--type minimal|dev` (new only), `--workspace <path>` (new only),
+`--cpu N`, `--mem MiB`, `--disk MiB`, `--home-disk MiB`, `--port N` (repeatable; only for ports outside the default
+forwarded set), `--ssh`/`-s`, `-f`/`--foreground`, `--fresh`.
 
 ```console
-$ scoite new --type generic --cpu 8 --ssh scratch     # named, no host folder, drops you into a shell
-$ scoite new --workspace ~/dev/myproject              # name derived from the folder; type devenv
-$ scoite ssh myproject-a1b2c3d4 -- claude -p 'run the tests'
-$ scoite list
-NAME                     TYPE      STATUS   ADDRESS         ON-DISK WORKSPACE
-myproject-a1b2c3d4       devenv    running  127.44.19.1     2.1G    /home/df/dev/myproject
-scratch                  generic   stopped  127.212.6.1     412M    /home/df/.local/state/scoite/scratch/workspace
+$ sc new --type minimal --ssh scratch          # named, no host folder, drops you into a shell
+$ cd ~/dev/myproject && sc new                 # proposes scoite-myproject, lets you edit it; type dev
+$ sc ssh myproject -- claude -p 'run the tests'
+$ sc list
+NAME                     TYPE     STATUS   DNS                        IP            FORWARD       LAN       ON-DISK WORKSPACE
+scoite-myproject         dev      running  scoite-myproject.local     10.77.0.106   127.44.19.1   -         2.1G    /home/df/dev/myproject
+scoite-scratch           minimal  stopped  -                          -             127.212.6.1   -         136M    …/scoite-scratch/workspace
 ```
 
 A guest web server is viewable from the host at that address on the **same port it uses inside the guest** — a Vite dev
@@ -55,20 +59,27 @@ forwarded-by-default set, and `scoite expose` for anything outside it).
 
 A sandbox does **not** need a host folder. Without `--workspace` it gets a private one inside its own state dir, so
 `/workspace` always exists and is always writable — and is still visible from the host for handing files in and out.
-With `--workspace`, the name defaults to `basename` + an 8-char hash of the realpath, so the same folder always maps to
-the same name/SSH alias/address; a renamed or moved folder gets a fresh identity.
+
+**Names.** A sandbox is `scoite-<name>`, and that one string is its state directory, its SSH alias, its systemd unit,
+its hostname inside the VM and its mDNS name. `scoite new` in a folder proposes `scoite-<folder>` and lets you edit it
+(`--name` skips the prompt; a non-interactive caller takes the default). Two different folders with the same basename
+collide, and the CLI refuses rather than choosing for you — pass `--name`. Commands accept either spelling, `mono` or
+`scoite-mono`. `scoite rename` changes the name of a **running** sandbox, ssh alias and `.local` name included, without
+interrupting anything inside it; the systemd unit keeps its original name (a running unit cannot be renamed) and
+`scoite list` keeps working regardless.
 
 Sandboxes run detached by default (a `systemd-run --user --unit` transient service running `virtiofsd` and the guest
-runner); `journalctl --user -u scoite-<name> -f` follows the console, `-f`/`--foreground` blocks in the invoking
-terminal instead. Every shell in the guest lands in `/workspace`. Fish completions for subcommands, flags, types and
-known instance names ship in the package itself.
+runner); `journalctl --user -u scoite-<name> -f` follows the console (`<name>` here is the unit name, fixed at creation
+— see `ID` in the instance's config), `-f`/`--foreground` blocks in the invoking terminal instead. Every shell in the
+guest lands in `/workspace`. Fish completions for subcommands, flags, types and known instance names ship in the package
+itself.
 
 ## Architecture
 
-Four Den hosts — `scoite-minimal`, `scoite-generic`, `scoite-devenv`, `scoite-workstation`
-(`modules/den/hosts/scoite.nix`) — share one guest base (`roles.default` + `virtualization.microvm-guest`) and differ
-only by which `roles.sandbox.*` tier they carry. Each emits a flake package `scoite-guest-<type>` (the tier's
-`config.microvm.declaredRunner`), which is what the CLI builds and execs.
+Two Den hosts — `scoite-minimal` and `scoite-dev` (`modules/den/hosts/scoite.nix`) — share one guest base
+(`roles.default` + `virtualization.microvm-guest`) and differ only by which `roles.sandbox.*` tier they carry. Each
+emits a flake package `scoite-guest-<type>` (the tier's `config.microvm.declaredRunner`), which is what the CLI builds
+and execs.
 
 The guest user is **`iosta`** (`modules/den/users/iosta.nix`) — a sandbox-only account, uid-pinned to 1000 to match the
 host-side project owner for the virtiofs `/workspace` share, with none of df's identity and no key material of its own.
@@ -83,9 +94,9 @@ Everything the CLI varies per launch — workspace path, ssh/forwarded ports, cp
 touches only options that end up on **qemu's command line**, never `system.build.toplevel`. That is verifiable:
 
 ```console
-$ MICROVM_WORKDIR=/a MICROVM_CPU=2  nix eval --impure --raw .#nixosConfigurations.scoite-devenv.config.system.build.toplevel.drvPath
+$ MICROVM_WORKDIR=/a MICROVM_CPU=2  nix eval --impure --raw .#nixosConfigurations.scoite-dev.config.system.build.toplevel.drvPath
 /nix/store/s6dbj4ng…-nixos-system-sandbox-26.11.…drv
-$ MICROVM_WORKDIR=/b MICROVM_CPU=8  nix eval --impure --raw .#nixosConfigurations.scoite-devenv.config.system.build.toplevel.drvPath
+$ MICROVM_WORKDIR=/b MICROVM_CPU=8  nix eval --impure --raw .#nixosConfigurations.scoite-dev.config.system.build.toplevel.drvPath
 /nix/store/s6dbj4ng…-nixos-system-sandbox-26.11.…drv   # identical
 ```
 
@@ -130,21 +141,21 @@ Files:
 - `modules/den/aspects/virtualisation/microvm-guest.nix` — guest-side: shares/volumes/ports/credentials, sshd pointed at
   the shared host key, the boot-time credential installers, the grow-fs unit + timer, the workspace pre-installer, the
   console fallback password, the LLM wiring.
-- `modules/den/roles/sandbox.nix` — the four tiers.
+- `modules/den/roles/sandbox.nix` — the two tiers.
 - `modules/den/users/iosta.nix` — the guest user; tier-independent.
-- `modules/den/hosts/scoite.nix` — the four Den hosts + the `scoite-guest-<type>` flake outputs.
+- `modules/den/hosts/scoite.nix` — the two Den hosts + the `scoite-guest-<type>` flake outputs.
 - `pkgs/by-name/scoite/package.nix` — the CLI (instance bookkeeping, per-instance loopback address, forwarded-port
   selection, `~/.ssh/config.d/scoite`, runner cache, `systemd-run --user --unit` lifecycle, QMP resize and
   `hostfwd_add`/`hostfwd_remove`) plus `completions.fish`, merged into the same output via `symlinkJoin`
   (`writeShellApplication`'s `buildCommand` can't take a `postInstall` — it bypasses `genericBuild`'s phases entirely).
 - `modules/den/aspects/dev/tools/scoite.nix` — installs the CLI onto df's `$PATH` (via `roles.dev`) and sets
   `ForwardAgent` for `scoite-*`.
-- `modules/den/aspects/dev/tools/headless-browser.nix` — headless Chromium + playwright/puppeteer wiring, in the
-  `devenv` tier and up (see "UI validation").
+- `modules/den/aspects/dev/tools/headless-browser.nix` — headless Chromium + playwright/puppeteer wiring, in the `dev`
+  tier (see "UI validation").
 - `modules/den/aspects/dev/vscode.nix` — not scoite-specific but load-bearing: Remote-SSH extension +
   `remote.SSH.configFile` pointing at `~/.ssh/config`.
 - `modules/den/aspects/dev/tools/herdr.nix` — herdr (herdr.dev, from `nix-ai-tools`), used by `roles.dev` on real hosts
-  and by the `devenv` tier in guests. `herdr --remote scoite-<name>` attaches from the host over the ssh alias.
+  and by the `dev` tier in guests. `herdr --remote scoite-<name>` attaches from the host over the ssh alias.
 
 Named `scoite`, not `devbox`: nixpkgs already has an unrelated package literally called `devbox` (Jetify's tool). Using
 that name for `pkgs.devbox` in home-manager would have silently resolved to the wrong package — there's no overlay
@@ -159,12 +170,14 @@ Three separate mechanisms, because "don't rebuild" has three separate failure mo
    already _present_ in the guest at zero copy cost. This is the standard microvm.nix pattern and predates the rework.
 2. **The host serves its store as a binary cache** — `services.harmonia.cache` on `127.0.0.1:5000`
    (`virtualisation/microvm-host.nix`), which SLIRP exposes to guests at `http://10.0.2.2:5000`; the guest lists it
-   ahead of `cache.nixos.org` in `nix.settings.substituters`. Mechanism 1 makes host paths readable but doesn't register
-   them in the guest's Nix _database_, so a guest build of something abhaile already has would otherwise refetch it from
-   the internet or rebuild it. It runs **unsigned** (no signing key on either side, `require-sigs = false` in the
-   guest): the guest can already read that exact store through mechanism 1, so serving it grants nothing new, and there
-   is no key to manage just to talk to ourselves. The guest also sets `connect-timeout = 3` + `fallback = true` so a
-   stopped host cache can never stall a guest build.
+   ahead of `cache.nixos.org` in `nix.settings.substituters` **and it is served with `priority = 10`** — nix chooses
+   substituters by priority, not list order, and harmonia's default 50 loses to cache.nixos.org's 40, so until
+   2026-08-25 guests downloaded from the internet what abhaile already had on disk. Mechanism 1 makes host paths
+   readable but doesn't register them in the guest's Nix _database_, so a guest build of something abhaile already has
+   would otherwise refetch it from the internet or rebuild it. It runs **unsigned** (no signing key on either side,
+   `require-sigs = false` in the guest): the guest can already read that exact store through mechanism 1, so serving it
+   grants nothing new, and there is no key to manage just to talk to ourselves. The guest also sets
+   `connect-timeout = 3` + `fallback = true` so a stopped host cache can never stall a guest build.
 3. **The runner build is cached per instance.** Launches used to pay a full impure NixOS eval every time (tens of
    seconds). Now the guest system closure is instance-independent (above), so the only thing a relaunch can rebuild is
    the runner script — and `scoite` skips even that when nothing moved, keying `runner.key` on the flake's contents
@@ -174,8 +187,8 @@ Three separate mechanisms, because "don't rebuild" has three separate failure mo
 ## Disks: sparse ceilings that grow
 
 Both volumes are sparse raw images: the declared size is a ceiling, and the host only pays for blocks the guest actually
-writes. A fresh 4 GiB store overlay + 2 GiB home occupy ~134 MiB between them. Defaults are `--disk 32768` (the nix
-store overlay) and `--home-disk 16384` (`/home/iosta`), both MiB.
+writes. A fresh 4 GiB store overlay + 2 GiB home occupy ~134 MiB between them. Defaults are per type: `dev` gets
+`--disk 32768` (the nix store overlay) and `--home-disk 16384` (`/home/iosta`), `minimal` 8192 and 4096, all MiB.
 
 `scoite resize <name> --disk N --home-disk N` grows them, running or not. It truncates the backing file, and for a
 running guest also issues a QMP `block_resize` on qemu's socket so the virtio-blk device grows live. The guest's
@@ -200,7 +213,7 @@ so they don't weaken this boundary:
 - `nix-store-overlay.img` → `/nix/.rw-store`, the overlayfs upper layer (see "Why a writable store overlay" below). It
   only ever holds new, content-addressed Nix store paths the guest builds or fetches for itself — the same trust level
   as the read-only store share.
-- `home.img` → `/home/iosta`, **persistent since 2026-08-22**. This is what makes the `generic` tier's premise real:
+- `home.img` → `/home/iosta`, **persistent since 2026-08-22**. This is what makes the `dev` tier's premise real:
   `nix profile install`, `npm i -g`, `pip install --user`, shell history, `~/.vscode-server`, the agent's own state all
   survive stop→start, and `scoite rm` is what throws them away. Before this the home was tmpfs and only
   `~/.vscode-server` had a volume of its own, so an agent re-installed and re-logged-in on every boot.
@@ -416,8 +429,35 @@ mode 2.
 
 ## Networking
 
-Usermode (SLIRP) networking (`microvm.interfaces = [{ type = "user"; ... }]`) — no host tap/bridge setup, and
-reachability is host-only by design (matches "connections from the local machine", not the LAN).
+A guest has **two** NICs, and the split is the whole design (2026-08-25):
+
+| NIC    | what                                              | carries                                                                                        |
+| ------ | ------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `eth0` | qemu SLIRP (`type = "user"`)                      | the **default route** — all egress, plus abhaile's loopback services at the gateway `10.0.2.2` |
+| `eth1` | a tap on the host bridge `scoitebr0` (10.77.0/24) | a real address the host can reach **inbound**, and the guest's mDNS `<name>.local` identity    |
+
+SLIRP was there first and keeps everything that ever worked working: llama-server on `10.0.2.2:8080`, the omp
+auth-broker on `:8765`, harmonia on `:5000`, and the internet. The bridge NIC takes an address from a dnsmasq of its own
+and **nothing else** — `UseRoutes/UseDNS/UseNTP/UseHostname = false` — so it cannot race SLIRP for egress. It exists
+because a forwarded port is not an identity: mDNS names (below) and LAN exposure both need the guest to be a real host
+on a real network.
+
+Host side (`virtualisation/microvm-host.nix`): `scoite-bridge.service` creates the bridge with plain iproute2 (abhaile's
+networking is NetworkManager's, and this bridge wants to be invisible to it), `dnsmasq-scoite.service` serves DHCP only
+(`--port=0`, so it can never race systemd-resolved for `:53`), the interface is trusted in the firewall, and qemu's
+setuid `qemu-bridge-helper` (from the libvirtd module, whose `allowedBridges` list this extends) is what lets an
+unprivileged `scoite` attach a tap. Each instance's MAC is derived from its name (`mac_for`) and passed per launch, so
+leases are stable and no two guests collide.
+
+Two traps, both found the hard way:
+
+- **Tailscale hijacks the subnet.** With `--accept-routes` and an exit node selected, tailscale's rule at priority 5270
+  outranks the main routing table and its table 52 holds a route for 10.77.0.0/24 — the host sent packets for its own
+  guests down `tailscale0`. DHCP kept working (it is L2), so the bridge looked healthy while every ping/ssh/curl
+  black-holed. `scoite-bridge.service` installs `ip rule add to 10.77.0.0/24 lookup main priority 5000` to win.
+- **Do not delete the bridge while guests run.** `ip link del` silently detaches every enslaved tap; the sandboxes stay
+  up (SLIRP is separate) but vanish from the bridge until restarted. The unit's `preStop` therefore removes only the ip
+  rule.
 
 **Every instance owns a loopback address of its own** — `127.<a>.<b>.1`, hashed from the instance name by `free_addr`,
 persisted as `ADDR` in `~/.local/state/scoite/<name>/config` and shown by `scoite list`. All of `127.0.0.0/8` is bound
@@ -446,30 +486,98 @@ before launch rather than allowed to take the sandbox down with it. `effective_p
 ssh port from being forwarded twice, the other two shapes qemu refuses to start with. A listener on a _specific_ address
 never blocks anything — that is the payoff of per-instance addresses.
 
-**The guest runs no firewall** (`networking.firewall.enable = false` in `microvm-guest.nix`). SLIRP gives a sandbox
-exactly one inbound path — a `hostfwd` rule qemu holds on the host — so the forwarded-port list _is_ the access-control
-list; an in-guest firewall is a second, invisible one that has to be kept in sync. Nothing used to set this, so guests
-ran NixOS's default: enabled, port 22 only (from `services.openssh.openFirewall`), **policy DROP**. That silently
-black-holed every `scoite --port N` ever used — the host-side connect succeeded (qemu accepts before it dials the
-guest), the request then hit a DROP with no RST, and `curl` hung forever with no error on either side, while `curl`
-_inside_ the guest worked (the `lo` accept rule is first in the chain). Ports nothing forwards stay unreachable for the
-solid reason that qemu is not listening on them.
+**The guest runs no firewall** (`networking.firewall.enable = false` in `microvm-guest.nix`). The reasoning was SLIRP's:
+one inbound path, a `hostfwd` rule qemu holds on the host, so the forwarded-port list _is_ the access-control list and
+an in-guest firewall is a second, invisible one to keep in sync. With the bridge NIC there is now a second inbound path
+— but only from abhaile itself (the bridge is not routed anywhere, and LAN reach is the explicit, per-port
+`scoite expose --lan`), so the trade still holds: what a sandbox offers is decided on the host, in one place. Nothing
+used to set this, so guests ran NixOS's default: enabled, port 22 only (from `services.openssh.openFirewall`), **policy
+DROP**. That silently black-holed every `scoite --port N` ever used — the host-side connect succeeded (qemu accepts
+before it dials the guest), the request then hit a DROP with no RST, and `curl` hung forever with no error on either
+side, while `curl` _inside_ the guest worked (the `lo` accept rule is first in the chain). Ports nothing forwards stay
+unreachable for the solid reason that qemu is not listening on them.
 
-Inside the guest, eth0 gets DHCP from **systemd-networkd** (`networking.useNetworkd`, in `microvm-guest.nix`) — not
-NetworkManager. `roles.default` used to ship NetworkManager + avahi to every consumer; they moved to `roles.workstation`
-on 2026-07-14 (a desktop network daemon was the single biggest guest boot-time/RAM cost, and mDNS behind SLIRP reaches
-nothing). `wait-online.anyInterface` lets `network-online.target` — the gate for `scoite-workspace-init` — fire as soon
-as that one link is up. (Den's `primary-user` battery still puts iosta in a `networkmanager` group that no longer exists
-in the guest; NixOS silently drops unknown groups, harmless.)
+Inside the guest, both NICs are configured by **systemd-networkd** (`networking.useNetworkd`, one `.network` file each)
+— not NetworkManager, which `roles.default` stopped shipping on 2026-07-14 (a desktop network daemon was the single
+biggest guest boot-time/RAM cost). Interface names are the unpredictable kind on purpose
+(`usePredictableInterfaceNames = false`): with two NICs the only thing a _shared_ system closure can match on is
+interface order, since the bridge MAC is per-instance. The bridge NIC also sets `ClientIdentifier = "mac"` — networkd's
+default DUID comes from `/etc/machine-id`, which every guest of a type shares, so dnsmasq handed them all the same lease
+until this was set. `wait-online.anyInterface` lets `network-online.target` — the gate for `scoite-workspace-init` —
+fire as soon as that one link is up. (Den's `primary-user` battery still puts iosta in a `networkmanager` group that no
+longer exists in the guest; NixOS silently drops unknown groups, harmless.)
 
-## Memory: a 32G ceiling, not a reservation
+## Names: `<name>.local` (mDNS)
 
-`--mem` defaults to 32768 (MiB). That is deliberately generous because it's a **cap**: qemu only allocates guest pages
-as they're touched, and the guest runs a virtio-balloon that microvm.nix configures with `free-page-reporting=on`
-(`microvm.balloon = true` in `microvm-guest.nix`) — memory the guest frees (e.g. page cache dropped after a big
-`nix build`) is returned to the host automatically, no QMP babysitting, `deflate-on-oom` on. The one fixed cost that
-does scale with the ceiling is the guest kernel's `struct page` array, ~1.5% of `mem` (~500M at 32G) — lower `--mem` for
-many concurrent idle sandboxes.
+A running guest answers to **`scoite-<name>.local`** from abhaile: `ssh scoite-myproject.local`,
+`http://scoite-myproject.local:5173`, `curl http://scoite-myproject.local:6767/api/health`. `scoite list` prints the
+name and the address it resolves to.
+
+- Guest side: `services.resolved` with `MulticastDNS = true` on the bridge NIC publishes the hostname — which the
+  `INSTANCE` boot credential has already set to the instance name, so the shared closure stays name-free. No avahi in
+  the guest.
+- Host side: `core.network.avahi` with `nssmdns4`/`nssmdns6` **on**. Without those, `/etc/nsswitch.conf` carries no mdns
+  entry and glibc cannot resolve any `.local` name — `avahi-resolve` works while `getent`, ssh, curl and browsers do
+  not. That was the state until 2026-08-25.
+- `getent hosts <name>.local` answers with the IPv6 link-local address first; clients that try both (ssh, curl) do not
+  care, but use `getent ahostsv4` when you want the v4 address.
+- `scoite rename` moves the name live: it sets the guest's hostname with `hostname(1)` (not `hostnamectl` — the guest
+  has a _static_ hostname, `sandbox`, baked into the shared closure, and systemd ignores a transient name whenever a
+  static one exists) and restarts `systemd-resolved`, which otherwise keeps announcing the old name. The old name stops
+  resolving once the host's mDNS cache expires (~1 minute).
+
+## Exposing a service to the LAN
+
+Everything above is host-only. `scoite expose [<name>] --lan [--lan-port <n>] <port>` opens exactly one port, for one
+sandbox, to the rest of the network, and `scoite unexpose --lan <port>` closes it. Nothing is exposed by default.
+
+- A root helper, `scoite-lan add|del|list` (installed by `virtualisation/microvm-host.nix`), installs an **iptables
+  DNAT** on the host's default-route interface to the guest's bridge address, tagged with a comment so it can be removed
+  precisely. The CLI stays unprivileged and calls it through `sudo`.
+- A **MASQUERADE** on the way into the bridge is not optional: a guest's default route is SLIRP, so without SNAT it
+  answers a LAN client down SLIRP and the connection hangs.
+- The URL is abhaile's own name (`http://abhaile.local:<port>`), not the guest's: guest `.local` names are published on
+  the sandbox bridge only, and abhaile's LAN is wifi, where bridging a guest's MAC onto the LAN is not possible.
+- Exposures are recorded per instance (`LAN_PORTS` in its config), shown in `scoite list`'s `LAN` column, removed on
+  `stop`/`rm` and re-applied automatically after the guest boots on `start`. A LAN port already claimed by another
+  sandbox is refused — pick another with `--lan-port`.
+- Exposing `:6767` warns: the paseo daemon ships with no password (`authRequired: false`).
+
+**If a LAN client cannot reach abhaile at all**, check tailscale before anything else: with an exit node selected and
+`ExitNodeAllowLANAccess: false`, _every_ reply to a LAN address goes down the tunnel and inbound connections stall.
+`services/tailscale.nix` now passes `--exit-node-allow-lan-access` (a no-op when no exit node is in use).
+
+## Memory: a ceiling, not a reservation
+
+`--mem` defaults to 32768 (MiB) for `dev` and 4096 for `minimal`. Those are deliberately generous because they are
+**caps**: qemu only allocates guest pages as they're touched, and the guest runs a virtio-balloon that microvm.nix
+configures with `free-page-reporting=on` (`microvm.balloon = true` in `microvm-guest.nix`) — memory the guest frees
+(e.g. page cache dropped after a big `nix build`) is returned to the host automatically, no QMP babysitting,
+`deflate-on-oom` on. The one fixed cost that does scale with the ceiling is the guest kernel's `struct page` array,
+~1.5% of `mem` (~500M at 32G) — lower `--mem` for many concurrent idle sandboxes.
+
+## Host identity in the guest, kept current
+
+Four host files reach a guest as qemu `fw_cfg` systemd credentials — read at VM start, never copied into the
+world-readable `/nix/store` — and **all four are also re-pushed into a _running_ guest** by `scoite creds` (which
+`scoite ssh` runs on every attach, plus a 10-minute host timer):
+
+| credential        | from                                                    | installed by                  | what it gives the guest                       |
+| ----------------- | ------------------------------------------------------- | ----------------------------- | --------------------------------------------- |
+| `AGENT_ENV`       | `~/.config/scoite/agent.env` + the broker token         | fish exports `/run/agent.env` | cloud LLM access via the host's auth-broker   |
+| `SSH_CONF`        | `~/.ssh/sshconfig.local` + the **public** keys it names | `scoite-install-ssh-conf`     | per-account git remotes (`<acct>.github.com`) |
+| `GITCONFIG_LOCAL` | `~/.config/git/gitconfig.local`                         | `scoite-install-gitconfig`    | git identity                                  |
+| `OMP_CONF`        | `~/.omp/agent/{config.yml,agents,skills,rules,…}`       | `scoite-install-omp-conf`     | df's omp settings, agents, skills and rules   |
+
+`OMP_CONF` is staged from an **allow-list**, never a deny-list: `~/.omp/agent` also holds `agent.db` (session history),
+`models.db`, `sessions/` and `logs/`, and the broker token lives one directory up. `models.yml` is excluded too — the
+guest's copy points omp's `local` provider at the SLIRP gateway and is generated from
+`modules/den/aspects/services/_llm-models.nix`, the same file llama-server's router presets come from (they used to be
+hand-synced, and a mismatch is invisible until a request hangs).
+
+The installers are commands, not inline unit scripts, precisely because they run twice — at boot and on every push. The
+units invoke them by **absolute store path**: a systemd unit's PATH does not include `/run/current-system/sw/bin`, and
+calling them by name failed at boot with "command not found" while the login-shell push path kept working.
 
 ## LLM access for the agent harness
 
@@ -531,7 +639,10 @@ all → no credential → local provider only.
   2. _The broker's Anthropic OAuth grant itself._ If a refresh comes back `invalid_grant` ("Refresh token not found or
      invalid" — Anthropic rotates the refresh token on every use, so a second holder of the same grant invalidates
      yours), the broker gives up and **disables the credential**, and every guest loses omp at once. Seen on abhaile
-     2026-08-23 09:03. Nothing surfaces this today (TODO item), so it is worth knowing how to check by hand:
+     2026-08-23 09:03. Since 2026-08-25 a `systemd --user` timer, **`omp-broker-check`** (in
+     `dev.tools.omp-auth-broker`), polls for exactly this every 15 minutes — disabled credentials, duplicate rows for
+     one provider, and an unreachable broker — raises a critical desktop notification (`notify-send`) and fails the
+     unit. To check by hand:
 
      ```bash
      T=$(cat ~/.omp/auth-broker.token)
@@ -540,20 +651,41 @@ all → no credential → local provider only.
      journalctl --user -u omp-auth-broker | grep 'credential disabled'
      ```
 
-     The fix is a fresh `omp auth-broker login anthropic` on the host; running guests pick it up on their next request.
-     Also check the snapshot for **duplicate anthropic rows** — abhaile had a stale one alongside the live one, and the
-     refresher kept retrying (and finally disabling) the dead one every 60s for hours.
+     Or just run `omp-broker-check`, which prints the same verdict. The fix is a fresh `omp auth-broker login anthropic`
+     on the host; running guests pick it up on their next request. Also check the snapshot for **duplicate anthropic
+     rows** — abhaile had a stale one alongside the live one, and the refresher kept retrying (and finally disabling)
+     the dead one every 60s for hours.
 
 - The broker's bearer token is a skeleton key to **every** credential it holds, to anything on the loopback path — which
   in practice means any scoite guest you launch. A rogue agent can't escape the filesystem sandbox through this, but it
   _can_ spend down your Pro subscription's rate limits/quota. Same trust tier as the local-llama-server reachability
   above, just: mind what you `--auto-approve` in a sandbox with a real subscription behind it.
 
+## The paseo daemon (2026-08-25)
+
+Every `dev` guest runs **paseo** (getpaseo/paseo), a self-hosted daemon that drives coding agents behind a web/mobile
+UI, on `:6767` — forwarded by default, so `http://<forward-addr>:6767` and `http://<name>.local:6767` both reach it. The
+point is that the agent it drives runs _in the sandbox_.
+
+- Packaged from **upstream's own flake** (`nix/package.nix` + `nix/module.nix`), not nix-ai-tools, which packages only
+  the Electron app `paseo-desktop` (that one runs on abhaile, and brings up a daemon of its own on `127.0.0.1:6767` — no
+  conflict, since guests are forwarded to `127.x.y.1`).
+- `dev.tools.paseo` carries a small `overrideAttrs` for [PR 3250](https://github.com/getpaseo/paseo/pull/3250) (open as
+  of 2026-08-25): the install phase traces the daemon's runtime closure statically and misses `node-pty`'s `prebuilds/`,
+  so **every terminal pane fails to start** in a Nix-built daemon. Drop the override once it merges.
+- Runs as `iosta` (so `PASEO_HOME` is on the persistent home volume and spawned agents inherit iosta's PATH), binds
+  `0.0.0.0` (the forwards are the ACL), accepts `.local` Host headers (it has DNS-rebinding protection), and has
+  `relay.enable = false` — upstream's default dials `app.paseo.sh` so the mobile app can reach the daemon from anywhere,
+  which is exactly the outbound channel a sandbox should not have.
+- Voice is off (`features.{dictation,voiceMode}.enabled = false`): both default to a `local` speech provider and the
+  daemon then background-downloads parakeet + kokoro (hundreds of MB) into _every_ sandbox's home volume, for a feature
+  a headless guest cannot use.
+
 ## UI validation: headless Chromium (2026-08-21)
 
-An agent that writes a web UI has to be able to _look_ at it. `dev.tools.headless-browser` (in `roles.sandbox.devenv`
-and up, so guest-only — df's real hosts get graphical browsers from `apps.bundles.browsers`) puts three entry points in
-the guest, because agents reach for different ones:
+An agent that writes a web UI has to be able to _look_ at it. `dev.tools.headless-browser` (in `roles.sandbox.dev` and
+up, so guest-only — df's real hosts get graphical browsers from `apps.bundles.browsers`) puts three entry points in the
+guest, because agents reach for different ones:
 
 - **`headless-chromium <url>`** — a `writeShellScriptBin` wrapper around `pkgs.chromium` with
   `--headless=new --disable-gpu --disable-dev-shm-usage --no-first-run --no-default-browser-check` already applied, e.g.
@@ -626,19 +758,26 @@ Verified end-to-end on 2026-08-21 by booting a sandbox on a scratch project: `he
   password `iosta`. Autologin was tried first and rejected (silently dropping into a shell on every launch); a throwaway
   typeable password — same pattern as `virtualisation/vm-login.nix`'s debug VM — was the alternative. The console
   deliberately does _not_ auto-start herdr (the autostart is gated on `SSH_TTY`), so it stays usable for debugging.
-- `scoite list`'s NAME column shows the **bare** instance name; the SSH alias is that name with a `scoite-` prefix.
-  Every subcommand accepts either form.
-- State dirs created before the four-type rework have no `config` file and list as type `legacy`; they are not startable
-  (the volume layout and guest hosts changed underneath them). `scoite rm <name>` each of them.
+- `scoite list`'s NAME column shows the full `scoite-<name>` identity, which is also the SSH alias, the unit name and
+  the mDNS name. Subcommands accept either spelling (`mono` or `scoite-mono`).
+- **herdr decides where a pane starts, not your shell.** Its `terminal.new_cwd` policy defaults to `$HOME` when a pane
+  has no source workspace, whatever the launching shell's cwd was — so the `dev` tier sets
+  `[terminal] new_cwd = "/workspace"` in `~/.config/herdr/config.toml`. herdr also _persists_ its session in
+  `~/.config/herdr/session.json` on the guest's home volume, so a sandbox that ran herdr before that config landed keeps
+  its old `$HOME`-rooted panes until `herdr server stop && rm ~/.config/herdr/session.json`.
+- `paseo-desktop` (and any electron app) launched from an agent/CLI session inherits `ELECTRON_RUN_AS_NODE=1` when the
+  agent itself runs inside electron, and fails with "Electron failed to install correctly".
+  `env -u ELECTRON_RUN_AS_NODE` fixes it; nothing is wrong with the package.
+- State dirs created before the 2026-08-22 rework have no `config` file and list as type `legacy`; they are not
+  startable (the volume layout and guest hosts changed underneath them). `scoite rm <name>` each of them.
 - The old `name_for` piped `basename` through `tr -c 'a-zA-Z0-9' '-'`, which turned the trailing newline into a second
   dash — hence the `myproject--a1b2c3d4` names in old state dirs. Fixed (`tr -d '\n'` first), which is part of why old
   instances don't carry over.
 
-## Not built yet (tracked in TODO.md)
+## Not built yet (tracked in TASKS.md)
 
-- LAN-wide (non-loopback) exposure of guest-hosted services (would need tap+bridge networking instead of usermode).
 - Network egress allowlisting inside the guest (smolvm has a good pattern for this: default-deny + an explicit
-  allowed-hosts list).
+  allowed-hosts list) — deliberately deferred, see TASKS.md S20.
 - Replacing the read-write `hostkey` 9p share with a `microvm.credentialFiles` entry — removes a virtio device and
   closes "guest root can read/corrupt the SSH host key shared by all instances" (in-guest root is trivially reachable:
   iosta is in wheel with password `iosta`).

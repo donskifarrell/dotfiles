@@ -41,7 +41,7 @@ modules/                everything else, auto-imported as flake-parts modules
     aspects/             feature modules by category: core, hardware, shell, dev,
                          services, secrets, apps, gaming, virtualisation
     roles/               aspect bundles: default, workstation, dev, desktop,
-                         sandbox.{minimal,generic,devenv,workstation} (the four scoite guest tiers)
+                         sandbox.{minimal,dev} (the two scoite guest tiers)
     users/df.nix         the df user aspect (home-manager)
     users/iosta.nix      the scoite-guest-only user: uid pinned 1000 (virtiofs); its tier
                          is chosen per guest host, not here
@@ -125,39 +125,51 @@ the vault is the guest's only writable host view). Follow-ups + phone→agent/Te
 
 ## Sandboxed microVMs for agents — `scoite` (abhaile)
 
-> **In flight (2026-08-24): `sandvm` was renamed `scoite` (short alias `sc`) and is being reworked** — two guest types,
-> per-VM `.local` DNS names, LAN service exposure, live credential/config propagation. Goals: [GOAL.md](GOAL.md); the
-> sequential, verify-each-step tracker: [TASKS.md](TASKS.md). `sandvm` still exists as a shim that warns and execs
-> `scoite`. Sections below are being updated step by step and may still describe pre-rework behaviour.
+**Full reference: [docs/microvm-sandbox.md](docs/microvm-sandbox.md)** — `scoite` (alias `sc`)
+`new|start|stop|rm|rename|ssh|creds|list|resize|expose|unexpose`, **two** guest types (`minimal` / `dev`, one Den host
+each in `hosts/scoite.nix`, tiers in `roles/sandbox.nix`), guest user `iosta`, `/workspace` the only writable host
+channel. An instance is `scoite-<name>` everywhere: state dir, ssh alias, systemd unit, guest hostname, mDNS name.
+Per-instance state lives in `~/.local/state/scoite/<name>/` (a `config` file plus two sparse volumes: the nix store
+overlay and a persistent `/home/iosta`).
 
-**Full reference: [docs/microvm-sandbox.md](docs/microvm-sandbox.md)** — `scoite new|start|stop|rm|ssh|list|resize`,
-four guest types (`minimal` / `generic` / `devenv` / `workstation`, one Den host each in `hosts/scoite.nix`, tiers in
-`roles/sandbox.nix`), guest user `iosta`, `/workspace` the only writable host channel. Per-instance state lives in
-`~/.local/state/scoite/<name>/` (a `config` file plus two sparse volumes: the nix store overlay and a persistent
-`/home/iosta`).
+The 2026-08-24/25 rework (rename from `sandvm`, two types, bridge networking + `.local` names, LAN exposure, live config
+propagation, paseo) is tracked step by step with its verifications in [TASKS.md](TASKS.md); goals in [GOAL.md](GOAL.md).
 
 Gotchas (easy to forget):
 
 - **Nothing per-instance may enter the guest's `system.build.toplevel`** — that invariant is what lets every sandbox of
-  a type share one built closure. Per-launch values (workdir, ports, cpu/mem, disk sizes, credential paths) may only
-  touch `microvm.*` options that end on qemu's command line. The guest hostname is the static string `sandbox` for
+  a type share one built closure. Per-launch values (workdir, ports, cpu/mem, disk sizes, MAC, credential paths) may
+  only touch `microvm.*` options that end on qemu's command line. The guest hostname is the static string `sandbox` for
   exactly this reason; the real name arrives as a boot credential.
 - `scoite` is home-manager-installed: edits to `pkgs/by-name/scoite/package.nix` need a `nixos-rebuild switch` before
   they reach `$PATH`.
-- Guests reach abhaile at `10.0.2.2` (SLIRP gateway → host loopback): llama-server on :8080, the omp auth-broker on
-  :8765, and the harmonia binary cache on :5000 (unsigned, deliberately — guests already mount that store read-only).
+- **Two NICs.** `eth0` is SLIRP and keeps the default route: guests reach abhaile at `10.0.2.2` (llama-server :8080, omp
+  auth-broker :8765, harmonia :5000 — unsigned by design). `eth1` is a tap on the host bridge `scoitebr0` (10.77.0.0/24,
+  DHCP + `ip rule` beating tailscale's table 52) and exists so a guest has an inbound address and an mDNS name.
+  Restarting `scoite-bridge.service` must never delete the bridge — that detaches every running guest's tap.
+- **`scoite-<name>.local` resolves from abhaile** (guest `systemd-resolved` publishes, host avahi + `nssmdns4` resolve).
+  Nothing is reachable from the LAN unless you say so: `scoite expose --lan <port>` installs an iptables DNAT via the
+  root helper `scoite-lan`, recorded per instance and re-applied on start. With a tailscale exit node selected, LAN
+  reachability also needs `--exit-node-allow-lan-access` (now set in `services/tailscale.nix`).
 - Credentials reach the guest as qemu `fw_cfg` systemd credentials, never through `/nix/store`: pass **string** paths,
   never Nix path literals, or the file gets copied into the world-readable store at eval time.
 - Git auth in a guest = **forwarded ssh-agent + `~/.ssh/sshconfig.local`**. The alias config and the _public_ halves of
-  the keys it names ride in as the `SSH_CONF` credential (`scoite-ssh-config` unpacks them); private keys never do. A
-  remote using a bare `github.com` URL works either way — one using `<acct>.github.com` needs that config.
-- Running sandboxes don't pick up config changes — stop and start them. Credentials are the exception:
-  `scoite creds [<name>|--all]` re-pushes `/run/agent.env` (the omp auth-broker URL + bearer token) into a _running_
-  guest, and it also runs on every `scoite ssh` and on a 10-min host timer. New guest shells only.
+  the keys it names ride in as the `SSH_CONF` credential; private keys never do. A remote using a bare `github.com` URL
+  works either way — one using `<acct>.github.com` needs that config.
+- Running sandboxes don't pick up _system_ config changes — stop and start them. **Host identity is the exception**:
+  `scoite creds [<name>|--all]` re-pushes agent.env, ssh config, gitconfig and omp config into a _running_ guest, and
+  runs on every `scoite ssh` plus a 10-min host timer. New guest shells only.
+- Guest-side installers called from systemd units need **absolute store paths** — a unit's PATH has no
+  `/run/current-system/sw/bin`, and the failure is a swallowed "command not found" at boot while the push path works.
 - omp in a guest never holds an Anthropic token — it asks the host broker per request, and the broker refreshes. Two
   things still break it: a rotated **bearer** token (fix: `scoite creds`), and a definitive `invalid_grant` refresh
-  failure, after which the broker **disables** the credential silently (fix: `omp auth-broker login anthropic` on the
-  host; check `/v1/credentials/disabled`). A broker restart after a login is NOT needed on omp ≥17.4.2.
+  failure, after which the broker **disables** the credential (fix: `omp auth-broker login anthropic` on the host). The
+  `omp-broker-check` timer now notifies on both, plus duplicate credential rows. A broker restart after a login is NOT
+  needed on omp ≥17.4.2.
+- Model ids/context sizes are generated for both llama-server and every guest's omp `models.yml` from
+  `modules/den/aspects/services/_llm-models.nix` — edit that, not the two consumers.
+- herdr decides a pane's cwd (`terminal.new_cwd`, set to `/workspace` for the `dev` tier) and persists its session in
+  the guest's home; an old `session.json` keeps old panes.
 
 ## Local LLM inference (abhaile)
 

@@ -68,9 +68,22 @@
       shell.bundles.system
     ];
 
-    # /workspace is the only project a sandbox ever has — trust its .envrc
-    # without a manual `direnv allow`.
-    homeManager.programs.direnv.config.whitelist.prefix = [ "/workspace" ];
+    homeManager = {
+      # /workspace is the only project a sandbox ever has — trust its .envrc
+      # without a manual `direnv allow`.
+      programs.direnv.config.whitelist.prefix = [ "/workspace" ];
+
+      # ...and start every herdr pane there. herdr's default policy
+      # (`terminal.new_cwd = "follow"`) falls back to $HOME whenever a pane has
+      # no source workspace to inherit from — which is every pane of the first
+      # session after boot — so an interactive `ssh scoite-<name>` landed in
+      # /home/iosta however carefully the login shell had cd'd first. A fixed
+      # path overrides that for panes, tabs and new workspaces alike.
+      xdg.configFile."herdr/config.toml".text = ''
+        [terminal]
+        new_cwd = "/workspace"
+      '';
+    };
 
     # An agent can build/install whatever it likes: the guest store overlay is
     # writable (microvm.writableStoreOverlay) and iosta is a trusted nix user,

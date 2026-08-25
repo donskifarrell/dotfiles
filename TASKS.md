@@ -51,12 +51,12 @@ Naming conventions this plan assumes:
 | S12 | omp auth-broker: keep credentials alive + shout when not | 5 propagation | done   | S2      |
 | S13 | SSH key/config changes propagate into running guests     | 5 propagation | done   | S12     |
 | S14 | Host omp config shared + propagated into guests          | 5 propagation | done   | S12     |
-| S15 | Verify nix store sharing (no re-download in guests)      | 5 propagation | wip    | S2      |
-| S16 | `paseo-desktop` runs on abhaile                          | 5 propagation | todo   | —       |
-| S17 | SSH lands in `/workspace`                                | 5 propagation | todo   | S2      |
-| S18 | Per-type default sizing                                  | 6 polish      | todo   | S3      |
-| S20 | (Optional) guest egress allowlisting — deferred          | 6 polish      | todo   | S11     |
-| S19 | Docs + CLAUDE.md + TODO.md reconciliation                | 6 polish      | todo   | S1–S18  |
+| S15 | Verify nix store sharing (no re-download in guests)      | 5 propagation | done   | S2      |
+| S16 | `paseo-desktop` runs on abhaile                          | 5 propagation | done   | —       |
+| S17 | SSH lands in `/workspace`                                | 5 propagation | done   | S2      |
+| S18 | Per-type default sizing                                  | 6 polish      | done   | S3      |
+| S19 | Docs + CLAUDE.md + TODO.md reconciliation                | 6 polish      | done   | S1–S18  |
+| S20 | (Optional) guest egress allowlisting — deferred          | 6 polish      | n/a    | S11     |
 
 ---
 
@@ -844,3 +844,179 @@ stay in `environment.systemPackages` for the push path. The same latent bug woul
 5. No credential material in the guest: `~/.omp/agent` holds only its own dbs plus `config.yml`/`models.yml`; no broker
    token, no sessions, no API keys in any yml.
 6. `omp -p --model qwen3.6-35b-a3b` inside the guest → `LOCAL_OK` (the local llama-server round trip still works).
+
+### S15 result — 2026-08-25
+
+Not just a measurement in the end — the follow-up S5 left behind turned out to be a real misconfiguration.
+
+**Nix picks substituters by priority, not by list order.** The guest listed `http://10.0.2.2:5000` (abhaile's harmonia)
+_first_, but harmonia advertises `Priority: 50` by default, worse than cache.nixos.org's 40 — so a guest building
+anything downloaded from the internet while the same paths sat on abhaile's disk (exactly what S5 caught:
+`copying path '…cowsay…' from 'https://cache.nixos.org'`). Fixed in `virtualisation/microvm-host.nix` with
+`services.harmonia.cache.settings.priority = 10`.
+
+Worth keeping straight — there are **two** sharing mechanisms, and they cover different things:
+
+- The **9p `ro-store` mount** (`/nix/.ro-store`) makes every host store path _visible_ in the guest, and it is live, so
+  paths the host gains after boot appear too. But a path being visible is not the same as being registered in the
+  guest's nix database: `nix path-info` on a host-built path reports "not registered", so nix will still want to
+  _substitute_ it before a build can depend on it.
+- **harmonia** is what serves that substitution, at loopback speed, from the exact same store. This is the piece the
+  priority bug was silently disabling.
+
+**Verified 2026-08-25:** `curl http://127.0.0.1:5000/nix-cache-info` → `Priority: 10`. Built three packages on abhaile
+that the guest did not have (`figlet`, `sl`, `cmatrix`) and realised each inside the guest by store path:
+
+- `nix-store -r …figlet…` → `copying path … from 'http://10.0.2.2:5000'`, and the NAR fetched from the same host.
+- `cmatrix` realised in **0.48 s** with **zero** hits on cache.nixos.org / nix-community / numtide (grep count 0).
+- Re-realising an already-copied path: 0.05 s.
+
+### S16 result — 2026-08-25
+
+`paseo-desktop` 0.4.0 (from `nix-ai-tools`, already wired into `apps.ai-tools`) **runs on abhaile** — no packaging
+change needed. It launches under Wayland, and on start it brings up a paseo daemon of its own on `127.0.0.1:6767`.
+
+That last detail matters and is _not_ a conflict: a sandbox's paseo is forwarded to its own private `127.x.y.1:6767`,
+never to `127.0.0.1`, which is exactly why per-instance loopback addresses exist. The desktop app and any number of
+guests can hold "port 6767" simultaneously.
+
+**Gotcha worth remembering** (cost 20 minutes here): run from inside this agent session, `paseo-desktop` failed with
+_"Electron failed to install correctly, please delete node_modules/electron"_, and with `ELECTRON_OVERRIDE_DIST_PATH`
+set it failed differently (`electron_1.app` undefined). Neither is a paseo bug: the harness this agent runs in is itself
+an Electron app and exports **`ELECTRON_RUN_AS_NODE=1`**, which makes every electron binary launched from that
+environment run as plain node. `env -u ELECTRON_RUN_AS_NODE` and it starts normally. Any electron app tested from an
+agent shell needs the same.
+
+**Verified 2026-08-25:** `env -u ELECTRON_RUN_AS_NODE -u ELECTRON_NO_ATTACH_CONSOLE paseo-desktop` → the electron
+process runs, its log shows `status: 'running', listen: '127.0.0.1:6767'`, and the UI's React Native layer initialises.
+A guest's daemon stays reachable from the host by name at the same time
+(`curl http://scoite-devtest.local:6767/api/health` → ok); pointing the desktop app at a guest daemon is a UI action,
+not a configuration one.
+
+### S17 result — 2026-08-25
+
+Not the confirmation it looked like: interactive `ssh scoite-<name>` was landing in **/home/iosta**, not `/workspace`.
+
+The login shell was innocent — `/etc/fish/config.fish`'s login block does `cd /workspace`, and the herdr _server_
+process was measured with `/proc/<pid>/cwd = /workspace`. herdr simply does not inherit it: panes follow herdr's own
+`terminal.new_cwd` policy, whose default (`"follow"`) falls back to **$HOME** whenever a pane has no source workspace to
+inherit from — which is every pane of the first session after boot.
+
+Fixes:
+
+- `roles/sandbox.nix` (dev tier) now writes `~/.config/herdr/config.toml` with `[terminal] new_cwd = "/workspace"`,
+  which covers panes, tabs and new workspaces alike.
+- `dev.tools.herdr.autostart` keeps a `cd /workspace` before `exec herdr`, but its comment now says what it is actually
+  for: the _non_-herdr shells (serial console, VS Code terminal, herdr absent). It never controlled pane cwd.
+
+**Migration gotcha:** herdr persists its session in `~/.config/herdr/session.json`, which lives on the sandbox's
+persistent home volume — so a sandbox that has already run herdr keeps its old $HOME-rooted workspace even after the
+config lands. For existing sandboxes, once: `herdr server stop && rm ~/.config/herdr/session.json`. New sandboxes are
+unaffected.
+
+**Verified 2026-08-25** on `scoite-devtest`: with the config in place and the stale `session.json` cleared,
+`herdr pane list` reports `"cwd":"/workspace"` and `"foreground_cwd":"/workspace"` for a pane created by an interactive
+`ssh scoite-devtest` (before: `/home/iosta`). `fish -l -c pwd` → `/workspace`. Non-interactive
+`ssh scoite-devtest <cmd>` still runs in `$HOME`, which is ordinary ssh behaviour and unchanged.
+
+### S18 result — 2026-08-25
+
+Measured first, then set. Idle guests, 2026-08-25:
+
+| type    | in-guest RAM used | store overlay used | home used | qemu RSS |
+| ------- | ----------------- | ------------------ | --------- | -------- |
+| dev     | 513 MiB           | 906 MiB            | 7.3 MiB   | 1.63 GiB |
+| minimal | 624 MiB           | 44 KiB             | 260 KiB   | 1.21 GiB |
+
+Both memory and disk are _ceilings_, not reservations — qemu allocates guest RAM lazily with free-page reporting, and
+both volumes are sparse images — so the point of per-type defaults is headroom, not thrift. `dev` keeps a build-sized
+ceiling; `minimal`, which has no toolchain to build anything with, gets a small one:
+
+| type    | cpu | mem MiB | disk MiB | home MiB |
+| ------- | --- | ------- | -------- | -------- |
+| dev     | 4   | 32768   | 32768    | 16384    |
+| minimal | 2   | 4096    | 8192     | 4096     |
+
+Implemented as `defaults_for <type>` in the CLI, applied in `scoite new` before the `--cpu/--mem/--disk/--home-disk`
+overrides; usage text updated to show both columns.
+
+**Verified 2026-08-25:** a fresh `sc new --type minimal` wrote `CPU=2 MEM=4096 DISK=8192 HOME_DISK=4096`, and in the
+booted guest `nproc` → 2, `free -m` → 3918 MiB total, `/nix/.rw-store` → 7.8 G, `/home/iosta` → 3.9 G. qemu RSS **619
+MiB** (down from 1.21 GiB with the old ceilings) and the whole instance occupied 136 MiB on disk. `nix flake check`
+passes.
+
+### S19 result — 2026-08-25
+
+Documentation brought in line with what actually shipped.
+
+- **`docs/microvm-sandbox.md`**: two types instead of four (with closures re-measured), the new command surface (`sc`,
+  `rename`, `creds`, `expose --lan`, the new `list` columns), the naming/collision/rename rules, a rewritten
+  **Networking** section for the two-NIC design (including the tailscale route hijack and the "never delete the bridge
+  under a running guest" rule), new sections for **mDNS names**, **LAN exposure**, **host identity kept current** (the
+  four fw_cfg credentials and what re-pushes them) and **the paseo daemon**, per-type disk/memory defaults, the harmonia
+  `priority = 10` fix, and four new entries under Known quirks (herdr's `terminal.new_cwd` and its persisted session,
+  `ELECTRON_RUN_AS_NODE`, the `scoite-<name>` identity, absolute paths in unit scripts).
+- **`CLAUDE.md`**: the sandbox section rewritten around the shipped system — two types, the `scoite-<name>` identity,
+  two NICs, `.local` names, opt-in LAN exposure, live identity propagation, the `_llm-models.nix` single source, and the
+  herdr cwd rule — with a pointer to TASKS.md for the step-by-step history. Repo-layout line updated to
+  `sandbox.{minimal,dev}`.
+- **`TODO.md`**: item 7.5 closed (LAN exposure, done via S8/S11), 7.6 marked deliberately deferred (S20), item 13's
+  header now records 13.0/13.2/13.3/13.4 as done and **13.1 (the read-write `hostkey` 9p share → `credentialFiles`) as
+  the one still open**.
+- **`docs/obsidian.md`**: `sc ~/vaults/main`, no hash-suffixed instance names, `dev` tier, and a correction — the guest
+  _does_ have a git identity now (gitconfig rides in as a credential and is re-pushed by `sc creds`).
+- **The `sandvm` shim is gone.** The package now installs `scoite` + `sc` only.
+
+**Verified 2026-08-25:** `nix fmt` clean; `nix flake check` → "all checks passed!"; `nixos-rebuild switch` applied and
+`ls .../scoite/bin` shows only `sc` and `scoite`; `sc list` works. `grep -rn sandvm` over the repo returns only
+deliberate history: TODO.md's Done/phase-2 entries, GOAL.md (df's own words), TASKS.md, the dated notes in
+docs/obsidian.md and CLAUDE.md, the `/var/lib/sandvm → /var/lib/scoite` migration in `microvm-host.nix`, the deploy.nix
+comment explaining the old filter bug, and stale `.claude/settings.local.json` permission entries.
+
+---
+
+## Where this leaves the goals
+
+Every step S0–S19 is verified and done; S20 (guest egress allowlisting) is deliberately deferred. Against
+[GOAL.md](GOAL.md):
+
+| Goal                                                             | Status                                                              |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Rename to `scoite`, alias `sc`, `scoite-X` instances             | done (S2, S6)                                                       |
+| Two VM types, `dev` the default                                  | done (S3)                                                           |
+| `dev` has python/node/headless chromium + shell/git tools        | done (S3)                                                           |
+| `dev` has omp with the host's configuration                      | done (S12, S14)                                                     |
+| `dev` runs the paseo daemon (PR 3250 overlay)                    | done (S4)                                                           |
+| direnv/devenv launched, dependencies installed                   | done (S5)                                                           |
+| Existing `sandvm` features preserved                             | done (S2, verified per step)                                        |
+| `list` shows the DNS name                                        | done (S10)                                                          |
+| Rename a running instance; ssh + DNS follow                      | done (S7)                                                           |
+| Expose VM services externally (`:5173`, `:6767`)                 | done (S11) — opt-in per port, URL is `abhaile.local:<port>`         |
+| SSH lands in `/workspace`                                        | done (S17)                                                          |
+| Connect to host llama.cpp for local models                       | done (S14 verification, generated from `_llm-models.nix`)           |
+| Host runs `paseo-desktop`                                        | done (S16)                                                          |
+| Provider logins via `omp auth-broker`, kept fresh, pushed to VMs | done (S12, S13)                                                     |
+| SSH keys shared and propagated                                   | done (S13)                                                          |
+| omp config shared and propagated                                 | done (S14)                                                          |
+| Host nix store shared (no re-downloads)                          | done (S15) — the harmonia priority bug is what had been breaking it |
+| Reach a VM by local domain name                                  | done (S9)                                                           |
+
+### Closing state — 2026-08-25
+
+Test sandboxes removed; the two df actually uses were recreated under the new scheme and verified running:
+
+| name          | type | workspace                                                             | DNS                 | IP          |
+| ------------- | ---- | --------------------------------------------------------------------- | ------------------- | ----------- |
+| `scoite-main` | dev  | `/home/df/vaults/main` (the Obsidian vault agent, `vault-agent` abbr) | `scoite-main.local` | 10.77.0.174 |
+| `scoite-mono` | dev  | `/home/df/dev/mono`                                                   | `scoite-mono.local` | 10.77.0.107 |
+
+Both boot, accept ssh, and resolve by name. Their guest homes and store overlays start empty (the pre-rename instances
+were deleted in S1 by df's decision); the archived agent configs from the old ones are in
+`~/.local/state/scoite-preserve/*.tar.gz` if anything is wanted back.
+
+Repo state: df committed the bulk of this work as `c1d9ab9 scoite` (2026-08-25 22:05). The changes made after that
+commit — the S17 herdr cwd fix, the S18 per-type sizing, the harmonia priority fix, the shim removal, and the S19
+documentation pass — are uncommitted in the working tree (`CLAUDE.md`, `TASKS.md`, `TODO.md`, `docs/microvm-sandbox.md`,
+`docs/obsidian.md`, `modules/den/aspects/dev/tools/herdr.nix`, `modules/den/aspects/virtualisation/microvm-host.nix`,
+`modules/den/roles/sandbox.nix`, `pkgs/by-name/scoite/package.nix`). They are all live on abhaile — every one of them
+was applied with `nixos-rebuild switch` before being verified.

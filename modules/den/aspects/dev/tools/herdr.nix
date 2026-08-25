@@ -21,9 +21,20 @@
     #   - HERDR_ENV: herdr sets it to 1 inside its own panes — no recursion.
     # `exec` so detaching/quitting herdr ends the ssh session, matching
     # zellij's exitShellOnExit behaviour.
+    # The `cd` keeps a *non-herdr* shell (the serial console, a VS Code
+    # terminal, herdr missing) in the sandbox's project directory. It does NOT
+    # decide where herdr's panes start: herdr applies its own `terminal.new_cwd`
+    # policy, which defaults to $HOME when there is no source workspace, no
+    # matter what the launching shell's cwd was (measured 2026-08-25: the herdr
+    # server's own /proc/<pid>/cwd was /workspace while its pane reported
+    # /home/iosta). The sandbox sets that policy in roles/sandbox.nix.
+    # Guarded on /workspace existing, so it is inert on real hosts.
     autostart.homeManager = {
       programs.fish.interactiveShellInit = ''
         if set -q SSH_TTY; and not set -q HERDR_ENV; and type -q herdr
+          if test -d /workspace; and test "$PWD" = "$HOME"
+            cd /workspace
+          end
           exec herdr
         end
       '';
