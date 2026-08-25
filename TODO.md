@@ -3,6 +3,10 @@
 Repo task tracker. Each item should carry enough detail to hand off cold (to a person or a model). Migration
 history/context lives in MIGRATION-STATUS.md; day-to-day conventions in CLAUDE.md.
 
+**The `sandvm`→`scoite` project has its own step-by-step tracker: [TASKS.md](TASKS.md)** (goals in [GOAL.md](GOAL.md)).
+Items 7.5, 7.6 and 13.0–13.4 below are superseded by its steps — work them there, sequentially, each with its
+verification, not from this file. Names below are pre-rename (`sandvm`), kept as written.
+
 ## Open
 
 ### 1. Re-benchmark LLM backends after each `nix flake update`
@@ -111,12 +115,13 @@ independent enough to pick up separately:
    shadowed — first-match-wins), a stable `~/.ssh/agent.sock` symlink in the guest (herdr panes survive ssh reconnects),
    and github.com seeded into guest known_hosts. Host-side block needs a `nixos-rebuild switch` to land in
    `~/.ssh/config`; until then `ssh -o ForwardAgent=yes sandvm-<name>` behaves identically.
-5. **(Optional) LAN-wide service exposure.** Currently sandvm's usermode networking only forwards to the host's
-   loopback. If a guest-hosted dev server needs to be reachable from other devices on the LAN, swap to tap+bridge
-   networking (like `virtualization.libvirt`'s `virbr0`) for that one interface.
-6. **(Optional) Network egress allowlisting inside the guest.** smolvm (reviewed alongside microvm.nix when designing
-   sandvm) defaults to deny-all guest network egress with an explicit `allow_hosts` list — worth mirroring for the
-   cloud-LLM case in particular, so a compromised agent can't phone home anywhere but the intended API.
+5. **(Optional) LAN-wide service exposure.** _(→ TASKS.md S8/S11.)_ Currently sandvm's usermode networking only forwards
+   to the host's loopback. If a guest-hosted dev server needs to be reachable from other devices on the LAN, swap to
+   tap+bridge networking (like `virtualization.libvirt`'s `virbr0`) for that one interface.
+6. **(Optional) Network egress allowlisting inside the guest.** _(→ TASKS.md S11, decide-or-defer.)_ smolvm (reviewed
+   alongside microvm.nix when designing sandvm) defaults to deny-all guest network egress with an explicit `allow_hosts`
+   list — worth mirroring for the cloud-LLM case in particular, so a compromised agent can't phone home anywhere but the
+   intended API.
 7. ~~Lean guest identity.~~ **Done 2026-07-13**: the guest user is now `iosta` (`modules/den/users/iosta.nix`,
    uid-pinned 1000 for the virtiofs `/workspace` share) carrying only `roles.dev-sandbox`
    (`modules/den/roles/dev-sandbox.nix`) — workstation's TUI shell slice + git + devenv/direnv + herdr + agent tools; no
@@ -178,6 +183,9 @@ Aspects defined but included by no host/role/user (inert, several carry stale le
 `steam-config-nix` input then). The rest: delete or wire when their host materialises.
 
 ### 13. sandvm follow-ups
+
+> **Superseded by [TASKS.md](TASKS.md)** (2026-08-24): 13.0/13.2 → S1 (done: both instances removed), 13.1 → S2, 13.3 →
+> S12, 13.4 → S18. Kept here for detail; track status in TASKS.md.
 
 Items 1 (runner reuse) and 3 (instance-name double dash) were closed by the 2026-08-22 rework — see Done. Still open:
 

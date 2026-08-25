@@ -35,7 +35,7 @@
         extraConfig = lib.mkMerge [
           ''
             Include ~/.ssh/sshconfig.local
-            # sandvm (docs/microvm-sandbox.md) writes its per-instance Host
+            # scoite (docs/microvm-sandbox.md) writes its per-instance Host
             # blocks here at runtime — this directory itself isn't
             # home-manager-managed (unlike this file), so it stays writable.
             Include ~/.ssh/config.d/*

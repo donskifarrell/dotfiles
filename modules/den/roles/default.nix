@@ -1,6 +1,6 @@
 # role-default — the true minimal base every host/guest composes: locale, nix,
 # sshd, systemd, shell basics. Deliberately NO desktop networking here:
-# NetworkManager + avahi moved to roles.workstation (2026-07-14) — a sandvm
+# NetworkManager + avahi moved to roles.workstation (2026-07-14) — a scoite
 # microVM guest behind SLIRP and a headless VPS both want systemd-networkd
 # DHCP (or their own wiring), not a desktop network daemon + open-firewall
 # mDNS. core.systemd.boot (systemd-boot, UEFI-only) is still here because

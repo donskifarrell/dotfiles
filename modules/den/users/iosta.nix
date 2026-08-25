@@ -1,9 +1,9 @@
-# User `iosta` — the sandvm guest user (no real host carries it). Deliberately
+# User `iosta` — the scoite guest user (no real host carries it). Deliberately
 # NOT df: it carries none of df's workstation/desktop identity and no key
 # material of its own.
 #
 # Which sandbox tier iosta gets is decided per guest host, not here:
-# modules/den/hosts/sandvm.nix adds `roles.sandbox.<tier>` to `users.iosta`.
+# modules/den/hosts/scoite.nix adds `roles.sandbox.<tier>` to `users.iosta`.
 # This aspect is only the parts every tier shares.
 { den, ... }:
 let

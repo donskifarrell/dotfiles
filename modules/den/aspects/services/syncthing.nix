@@ -3,7 +3,7 @@
 # (pairing, obsidian-git install): docs/obsidian.md.
 #
 # Runs as a SYSTEM service but AS df (vault files must be owned by uid 1000
-# for Obsidian, obsidian-git, and the sandvm virtiofs passthrough). Keys/certs
+# for Obsidian, obsidian-git, and the scoite virtiofs passthrough). Keys/certs
 # are syncthing-generated on first start under /home/df/.config/syncthing; to
 # adopt the pre-staged sops secrets later (secrets/abhaile.nix has commented
 # abhaile-syncthing-{key,cert,api} entries — owner must become df, not
@@ -17,7 +17,7 @@
 # with the SAME folder id ("vault-main") — do not reuse this aspect there.
 {
   den.aspects.services.syncthing.nixos = {
-    # Vault skeleton; syncthing, Obsidian and sandvm all want it df-owned.
+    # Vault skeleton; syncthing, Obsidian and scoite all want it df-owned.
     systemd.tmpfiles.rules = [
       "d /home/df/vaults 0755 df users -"
       "d /home/df/vaults/main 0755 df users -"

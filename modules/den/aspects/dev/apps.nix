@@ -17,6 +17,7 @@
           pkgs.mprocs
           pkgs.sqlite
           pkgs.sqlitebrowser
+          pkgs.uv
         ];
       };
   };

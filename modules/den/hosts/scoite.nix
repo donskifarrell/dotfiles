@@ -1,6 +1,6 @@
-# Hosts `sandvm-{minimal,generic,devenv,workstation}` — not real machines. Four
-# reusable microVM guest shapes, one per sandbox tier (modules/den/roles/
-# sandbox.nix); the `sandvm` CLI's `--type` picks which one a launch boots.
+# Hosts `scoite-{minimal,dev}` — not real machines. Two reusable microVM guest
+# shapes, one per sandbox tier (modules/den/roles/sandbox.nix); the `scoite`
+# CLI's `--type` picks which one a launch boots.
 #
 # They share everything except that tier role: the same base (`roles.default`),
 # the same guest plumbing (`virtualization.microvm-guest`) and the same guest
@@ -27,12 +27,10 @@
 let
   tiers = {
     minimal = den.aspects.roles.sandbox.minimal;
-    generic = den.aspects.roles.sandbox.generic;
-    devenv = den.aspects.roles.sandbox.devenv;
-    workstation = den.aspects.roles.sandbox.workstation;
+    dev = den.aspects.roles.sandbox.dev;
   };
 
-  hostName = tier: "sandvm-${tier}";
+  hostName = tier: "scoite-${tier}";
 
   # The guest shape every tier shares. An inline aspect value, same as the
   # ones `den.batteries.*` return — `includes` and `aspect` both take values,
@@ -70,7 +68,7 @@ in
     lib.mkIf (system == "x86_64-linux") {
       packages = lib.mapAttrs' (
         tier: _:
-        lib.nameValuePair "sandvm-guest-${tier}"
+        lib.nameValuePair "scoite-guest-${tier}"
           config.flake.nixosConfigurations.${hostName tier}.config.microvm.declaredRunner
       ) tiers;
     };

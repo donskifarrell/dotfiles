@@ -91,8 +91,8 @@
             help = "Print the Den aspect tree applied to each host and user";
           }
           {
-            package = config.packages.sandvm;
-            name = "sandvm";
+            package = config.packages.scoite;
+            name = "scoite";
             help = "Launch a sandboxed per-folder microVM (background by default; -f for foreground)";
           }
         ];

@@ -9,7 +9,7 @@ channels, one folder:
    (Syncthing-Fork + Obsidian mobile)             |        |
                                                   |        | virtiofs rw (only share)
                              obsidian-git plugin  |        v
-                             auto commit-and-sync |   sandvm microVM (/workspace)
+                             auto commit-and-sync |   scoite microVM (/workspace)
                                                   v   claude-code, no other host access
                                      private GitHub repo
 ```
@@ -20,7 +20,7 @@ channels, one folder:
   versioning (14 days) is the backstop against a bad sync from the phone.
 - **obsidian-git** (community plugin, installed manually — see below) is the _backup + history_ channel: auto
   commit-and-sync on abhaile, pushing to a private GitHub repo. Only abhaile talks to GitHub.
-- **The agent** is plain `sandvm ~/vaults/main` (abbr: `vault-agent`) — the existing microVM sandbox
+- **The agent** is plain `scoite ~/vaults/main` (abbr: `vault-agent`) — the existing microVM sandbox
   (docs/microvm-sandbox.md), no changes needed. The vault is the guest's `/workspace`, its **only** read-write view of
   the host.
 - **drop/** inside the vault is the df↔agent exchange folder. Because it's inside the vault it syncs to the phone too —
@@ -42,7 +42,7 @@ real files under `.obsidian/plugins/` and then sync to other desktops as ordinar
   `~/.config/git/gitconfig.local` is a df-only sops file, so in-guest commits need
   `-c user.name=... -c user.email=...`). In practice: the agent edits files, the **host-side** obsidian-git commits and
   pushes them. The agent has **no push credentials** — ssh-agent forwarding exists only while df is attached over
-  `ssh sandvm-*`.
+  `ssh scoite-*`.
 - Anthropic auth reaches the guest via the omp-auth-broker / agent.env flow (docs/microvm-sandbox.md); no API keys land
   in the vault or the store.
 - `drop/` and any note editable from the phone are untrusted agent input (prompt-injection surface). The blast radius
@@ -83,24 +83,24 @@ real files under `.obsidian/plugins/` and then sync to other desktops as ordinar
 ## Using the agent
 
 ```fish
-vault-agent                       # = sandvm ~/vaults/main (creates a `devenv` sandbox on first run)
-sandvm ssh main-<hash>            # or `ssh sandvm-main-<hash>` — the alias the banner prints
-# or: herdr --remote sandvm-main-<hash>
+vault-agent                       # = scoite ~/vaults/main (creates a `devenv` sandbox on first run)
+scoite ssh main-<hash>            # or `ssh scoite-main-<hash>` — the alias the banner prints
+# or: herdr --remote scoite-main-<hash>
 claude                            # sessions land in /workspace already
-sandvm stop main-<hash>           # when done; the guest's home and store overlay persist
+scoite stop main-<hash>           # when done; the guest's home and store overlay persist
 ```
 
-The guest's `sandvm-workspace-init` no-ops on the vault (no `flake.nix` / `devenv.nix`) — that's expected.
+The guest's `scoite-workspace-init` no-ops on the vault (no `flake.nix` / `devenv.nix`) — that's expected.
 
-Note (2026-08-22): the sandvm rework renamed instances (the old double-dash `main--<hash>` form was a bug) and changed
+Note (2026-08-22): the scoite rework renamed instances (the old double-dash `main--<hash>` form was a bug) and changed
 the guest's volume layout, so the pre-existing vault sandbox is listed as `legacy` and must be recreated —
-`sandvm rm main--e57b201a`, then `vault-agent`. The guest home now persists across stops, so `claude`'s own state and
-any tools the agent installs survive; `sandvm rm` is what resets it.
+`scoite rm main--e57b201a`, then `vault-agent`. The guest home now persists across stops, so `claude`'s own state and
+any tools the agent installs survive; `scoite rm` is what resets it.
 
 ## Future extensions (tracked in TODO.md)
 
 - **Phone→agent inbox**: phone writes `inbox.md` / drops files in `drop/`; a systemd --user **path unit** on abhaile
-  watches the synced path and triggers headless Claude in the sandbox (`sandvm ssh main-<hash> -- claude -p ...`);
+  watches the synced path and triggers headless Claude in the sandbox (`scoite ssh main-<hash> -- claude -p ...`);
   replies sync back. Needs locking + a processed-marker convention.
 - **Telegram bot**: bridges chat to the same inbox convention; token in sops; host it on abhaile now or eachtrach when
   it exists.

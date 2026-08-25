@@ -23,6 +23,21 @@
         enableSSH = true;
         exitNode = false;
         enableHostAliases = true;
+
+        # abhaile *uses* an exit node (eachtrach) — a runtime pref, not
+        # something this file sets. With an exit node selected, tailscale
+        # routes everything that isn't tailnet-local into the tunnel,
+        # **including the local LAN**: table 52 gets a default route plus one
+        # per locally-connected subnet, at rule priority 5270, above main. The
+        # visible symptom is that inbound LAN connections to this host stall —
+        # the request arrives on wifi, the reply is routed down tailscale0 and
+        # never comes back. That breaks `scoite expose --lan` (TASKS.md S11)
+        # and equally any other service abhaile offers its own LAN.
+        #
+        # --exit-node-allow-lan-access is tailscale's own answer: keep using
+        # the exit node for the internet, keep talking to directly-connected
+        # subnets directly. It is a no-op when no exit node is selected.
+        allowLanWithExitNode = true;
       in
       {
         sops.secrets."tailscale-aon_tailnet-authkey" = {
@@ -35,7 +50,10 @@
           enable = true;
           useRoutingFeatures = "both";
           authKeyFile = config.sops.secrets."tailscale-aon_tailnet-authkey".path;
-          extraUpFlags = (lib.optional enableSSH "--ssh") ++ (lib.optional exitNode "--advertise-exit-node");
+          extraUpFlags =
+            (lib.optional enableSSH "--ssh")
+            ++ (lib.optional exitNode "--advertise-exit-node")
+            ++ (lib.optional allowLanWithExitNode "--exit-node-allow-lan-access");
         };
 
         networking.firewall = {

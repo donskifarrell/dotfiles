@@ -1,22 +1,24 @@
-# role-sandbox.* — the four sandbox tiers a `sandvm` guest can be built from.
-# Each tier includes the one below it, so the closures nest and a launch only
-# pays for what its type actually needs:
+# role-sandbox.* — the two sandbox tiers a `scoite` guest can be built from.
+# `dev` includes `minimal`, so the closures nest and a launch only pays for
+# what its type actually needs:
 #
-#   minimal      shell + git + the agent harness. No dev toolchain at all —
-#                for "run this thing somewhere it can't touch my machine".
-#   generic      + a compiler/build toolchain, nix-ld and the full TUI shell
-#                environment. This is the "plain Linux box the agent installs
-#                its own tools into" tier: the guest's nix store overlay and
-#                home are both persistent, so `nix profile install` /
-#                `npm i -g` / `pip install --user` survive stop→start.
-#   devenv       + devenv.sh/direnv + herdr + headless chromium. The project
-#                declares its own toolchain in devenv.nix/flake.nix and the
-#                guest pre-builds it at boot (sandvm-workspace-init in
-#                virtualisation/microvm-guest.nix).
-#   workstation  + df's language toolchains, for parity with abhaile when a
-#                project has no declared environment of its own.
+#   minimal  shell + git + the agent harness, with internet access and nothing
+#            else — for "run this thing somewhere it can't touch my machine".
+#   dev      (default) the working sandbox: python, node, headless chromium,
+#            compilers/nix-ld, the full TUI shell + git stack, devenv/direnv,
+#            herdr, and the paseo daemon on :6767. The guest's nix store
+#            overlay and home are both persistent, so `nix profile install` /
+#            `npm i -g` / `pip install --user` survive stop→start, and a project
+#            that declares its own toolchain in devenv.nix/flake.nix has it
+#            pre-built at boot (scoite-workspace-init in
+#            virtualisation/microvm-guest.nix).
 #
-# One tier per Den host in modules/den/hosts/sandvm.nix; the CLI's `--type`
+# Collapsed from four tiers (minimal/generic/devenv/workstation) on 2026-08-24
+# — TASKS.md S3. The middle two were never chosen deliberately: `devenv` was
+# the default and got used for everything, `generic` and `workstation` only
+# existed as the rungs on either side of it.
+#
+# One tier per Den host in modules/den/hosts/scoite.nix; the CLI's `--type`
 # picks which. See docs/microvm-sandbox.md.
 { den, ... }:
 {
@@ -30,14 +32,26 @@
     apps.ai-tools
   ];
 
-  # --- generic ---------------------------------------------------------
-  den.aspects.roles.sandbox.generic = {
+  # --- dev -------------------------------------------------------------
+  den.aspects.roles.sandbox.dev = {
     includes = with den.aspects; [
       roles.sandbox.minimal
 
       dev.git.github
       dev.git.lazygit
+
+      dev.lang.node
+      dev.lang.python
+      dev.lang.nix
+      dev.lang.go
+
+      dev.tools.devenv
       dev.tools.direnv
+      dev.tools.headless-browser
+      dev.tools.herdr
+      dev.tools.herdr.autostart
+      dev.tools.paseo
+      dev.tools.trippy
 
       shell.atuin
       shell.bat
@@ -54,11 +68,15 @@
       shell.bundles.system
     ];
 
-    # The point of this tier: an agent can build/install whatever it likes.
-    # The guest store overlay is writable (microvm.writableStoreOverlay) and
-    # iosta is a trusted nix user, so `nix profile install` works without a
-    # daemon-permission dance; the compilers are here so a `pip install`/
-    # `npm rebuild` that drops to C doesn't dead-end.
+    # /workspace is the only project a sandbox ever has — trust its .envrc
+    # without a manual `direnv allow`.
+    homeManager.programs.direnv.config.whitelist.prefix = [ "/workspace" ];
+
+    # An agent can build/install whatever it likes: the guest store overlay is
+    # writable (microvm.writableStoreOverlay) and iosta is a trusted nix user,
+    # so `nix profile install` works without a daemon-permission dance; the
+    # compilers are here so a `pip install`/`npm rebuild` that drops to C
+    # doesn't dead-end.
     nixos =
       { pkgs, ... }:
       {
@@ -73,30 +91,4 @@
         nix.settings.trusted-users = [ "iosta" ];
       };
   };
-
-  # --- devenv ----------------------------------------------------------
-  den.aspects.roles.sandbox.devenv = {
-    includes = with den.aspects; [
-      roles.sandbox.generic
-
-      dev.tools.devenv
-      dev.tools.headless-browser
-      dev.tools.herdr
-      dev.tools.herdr.autostart
-    ];
-
-    # /workspace is the only project a sandbox ever has — trust its .envrc
-    # without a manual `direnv allow`.
-    homeManager.programs.direnv.config.whitelist.prefix = [ "/workspace" ];
-  };
-
-  # --- workstation -----------------------------------------------------
-  den.aspects.roles.sandbox.workstation.includes = with den.aspects; [
-    roles.sandbox.devenv
-
-    dev.lang.go
-    dev.lang.nix
-    dev.lang.python
-    dev.tools.trippy
-  ];
 }

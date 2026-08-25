@@ -1,7 +1,7 @@
 # herdr (herdr.dev) — terminal multiplexer for coding-agent sessions, from
 # numtide's nix-ai-tools flake (not nixpkgs). Installed on the host so
-# `herdr --remote sandvm-<name>` can attach to a sandvm guest's session over
-# the ssh alias `sandvm` already sets up — herdr tunnels over plain ssh, no
+# `herdr --remote scoite-<name>` can attach to a scoite guest's session over
+# the ssh alias `scoite` already sets up — herdr tunnels over plain ssh, no
 # daemon/server toggle or extra config needed on either end.
 { inputs, ... }:
 {
@@ -12,7 +12,7 @@
         home.packages = [ inputs.nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.herdr ];
       };
 
-    # Startup multiplexer for sandbox guests (roles.sandbox.devenv): interactive
+    # Startup multiplexer for sandbox guests (roles.sandbox.dev): interactive
     # SSH logins land straight in herdr — the sandbox analogue of
     # shell.zellij's auto-start on real hosts. Guards:
     #   - SSH_TTY: only real ssh logins. The qemu serial console stays plain

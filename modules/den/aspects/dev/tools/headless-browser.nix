@@ -1,6 +1,6 @@
 # dev.tools.headless-browser — a browser a coding agent can actually *look*
 # through: screenshots, DOM assertions, console-error checks against the UI it
-# just wrote. Guest-only in practice (roles.sandbox.devenv and up); df's real hosts get
+# just wrote. Guest-only in practice (roles.sandbox.dev); df's real hosts get
 # real, graphical browsers from apps.bundles.browsers instead.
 #
 # Three ways in, because agents reach for different ones:
@@ -16,7 +16,7 @@
 #     `claude mcp add playwright -- playwright-mcp --headless --isolated`.
 #
 # The browser runs *inside* the guest, so it reaches the project's dev server
-# on plain localhost — no `sandvm --port` forward needed for the agent's own
+# on plain localhost — no `scoite --port` forward needed for the agent's own
 # checks (that flag is only for a human wanting to look from the host).
 {
   den.aspects.dev.tools.headless-browser = {

@@ -1,7 +1,7 @@
 # role-dev — the software-development toolchain for a real host's user:
-# languages, git stack, devenv/direnv, and the agent/sandbox tooling (sandvm,
+# languages, git stack, devenv/direnv, and the agent/sandbox tooling (scoite,
 # herdr, omp-auth-broker). A role is just an aspect that `includes` concern
-# aspects. (The sandvm guest deliberately does NOT use this role — it carries
+# aspects. (The scoite guest deliberately does NOT use this role — it carries
 # the roles.sandbox.* tiers, leaner slices.)
 { den, ... }:
 {
@@ -21,7 +21,7 @@
     dev.tools.distrobox
     dev.tools.herdr
     dev.tools.omp-auth-broker
-    dev.tools.sandvm
+    dev.tools.scoite
     dev.tools.trippy
   ];
 }

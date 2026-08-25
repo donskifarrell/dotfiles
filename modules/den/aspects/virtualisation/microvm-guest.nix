@@ -1,10 +1,10 @@
-# Guest-side shape of a `sandvm` sandbox — see modules/den/hosts/sandvm.nix for
+# Guest-side shape of a `scoite` sandbox — see modules/den/hosts/scoite.nix for
 # the four hosts that carry this aspect (one per sandbox type) and
 # docs/microvm-sandbox.md for the full picture (why virtiofs for /workspace,
 # why the SSH host key is shared not generated per-boot, what's deliberately
 # NOT shared).
 #
-# Everything read impurely below (`builtins.getEnv`, set by the `sandvm` CLI)
+# Everything read impurely below (`builtins.getEnv`, set by the `scoite` CLI)
 # is deliberately confined to options that only affect the *runner script* —
 # qemu's command line — never `system.build.toplevel`. That's what lets every
 # instance of a type share one already-built system closure: relaunching with
@@ -30,7 +30,7 @@ let
   workdirRaw = builtins.getEnv "MICROVM_WORKDIR";
   workdir =
     if workdirRaw == "" then
-      lib.warn "MICROVM_WORKDIR unset — sharing /var/empty as /workspace. Launch via the `sandvm` command (pkgs/by-name/sandvm), not `nix run`/`nix build` directly." "/var/empty"
+      lib.warn "MICROVM_WORKDIR unset — sharing /var/empty as /workspace. Launch via the `scoite` command (pkgs/by-name/scoite), not `nix run`/`nix build` directly." "/var/empty"
     else
       workdirRaw;
 
@@ -40,10 +40,17 @@ let
 
   # Volume sizes (MiB). Both images are sparse files that only cost host disk
   # as the guest actually writes into them, and both are grown in place by
-  # `sandvm resize` (truncate + QMP block_resize + the boot-time grow-fs unit
+  # `scoite resize` (truncate + QMP block_resize + the boot-time grow-fs unit
   # below), so these are generous ceilings rather than reservations.
   diskMib = lib.toIntBase10 (getEnvOr "MICROVM_DISK" "32768");
   homeMib = lib.toIntBase10 (getEnvOr "MICROVM_HOME_DISK" "16384");
+
+  # Per-instance MAC for the bridge NIC, derived from the instance name by the
+  # CLI (`mac_for`). It MUST be unique per instance — every guest sits on the
+  # same host bridge, and two sandboxes sharing a MAC take each other's
+  # traffic. Empty (a pure eval, e.g. `nix flake check`) falls back to a
+  # locally-administered address that no launch ever uses.
+  bridgeMac = getEnvOr "MICROVM_BR_MAC" "02:5c:00:00:00:01";
 
   extraPorts =
     let
@@ -52,7 +59,7 @@ let
     map lib.toIntBase10 (lib.filter (s: s != "") (lib.splitString "," raw));
 
   # Host-side bind address for every forwarded port. The CLI allocates one
-  # 127.x.y.1 per instance (see `free_addr` in pkgs/by-name/sandvm), which is
+  # 127.x.y.1 per instance (see `free_addr` in pkgs/by-name/scoite), which is
   # what lets guest ports map 1:1 — a guest's :8080 lands on 127.x.y.1:8080
   # and so cannot collide with abhaile's own llama-server on 127.0.0.1:8080,
   # nor with any other sandbox. It also keeps forwards genuinely host-only:
@@ -63,7 +70,7 @@ let
 
   # MICROVM_PORTS already carries the full effective set — the CLI's default
   # dev-port list plus any `--port`, minus whatever the host currently holds on
-  # a wildcard address (see `effective_ports` in pkgs/by-name/sandvm). That
+  # a wildcard address (see `effective_ports` in pkgs/by-name/scoite). That
   # filtering has to happen against live host state, so it cannot live here.
   # This end only guards the two shapes qemu refuses to start with: a duplicate
   # host port, or a second rule on the ssh port. Either one aborts the whole VM
@@ -77,7 +84,7 @@ let
   # the whole point by copying the file into the store at eval time.) The CLI
   # only sets each var when the corresponding host file exists.
   credentialEnv = {
-    # ~/.config/sandvm/agent.env + the omp auth-broker token: KEY=value lines
+    # ~/.config/scoite/agent.env + the omp auth-broker token: KEY=value lines
     # exported into every guest shell.
     AGENT_ENV = builtins.getEnv "MICROVM_AGENT_ENV";
     # df's ~/.config/git/gitconfig.local (a sops secret on the host):
@@ -91,27 +98,161 @@ let
     # *public* halves of the keys it names. No private key material: ssh
     # resolves an IdentityFile whose private half is missing against the
     # forwarded agent, which is what keeps per-account identity selection
-    # working with the keys still on abhaile. See sandvm-ssh-config below.
+    # working with the keys still on abhaile. See scoite-ssh-config below.
     SSH_CONF = builtins.getEnv "MICROVM_SSH_CONF";
     # A file holding the instance name — the one genuinely per-instance
     # *guest-visible* fact. Delivered as a credential rather than baked into
     # networking.hostName so the system closure stays identical across
     # instances. (credentialFiles values are paths, never inline values.)
     INSTANCE = builtins.getEnv "MICROVM_INSTANCE_FILE";
+    # A tar of the *configuration* half of df's ~/.omp/agent — config.yml and
+    # the agents/skills/rules/prompt directories, never the sqlite stores,
+    # sessions, logs or the broker token (TASKS.md S14). Same fw_cfg path as
+    # the others, so it never enters /nix/store.
+    OMP_CONF = builtins.getEnv "MICROVM_OMP_CONF";
   };
 in
 {
   den.aspects.virtualization.microvm-guest.nixos =
     { pkgs, ... }:
+    let
+      # Host-identity installers. Each is used twice — from the boot unit that
+      # reads the fw_cfg credential, and from `scoite creds`, which re-pushes
+      # the same file into an already-running guest (TASKS.md S13/S14) — so
+      # they are commands, not inline unit scripts.
+      #
+      # The units below call them by **absolute store path**: a systemd unit's
+      # PATH does not include /run/current-system/sw/bin, and referring to them
+      # by name failed at boot with "command not found" while the (login-shell)
+      # push path kept working — silent, and exactly the kind of half-working
+      # that looks fine in testing.
+      installSshConf = pkgs.writeShellApplication {
+        name = "scoite-install-ssh-conf";
+        runtimeInputs = [
+          pkgs.gnutar
+          pkgs.coreutils
+        ];
+        text = ''
+          src=''${1:?usage: scoite-install-ssh-conf <tar>}
+          [ -f "$src" ] || exit 0
+
+          install -d -m 0700 -o iosta -g users /home/iosta/.ssh
+          # config.d is scoite's alone, so wiping it each time is how a
+          # block df deleted on the host stops applying in the guest.
+          rm -rf /home/iosta/.ssh/config.d
+          install -d -m 0755 -o root -g root /home/iosta/.ssh/config.d
+          tar -xf "$src" -C /home/iosta/.ssh
+          # --no-dereference: ~/.ssh also holds the agent.sock symlink the
+          # login shell maintains; never chase it out of the home.
+          chown -R --no-dereference iosta:users /home/iosta/.ssh
+          # Re-assert modes the tar would otherwise dictate. The included
+          # config is root-owned on purpose: /etc/ssh/ssh_config parses
+          # Include eagerly even for a user the Match doesn't apply to, and
+          # ssh refuses a config file owned by neither root nor the caller —
+          # iosta-owned, it broke root's ssh entirely with "Bad owner or
+          # permissions". Root-owned + 0644 satisfies both users.
+          chmod 0700 /home/iosta/.ssh
+          chown -R root:root /home/iosta/.ssh/config.d
+          chmod 0755 /home/iosta/.ssh/config.d
+          chmod 0644 /home/iosta/.ssh/config.d/* || true
+          chmod 0644 /home/iosta/.ssh/*.pub || true
+        '';
+      };
+
+      installOmpConf = pkgs.writeShellApplication {
+        name = "scoite-install-omp-conf";
+        runtimeInputs = [
+          pkgs.gnutar
+          pkgs.coreutils
+        ];
+        text = ''
+          src=''${1:?usage: scoite-install-omp-conf <tar>}
+          [ -f "$src" ] || exit 0
+          install -d -m 0755 -o iosta -g users /home/iosta/.omp
+          install -d -m 0755 -o iosta -g users /home/iosta/.omp/agent
+          # models.yml is deliberately NOT in the tar and must not be
+          # clobbered: the host's copy (if any) points omp at providers as
+          # abhaile sees them, while the guest's points the `local` provider
+          # at the SLIRP gateway.
+          tar -xf "$src" -C /home/iosta/.omp/agent
+          chown -R iosta:users /home/iosta/.omp
+        '';
+      };
+
+      installGitconfig = pkgs.writeShellApplication {
+        name = "scoite-install-gitconfig";
+        runtimeInputs = [ pkgs.coreutils ];
+        text = ''
+          src=''${1:?usage: scoite-install-gitconfig <file>}
+          [ -f "$src" ] || exit 0
+          install -d -m 0755 -o iosta -g users /home/iosta/.config
+          install -d -m 0700 -o iosta -g users /home/iosta/.config/git
+          install -m 0600 -o iosta -g users "$src" \
+            /home/iosta/.config/git/gitconfig.local
+        '';
+      };
+    in
     {
       imports = [ inputs.microvm.nixosModules.microvm ];
 
-      # Guest networking: systemd-networkd DHCP on the SLIRP interface.
-      # roles.default no longer ships NetworkManager/avahi (2026-07-14) — a
-      # desktop network daemon was the single biggest guest boot-time/RAM
-      # cost, and mDNS behind SLIRP reaches nothing.
+      # Guest networking: systemd-networkd, one .network file per NIC.
+      # roles.default ships no NetworkManager (2026-07-14) — a desktop network
+      # daemon was the single biggest guest boot-time/RAM cost.
       networking.useNetworkd = true;
       systemd.network.wait-online.anyInterface = true;
+
+      # eth0/eth1 instead of enp0s8/enp0s9: with two NICs the *only* thing
+      # that reliably distinguishes them at build time is their order, and
+      # kernel names follow that order while predictable names follow PCI
+      # slots that microvm.nix may renumber. The MAC can't be matched on
+      # either — the bridge one is per-instance and this closure is shared.
+      networking.usePredictableInterfaceNames = false;
+
+      systemd.network.networks = {
+        "10-scoite-slirp" = {
+          matchConfig.Name = "eth0";
+          networkConfig.DHCP = "yes";
+          # Lowest metric: this is the way out.
+          dhcpV4Config.RouteMetric = 100;
+        };
+
+        "10-scoite-bridge" = {
+          matchConfig.Name = "eth1";
+          networkConfig = {
+            DHCP = "ipv4";
+            # Announce `<hostname>.local` on the bridge and answer queries for
+            # it (TASKS.md S9). systemd-resolved does the publishing, so no
+            # avahi in the guest.
+            MulticastDNS = true;
+          };
+          dhcpV4Config = {
+            # Identify by MAC, not by the default DUID: networkd derives that
+            # DUID from /etc/machine-id, every guest of a type shares one
+            # system closure and therefore one machine-id, and dnsmasq
+            # (correctly) then hands every sandbox the *same* lease — two
+            # running guests both answering on 10.77.0.106. The MAC is the one
+            # per-instance thing this NIC has.
+            ClientIdentifier = "mac";
+
+            # Address only. A default route here would race SLIRP's for
+            # egress, and the bridge's dnsmasq runs with `port=0` — it serves
+            # no DNS to take.
+            UseRoutes = false;
+            UseDNS = false;
+            UseNTP = false;
+            # The guest's hostname comes from the INSTANCE credential, not
+            # from a DHCP lease.
+            UseHostname = false;
+          };
+        };
+      };
+
+      # resolved is what answers/publishes mDNS above; it is not a resolver
+      # change for anything else (SLIRP's DNS still comes over eth0).
+      services.resolved = {
+        enable = true;
+        llmnr = "false";
+      };
 
       # No firewall in the guest, deliberately. SLIRP gives a sandbox exactly
       # one inbound path — a `hostfwd` rule held by qemu on the host — so the
@@ -119,7 +260,7 @@ in
       # firewall only adds a second, invisible one that has to be kept in sync
       # with it. Nothing here used to set this, so guests ran NixOS's default:
       # enabled, port 22 only (from services.openssh.openFirewall), policy
-      # DROP. That silently black-holed every `sandvm --port N` — the host-side
+      # DROP. That silently black-holed every `scoite --port N` — the host-side
       # connect succeeded (qemu accepts on the host side before it dials the
       # guest), the request then hit a DROP with no RST, and curl hung forever
       # with no error anywhere. Ports nothing forwards stay unreachable for the
@@ -127,11 +268,11 @@ in
       networking.firewall.enable = false;
 
       # Static, deliberately: Den would derive this from the Den host name
-      # ("sandvm-devenv", …) and the previous design forced it to the
+      # ("scoite-devenv", …) and the previous design forced it to the
       # per-launch instance name — which put the instance name inside
       # /etc and so gave every sandbox its own system closure. The real
       # hostname is set at boot from the INSTANCE credential by
-      # sandvm-hostname.service below.
+      # scoite-hostname.service below.
       networking.hostName = lib.mkForce "sandbox";
 
       microvm = {
@@ -144,13 +285,36 @@ in
         # pages are returned to the host automatically, no QMP babysitting.
         balloon = true;
 
-        # Usermode (SLIRP) networking: no host tap/bridge setup, host-only
-        # reachability by design (see docs/microvm-sandbox.md).
+        # Two NICs, on purpose (2026-08-25, TASKS.md S8):
+        #
+        #   eth0  qemu SLIRP. Keeps the *default route* and with it every
+        #         outbound path a sandbox has ever had, including abhaile's
+        #         loopback services at the SLIRP gateway 10.0.2.2
+        #         (llama-server :8080, omp auth-broker :8765, harmonia :5000).
+        #         Its inbound side is still only what the CLI forwards.
+        #   eth1  a tap on the host bridge `scoitebr0`
+        #         (virtualisation/microvm-host.nix), attached by qemu's setuid
+        #         bridge helper so an unprivileged `scoite` can do it. This is
+        #         what gives a guest a real address the host can reach without
+        #         a forward — the precondition for mDNS names (S9) and LAN
+        #         exposure (S11). It takes an address from the bridge's dnsmasq
+        #         and nothing else: no default route, no DNS (see the .network
+        #         files below).
+        #
+        # The SLIRP MAC is shared by every instance and always was — SLIRP is a
+        # per-VM userspace stack, so nothing else can see it. The bridge MAC
+        # cannot be shared, hence the per-launch value.
         interfaces = [
           {
             type = "user";
             id = "usernet0";
             mac = "02:00:00:01:01:01";
+          }
+          {
+            type = "bridge";
+            id = "brnet0";
+            mac = bridgeMac;
+            bridge = "scoitebr0";
           }
         ];
 
@@ -194,8 +358,8 @@ in
           }
           {
             tag = "hostkey";
-            source = "/var/lib/sandvm/hostkey";
-            mountPoint = "/etc/sandvm-hostkey";
+            source = "/var/lib/scoite/hostkey";
+            mountPoint = "/etc/scoite-hostkey";
           }
         ];
 
@@ -215,7 +379,7 @@ in
           # Persistent /home. This is what makes "a box the agent installs its
           # own tools into" actually stick: `nix profile install`, npm/pip
           # --user, shell history, claude-code's own state and ~/.vscode-server
-          # all survive stop→start, and `sandvm rm` is what throws them away.
+          # all survive stop→start, and `scoite rm` is what throws them away.
           # (Until 2026-08-22 the home was tmpfs and only ~/.vscode-server had
           # a volume of its own.)
           {
@@ -254,12 +418,12 @@ in
       # Only `hostKeys` is guest-specific.
       services.openssh.hostKeys = [
         {
-          path = "/etc/sandvm-hostkey/ssh_host_ed25519_key";
+          path = "/etc/scoite-hostkey/ssh_host_ed25519_key";
           type = "ed25519";
         }
       ];
 
-      # VSCode Remote-SSH (`code --remote ssh-remote+sandvm-<name> /workspace`):
+      # VSCode Remote-SSH (`code --remote ssh-remote+scoite-<name> /workspace`):
       # the extension downloads a prebuilt server whose node binary is
       # dynamically linked against /lib64/ld-linux-x86-64.so.2 — absent on
       # NixOS, so it dies on launch without this. nix-ld provides that loader;
@@ -271,14 +435,14 @@ in
       # connection would otherwise leave the console login prompt with no
       # usable credentials. Not a security regression — the console is qemu's
       # own stdout, only reachable by whoever can already read the
-      # `sandvm`-launching systemd-run unit.
+      # `scoite`-launching systemd-run unit.
       users.users.iosta.initialPassword = "iosta";
 
       # --- per-instance boot wiring ----------------------------------------
 
       # The instance's real name, from the fw_cfg credential (see the comment
       # on networking.hostName above).
-      systemd.services.sandvm-hostname = {
+      systemd.services.scoite-hostname = {
         description = "Set the hostname from the launch-time INSTANCE credential";
         wantedBy = [ "multi-user.target" ];
         before = [ "sshd.service" ];
@@ -300,7 +464,7 @@ in
       # user-owned home ("Detected unsafe path transition"), which is exactly
       # the state this exists to fix. Default unit deps already order it after
       # local-fs.target, i.e. after the mount.
-      systemd.services.sandvm-home-perms = {
+      systemd.services.scoite-home-perms = {
         description = "Hand the persistent /home/iosta volume to iosta";
         wantedBy = [ "multi-user.target" ];
         before = [
@@ -317,14 +481,14 @@ in
         '';
       };
 
-      # "Expand in size as needed": `sandvm resize` grows the backing image on
+      # "Expand in size as needed": `scoite resize` grows the backing image on
       # the host and, for a running guest, the virtio-blk device via QMP. This
       # stretches the filesystem onto whatever space the device now has.
       # Online resize2fs on a mounted ext4 is a fast no-op when the fs already
       # fills its device, which is what lets this run both at boot (picking up
       # a resize done while stopped) and on a timer (picking up a live one)
       # without any host->guest signalling channel.
-      systemd.services.sandvm-grow-fs = {
+      systemd.services.scoite-grow-fs = {
         description = "Grow the sandbox filesystems to fill their (possibly resized) volumes";
         wantedBy = [ "multi-user.target" ];
         before = [
@@ -348,7 +512,7 @@ in
         '';
       };
 
-      systemd.timers.sandvm-grow-fs = {
+      systemd.timers.scoite-grow-fs = {
         wantedBy = [ "timers.target" ];
         timerConfig = {
           OnBootSec = "2min";
@@ -358,7 +522,7 @@ in
 
       # Cloud LLM keys: install the AGENT_ENV credential where iosta's shells
       # can read it. /run is tmpfs, so it evaporates on stop.
-      systemd.services.sandvm-agent-env = {
+      systemd.services.scoite-agent-env = {
         wantedBy = [ "multi-user.target" ];
         serviceConfig = {
           Type = "oneshot";
@@ -378,62 +542,58 @@ in
       # Without it, commits in the guest fail with "Author identity unknown".
       # Name/email only — the includeIf org targets it references stay absent
       # and git silently skips missing includes.
-      systemd.services.sandvm-gitconfig = {
+      systemd.services.scoite-omp-conf = {
         wantedBy = [ "multi-user.target" ];
-        after = [ "sandvm-home-perms.service" ];
+        after = [ "scoite-home-perms.service" ];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+          ImportCredential = "OMP_CONF";
+        };
+        script = ''
+          ${lib.getExe installOmpConf} "$CREDENTIALS_DIRECTORY/OMP_CONF" || true
+        '';
+      };
+
+      systemd.services.scoite-gitconfig = {
+        wantedBy = [ "multi-user.target" ];
+        after = [ "scoite-home-perms.service" ];
         serviceConfig = {
           Type = "oneshot";
           RemainAfterExit = true;
           ImportCredential = "GITCONFIG_LOCAL";
         };
         script = ''
-          if [ -f "$CREDENTIALS_DIRECTORY/GITCONFIG_LOCAL" ]; then
-            install -d -m 0755 -o iosta -g users /home/iosta/.config
-            install -d -m 0700 -o iosta -g users /home/iosta/.config/git
-            install -m 0600 -o iosta -g users \
-              "$CREDENTIALS_DIRECTORY/GITCONFIG_LOCAL" \
-              /home/iosta/.config/git/gitconfig.local
-          fi
+          ${lib.getExe installGitconfig} "$CREDENTIALS_DIRECTORY/GITCONFIG_LOCAL" || true
         '';
       };
 
       # GitHub ssh aliases: install the SSH_CONF credential so a remote like
       # git@donskifarrell.github.com:… resolves in the guest and picks the
       # right account's key out of the forwarded agent. Public halves only —
-      # the tar is built by `collect_credentials` in pkgs/by-name/sandvm and
+      # the tar is built by `collect_credentials` in pkgs/by-name/scoite and
       # deliberately never touches a private key.
-      systemd.services.sandvm-ssh-config = {
+      # Installed as a *command*, not inlined in the unit below, because the
+      # same work has to happen twice: once at boot from the fw_cfg
+      # credential, and again whenever `scoite creds` re-pushes a changed
+      # ~/.ssh/sshconfig.local into an already-running guest (TASKS.md S13).
+      # Also on PATH: `scoite creds` runs them through a login shell.
+      environment.systemPackages = [
+        installSshConf
+        installOmpConf
+        installGitconfig
+      ];
+
+      systemd.services.scoite-ssh-config = {
         wantedBy = [ "multi-user.target" ];
-        after = [ "sandvm-home-perms.service" ];
-        path = [ pkgs.gnutar ];
+        after = [ "scoite-home-perms.service" ];
         serviceConfig = {
           Type = "oneshot";
           RemainAfterExit = true;
           ImportCredential = "SSH_CONF";
         };
         script = ''
-          if [ -f "$CREDENTIALS_DIRECTORY/SSH_CONF" ]; then
-            install -d -m 0700 -o iosta -g users /home/iosta/.ssh
-            # config.d is sandvm's alone, so wiping it each boot is how a
-            # block df deleted on the host stops applying in the guest.
-            rm -rf /home/iosta/.ssh/config.d
-            install -d -m 0755 -o root -g root /home/iosta/.ssh/config.d
-            tar -xf "$CREDENTIALS_DIRECTORY/SSH_CONF" -C /home/iosta/.ssh
-            # --no-dereference: ~/.ssh also holds the agent.sock symlink the
-            # login shell maintains; never chase it out of the home.
-            chown -R --no-dereference iosta:users /home/iosta/.ssh
-            # Re-assert modes the tar would otherwise dictate. The included
-            # config is root-owned on purpose: /etc/ssh/ssh_config parses
-            # Include eagerly even for a user the Match doesn't apply to, and
-            # ssh refuses a config file owned by neither root nor the caller —
-            # iosta-owned, it broke root's ssh entirely with "Bad owner or
-            # permissions". Root-owned + 0644 satisfies both users.
-            chmod 0700 /home/iosta/.ssh
-            chown -R root:root /home/iosta/.ssh/config.d
-            chmod 0755 /home/iosta/.ssh/config.d
-            chmod 0644 /home/iosta/.ssh/config.d/* || true
-            chmod 0644 /home/iosta/.ssh/*.pub || true
-          fi
+          ${lib.getExe installSshConf} "$CREDENTIALS_DIRECTORY/SSH_CONF" || true
         '';
       };
 
@@ -444,9 +604,9 @@ in
       # still starts with a live token. This *is* a real credential inside the
       # sandbox — see docs/microvm-sandbox.md, "What's deliberately NOT
       # shared", for why that trade was accepted and what it exposes.
-      systemd.services.sandvm-claude-creds = {
+      systemd.services.scoite-claude-creds = {
         wantedBy = [ "multi-user.target" ];
-        after = [ "sandvm-home-perms.service" ];
+        after = [ "scoite-home-perms.service" ];
         serviceConfig = {
           Type = "oneshot";
           RemainAfterExit = true;
@@ -467,17 +627,23 @@ in
       # build it once at boot so the environment is already in the guest's
       # persistent store overlay before anyone attaches. Failures are logged,
       # never fatal — a broken flake must not stop the sandbox from booting.
-      systemd.services.sandvm-workspace-init = {
+      systemd.services.scoite-workspace-init = {
         description = "Pre-install /workspace project dependencies (devenv/flake)";
         wantedBy = [ "multi-user.target" ];
         wants = [ "network-online.target" ];
         after = [
           "network-online.target"
-          "sandvm-grow-fs.service"
+          "scoite-grow-fs.service"
+          # direnv's whitelist (roles.sandbox.dev sets whitelist.prefix =
+          # ["/workspace"]) is a home-manager file: without this the pre-build
+          # can run before ~/.config/direnv/direnv.toml exists and direnv
+          # blocks the .envrc it was launched to evaluate.
+          "home-manager-iosta.service"
         ];
         unitConfig.ConditionPathIsDirectory = "/workspace";
         path = [
           pkgs.devenv
+          pkgs.direnv
           pkgs.git
           pkgs.nix
         ];
@@ -488,13 +654,28 @@ in
           Group = "users";
           WorkingDirectory = "/workspace";
         };
+        # `.envrc` first: it is the entry point a shell will actually use, and
+        # it can point anywhere (`use flake`, `use devenv`, `layout python`, a
+        # hand-written PATH). Building *it* pre-populates direnv's cache, so
+        # the first interactive shell in /workspace is instant instead of
+        # spending a minute in a cold evaluation. devenv.nix/flake.nix are the
+        # fallbacks for a project that has one but no .envrc.
+        #
+        # Failures are NOT swallowed (they were until 2026-08-24): nothing
+        # else orders after this unit, so letting it fail costs the guest
+        # nothing and makes a broken project environment visible in
+        # `systemctl status scoite-workspace-init` instead of scrolling past
+        # in the boot log.
         script = ''
-          if [ -f devenv.nix ] && command -v devenv >/dev/null; then
+          if [ -f .envrc ]; then
+            echo "/workspace/.envrc found - loading it with direnv"
+            direnv exec /workspace true
+          elif [ -f devenv.nix ] && command -v devenv >/dev/null; then
             echo "devenv.nix found - building the devenv environment"
-            devenv shell true || echo "devenv setup failed (non-fatal)"
+            devenv shell true
           elif [ -f flake.nix ]; then
             echo "flake.nix found - building the flake devShell"
-            nix develop --command true || echo "devShell setup failed (non-fatal)"
+            nix develop --command true
           fi
         '';
       };
@@ -522,7 +703,7 @@ in
           end
         end
 
-        # Forwarded ssh-agent (dev.tools.sandvm sets ForwardAgent for sandvm-*
+        # Forwarded ssh-agent (dev.tools.scoite sets ForwardAgent for scoite-*
         # hosts): pin SSH_AUTH_SOCK to a stable path. sshd mints a fresh
         # random socket per connection, so long-lived herdr panes would
         # otherwise hold a dead path after an ssh drop/reattach.
@@ -542,7 +723,7 @@ in
       programs.ssh.knownHosts."github.com".publicKey =
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl";
 
-      # Pick up what sandvm-ssh-config drops in. NixOS renders extraConfig
+      # Pick up what scoite-ssh-config drops in. NixOS renders extraConfig
       # first in /etc/ssh/ssh_config, and ssh_config is first-match-wins, so
       # these blocks beat any default that follows. Mirrors the host-side
       # include in core/network/ssh.nix, with two syntax constraints of the
@@ -559,24 +740,27 @@ in
 
       # Local LLM: abhaile's llama-server (services.llm, 127.0.0.1:8080) is
       # reachable from the guest at qemu's SLIRP gateway. Pre-declare it as an
-      # omp provider; model ids/context sizes must match the router presets in
-      # modules/den/aspects/services/llm.nix. Seeded with tmpfiles `C` (copy,
-      # only if absent) so omp can rewrite it at runtime.
+      # omp provider. Model ids and context windows are GENERATED from
+      # ../services/_llm-models.nix — the same file llama-server's router
+      # presets come from — because the two used to be kept in step by hand
+      # and a mismatch is invisible until a request hangs. Seeded with
+      # tmpfiles `C` (copy, only if absent) so omp can rewrite it at runtime.
       systemd.tmpfiles.rules =
         let
-          # Only qwen: omp's own harness overhead measured ~17.1k tokens, so
-          # llama-3.1-8b's 16k server-side ctx-size 400s on every request.
+          llm = import ../services/_llm-models.nix;
+          usable = lib.filter (m: m.omp) llm.models;
           ompModels = pkgs.writeText "omp-models.yml" ''
             providers:
               local:
-                baseUrl: http://10.0.2.2:8080/v1
+                baseUrl: ${llm.guestBaseUrl}
                 auth: none
                 api: openai-completions
                 models:
-                  - id: qwen3.6-35b-a3b
-                    name: Qwen3.6 35B A3B (abhaile llama-server)
-                    contextWindow: 65536
-                    maxTokens: 8192
+            ${lib.concatMapStringsSep "\n" (m: ''
+              - id: ${m.id}
+                name: ${m.name}
+                contextWindow: ${toString m.ctx}
+                maxTokens: ${toString m.maxTokens}'') usable}
           '';
         in
         [

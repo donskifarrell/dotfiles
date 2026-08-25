@@ -31,9 +31,9 @@ in
     nixos = {
       users.users.df.openssh.authorizedKeys.keys = [ authorizedKey ];
 
-      # /dev/kvm access for qemu (libvirt.nix + sandvm both need this;
+      # /dev/kvm access for qemu (libvirt.nix + scoite both need this;
       # libvirtd itself gates virt-manager via polkit instead, but raw qemu —
-      # which is what a sandvm's imperative microvm-run is — only goes
+      # which is what a scoite's imperative microvm-run is — only goes
       # through the kvm-group udev rule).
       users.users.df.extraGroups = [ "kvm" ];
     };

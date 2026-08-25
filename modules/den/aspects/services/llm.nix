@@ -43,36 +43,30 @@
             ${lib.concatMapStringsSep "\n" (t: "ln -s ${pkg}/bin/${t} $out/bin/${t}-${suffix}") tools}
           '';
 
-        modelsDir = "/var/lib/llm/models";
+        # Model data (ids, context sizes, per-model llama-server flags) lives
+        # in _llm-models.nix, because a sandbox guest's omp models.yml has to
+        # agree with it exactly and used to be kept in step by hand. Both are
+        # generated from that one file now.
+        llm = import ./_llm-models.nix;
+        inherit (llm) modelsDir;
 
-        # Router presets: one INI section per served model (keys = llama-server
-        # long flags). Section name = the OpenAI API `model` id.
-        presets = pkgs.writeText "llama-models-preset.ini" ''
-          ; fast lane: scraping/extraction/file-org (108 t/s, fully in VRAM)
-          [llama-3.1-8b]
-          model = ${modelsDir}/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf
-          device = Vulkan0
-          n-gpu-layers = 99
-          flash-attn = on
-          ctx-size = 16384
-          jinja = on
-
-          ; quality lane: coding + document/financial analysis (~51 t/s at
-          ; 32k; fit offloads experts to CPU as the q8 KV cache grows — 64k
-          ; ctx costs some tg speed). Hybrid thinking is OFF by default —
-          ; measured 2.5k+ hidden tokens (~50s) before any answer; re-enable
-          ; per request with "chat_template_kwargs":{"enable_thinking":true}.
-          [qwen3.6-35b-a3b]
-          model = ${modelsDir}/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf
-          device = Vulkan0
-          flash-attn = on
-          ctx-size = 65536
-          cache-type-k = q8_0
-          cache-type-v = q8_0
-          jinja = on
-          reasoning = off
-          mmproj = ${modelsDir}/mmproj-Qwen3.6-35B-A3B-F16.gguf
-        '';
+        # Router presets: one INI section per model (keys = llama-server long
+        # flags). Section name = the OpenAI API `model` id.
+        presets = pkgs.writeText "llama-models-preset.ini" (
+          lib.concatMapStringsSep "\n" (m: ''
+            ${lib.concatMapStringsSep "\n" (l: "; " + l) (
+              lib.splitString "\n" (lib.removeSuffix "\n" m.comment)
+            )}
+            [${m.id}]
+            model = ${modelsDir}/${m.file}
+            ctx-size = ${toString m.ctx}
+            ${lib.concatStringsSep "\n" (
+              lib.mapAttrsToList (
+                k: v: "${k} = ${if k == "mmproj" then "${modelsDir}/${v}" else toString v}"
+              ) m.flags
+            )}
+          '') llm.models
+        );
       in
       {
         environment.systemPackages = lib.mapAttrsToList suffixed backends;

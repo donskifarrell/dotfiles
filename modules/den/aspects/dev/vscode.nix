@@ -54,8 +54,8 @@
               matthewpi.caddyfile-support
               mechatroner.rainbow-csv
               mkhl.direnv
-              # Remote-SSH into sandvm guests (docs/microvm-sandbox.md):
-              # `code --remote ssh-remote+sandvm-<name> /workspace`
+              # Remote-SSH into scoite guests (docs/microvm-sandbox.md):
+              # `code --remote ssh-remote+scoite-<name> /workspace`
               ms-vscode-remote.remote-ssh
               redhat.vscode-yaml
               streetsidesoftware.code-spell-checker
@@ -69,10 +69,10 @@
 
         # settings.json: seeded declaratively but installed as a real, WRITABLE
         # file (re-copied on every switch) instead of programs.vscode's usual
-        # userSettings read-only store symlink. Remote-SSH (sandvm guests, see
+        # userSettings read-only store symlink. Remote-SSH (scoite guests, see
         # docs/microvm-sandbox.md) tries to write a per-hostname
         # `remote.SSH.remotePlatform` entry after EVERY successful connect in
-        # useLocalServer=false mode — the wildcard "sandvm-*" entry satisfies
+        # useLocalServer=false mode — the wildcard "scoite-*" entry satisfies
         # platform *resolution* but not the extension's exact-key save guard —
         # and against a read-only symlink that write fails and nags on each
         # connect. Mutable-but-seeded lets those writes (and ad-hoc UI settings
@@ -187,7 +187,7 @@
                   "remote.SSH.configFile": "${config.home.homeDirectory}/.ssh/config",
                   "remote.SSH.connectTimeout": 60,
                   "remote.SSH.useLocalServer": false,
-                  "remote.SSH.remotePlatform": { "sandvm-*": "linux" },
+                  "remote.SSH.remotePlatform": { "scoite-*": "linux" },
                   "Prettier-SQL.SQLFlavourOverride": "mysql",
                   "Prettier-SQL.expressionWidth": 120,
                   "terminal.integrated.inheritEnv": true,

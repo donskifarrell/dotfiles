@@ -3,8 +3,8 @@
 # tool. NOTE: this sets the full git config; the per-user identity (user.name /
 # user.email + the per-org includeIf lines) comes from the
 # ~/.config/git/gitconfig.local include below — a sops secret on real hosts
-# (secrets/home.nix), forwarded into sandvm guests as a launch credential
-# (microvm-guest.nix, sandvm-gitconfig) so it never enters the /nix/store.
+# (secrets/home.nix), forwarded into scoite guests as a launch credential
+# (microvm-guest.nix, scoite-gitconfig) so it never enters the /nix/store.
 {
   den.aspects.dev.git.homeManager = {
     programs.git = {

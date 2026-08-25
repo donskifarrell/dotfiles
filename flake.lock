@@ -594,6 +594,26 @@
         "url": "https://flakehub.com/f/DeterminateSystems/nixpkgs-weekly/0.1"
       }
     },
+    "paseo": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs-unstable"
+        ]
+      },
+      "locked": {
+        "lastModified": 1787592671,
+        "narHash": "sha256-qq9HrjhlnFBfPDEzMyqtSL3MCrz2vhA0aHFpsDd7Z7c=",
+        "owner": "getpaseo",
+        "repo": "paseo",
+        "rev": "54299a2e6c79558b26c97fd746bbff834825f4d3",
+        "type": "github"
+      },
+      "original": {
+        "owner": "getpaseo",
+        "repo": "paseo",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "den": "den",
@@ -618,6 +638,7 @@
         "nixos-facter-modules": "nixos-facter-modules",
         "nixpkgs": "nixpkgs_3",
         "nixpkgs-unstable": "nixpkgs-unstable",
+        "paseo": "paseo",
         "sops-nix": "sops-nix",
         "treefmt-nix": "treefmt-nix_2"
       }
