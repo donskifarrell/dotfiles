@@ -251,7 +251,9 @@ in
       # change for anything else (SLIRP's DNS still comes over eth0).
       services.resolved = {
         enable = true;
-        llmnr = "false";
+        # `services.resolved.llmnr` was renamed on the way to the settings
+        # freeform (it still works, but warns on every guest build).
+        settings.Resolve.LLMNR = "false";
       };
 
       # No firewall in the guest, deliberately. SLIRP gives a sandbox exactly
@@ -646,6 +648,11 @@ in
           pkgs.direnv
           pkgs.git
           pkgs.nix
+          # A project's devenv can shell out to privileged helpers — mono's
+          # caddy task runs `sudo setcap` — and a systemd unit's PATH has
+          # neither /run/wrappers/bin nor /run/current-system/sw/bin.
+          "/run/wrappers"
+          "/run/current-system/sw"
         ];
         serviceConfig = {
           Type = "oneshot";
@@ -682,16 +689,39 @@ in
 
       # Land every session in /workspace, not in $HOME — that is the only
       # thing a sandbox exists to work on. loginShellInit runs before
-      # interactiveShellInit, so herdr's autostart (dev.tools.herdr.autostart)
-      # inherits the directory too.
+      # interactiveShellInit, so anything an interactive shell starts inherits
+      # the directory too.
+      #
+      # The wait is not politeness, it is correctness: scoite-workspace-init is
+      # already evaluating this project's devenv/flake at boot, and direnv (in
+      # interactiveShellInit, right after this block) would start a **second**
+      # evaluation of the same project on the same shared /workspace. Two
+      # concurrent devenv bootstraps writing the same `.devenv/` fail — seen
+      # 2026-08-26 on a `scoite new --ssh` into a big monorepo: the pre-build
+      # took four minutes, the login raced it, and devenv died with "Failed to
+      # get shell attribute" inside a nixpkgs-bootstrap trace. Waiting also
+      # means the shell you get has the environment ready rather than paying
+      # for it again.
       programs.fish.loginShellInit = ''
-        if test -d /workspace; and test "$PWD" = "$HOME"
-          cd /workspace
+        if test -d /workspace
+          if test (systemctl show scoite-workspace-init.service -p ActiveState --value 2>/dev/null) = activating
+            echo "scoite: waiting for the project environment pre-build (scoite-workspace-init)…"
+            # Bounded: a wedged pre-build must not make the sandbox
+            # unreachable. 20 minutes, then carry on regardless.
+            for _ in (seq 1200)
+              test (systemctl show scoite-workspace-init.service -p ActiveState --value 2>/dev/null) = activating
+              or break
+              sleep 1
+            end
+          end
+          if test "$PWD" = "$HOME"
+            cd /workspace
+          end
         end
       '';
 
       # Export /run/agent.env's KEY=value lines into every fish session
-      # (covers ssh logins, VSCode terminals, herdr panes, and non-interactive
+      # (covers ssh logins, VSCode terminals, and non-interactive
       # `ssh guest cmd`). Native fish syntax on the fish-specific option — sh
       # in environment.shellInit would get babelfish-translated at build time,
       # which can't translate sourcing a runtime sh file.
@@ -705,7 +735,7 @@ in
 
         # Forwarded ssh-agent (dev.tools.scoite sets ForwardAgent for scoite-*
         # hosts): pin SSH_AUTH_SOCK to a stable path. sshd mints a fresh
-        # random socket per connection, so long-lived herdr panes would
+        # random socket per connection, so long-lived guest sessions would
         # otherwise hold a dead path after an ssh drop/reattach.
         if set -q SSH_AUTH_SOCK; and test "$SSH_AUTH_SOCK" != "$HOME/.ssh/agent.sock"; and test -S "$SSH_AUTH_SOCK"
           mkdir -p "$HOME/.ssh"

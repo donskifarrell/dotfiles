@@ -168,8 +168,13 @@ Gotchas (easy to forget):
   needed on omp ≥17.4.2.
 - Model ids/context sizes are generated for both llama-server and every guest's omp `models.yml` from
   `modules/den/aspects/services/_llm-models.nix` — edit that, not the two consumers.
-- herdr decides a pane's cwd (`terminal.new_cwd`, set to `/workspace` for the `dev` tier) and persists its session in
-  the guest's home; an old `session.json` keeps old panes.
+- A guest login **waits** for `scoite-workspace-init` (the boot-time devenv/flake pre-build) instead of racing it — two
+  concurrent devenv evaluations of the same `/workspace` fail. Also: `setcap` on a workspace file cannot work
+  (unprivileged virtiofsd, no `security.capability` xattr).
+- herdr is installed **nowhere** since 2026-08-26 (aspect kept, included by nothing): an interactive `ssh scoite-<name>`
+  lands in a plain fish shell in `/workspace`.
+- A guest's `omp` is a wrapper that adds `--config ~/.omp/agent/config.sandbox.yml` when that file is present (it rides
+  in with the rest of df's omp config); `hiPrio` is what makes it win over the real `omp` in the same HM profile.
 
 ## Local LLM inference (abhaile)
 

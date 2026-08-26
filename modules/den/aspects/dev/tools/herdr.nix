@@ -1,8 +1,19 @@
 # herdr (herdr.dev) — terminal multiplexer for coding-agent sessions, from
-# numtide's nix-ai-tools flake (not nixpkgs). Installed on the host so
-# `herdr --remote scoite-<name>` can attach to a scoite guest's session over
-# the ssh alias `scoite` already sets up — herdr tunnels over plain ssh, no
-# daemon/server toggle or extra config needed on either end.
+# numtide's nix-ai-tools flake (not nixpkgs).
+#
+# **Included by nothing since 2026-08-26 (df's call).** The aspect is kept
+# intact so re-enabling it is one `includes` line — add `dev.tools.herdr` to
+# roles/dev.nix for the host, and `dev.tools.herdr` +
+# `dev.tools.herdr.autostart` to the `dev` tier in roles/sandbox.nix for
+# guests. If you do bring the autostart back in a sandbox, remember that
+# herdr's *own* `terminal.new_cwd` policy decides where a pane starts (it
+# defaults to $HOME regardless of the launching shell's cwd) and that it
+# persists its session in ~/.config/herdr/session.json on the guest's home
+# volume — both bit us in TASKS.md S17.
+#
+# When it was live: installed on the host so `herdr --remote scoite-<name>`
+# could attach to a guest's session over the ssh alias `scoite` sets up —
+# herdr tunnels over plain ssh, no daemon/server toggle needed on either end.
 { inputs, ... }:
 {
   den.aspects.dev.tools.herdr = {

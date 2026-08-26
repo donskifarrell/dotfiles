@@ -84,7 +84,6 @@ real files under `.obsidian/plugins/` and then sync to other desktops as ordinar
 ```fish
 vault-agent                       # = sc ~/vaults/main (creates a `dev` sandbox on first run)
 sc ssh main                       # or `ssh scoite-main` — the alias the banner prints
-# or: herdr --remote scoite-main
 claude                            # sessions land in /workspace already
 sc stop main                      # when done; the guest's home and store overlay persist
 ```

@@ -9,10 +9,10 @@ even see — anything outside that one folder, even if the agent or the LLM behi
 
 Sandboxes come in two **types**, so the closure you pay for matches the work:
 
-| `--type`  | what it is                                                                                                                                   | closure |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| `minimal` | shell, git, agent harness, internet. No dev toolchain at all.                                                                                | ~3.7 G  |
-| `dev`     | + python, node, headless chromium, compilers/nix-ld, the full TUI shell + git stack, devenv/direnv, herdr and the paseo daemon. The default. | ~10.7 G |
+| `--type`  | what it is                                                                                                                            | closure |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `minimal` | shell, git, agent harness, internet. No dev toolchain at all.                                                                         | ~3.7 G  |
+| `dev`     | + python, node, headless chromium, compilers/nix-ld, the full TUI shell + git stack, devenv/direnv and the paseo daemon. The default. | ~10.7 G |
 
 Each type is one Den host (`modules/den/hosts/scoite.nix`) built from one role tier (`modules/den/roles/sandbox.nix`);
 `dev` includes `minimal`. (Until 2026-08-24 there were four tiers — `minimal`/`generic`/`devenv`/`workstation`; the
@@ -154,8 +154,9 @@ Files:
   tier (see "UI validation").
 - `modules/den/aspects/dev/vscode.nix` — not scoite-specific but load-bearing: Remote-SSH extension +
   `remote.SSH.configFile` pointing at `~/.ssh/config`.
-- `modules/den/aspects/dev/tools/herdr.nix` — herdr (herdr.dev, from `nix-ai-tools`), used by `roles.dev` on real hosts
-  and by the `dev` tier in guests. `herdr --remote scoite-<name>` attaches from the host over the ssh alias.
+- `modules/den/aspects/dev/tools/herdr.nix` — herdr (herdr.dev, from `nix-ai-tools`). **Included by nothing since
+  2026-08-26** (df's call): interactive `ssh scoite-<name>` now drops straight into fish in `/workspace`. The aspect is
+  kept so re-enabling it is one `includes` line.
 
 Named `scoite`, not `devbox`: nixpkgs already has an unrelated package literally called `devbox` (Jetify's tool). Using
 that name for `pkgs.devbox` in home-manager would have silently resolved to the wrong package — there's no overlay
@@ -336,9 +337,9 @@ Three pieces, all small:
   aspect-level `Host scoite-*` wins. (HM-managed `~/.ssh/config` ⇒ takes effect on the next `nixos-rebuild switch`;
   until then `ssh -o ForwardAgent=yes scoite-<name>` does the same thing.)
 - **Stable socket path in the guest** (`microvm-guest.nix` fish shellInit): sshd mints a fresh random agent socket per
-  connection, so a long-lived herdr pane would hold a dead `SSH_AUTH_SOCK` after an ssh drop + reattach. Every login
-  re-points `~/.ssh/agent.sock` at its own live socket and sessions use the symlink — verified: kill the ssh
-  ControlMaster, reconnect, panes' agent works again without restarting anything.
+  connection, so a long-lived session (a VS Code terminal, a multiplexer pane) would hold a dead `SSH_AUTH_SOCK` after
+  an ssh drop + reattach. Every login re-points `~/.ssh/agent.sock` at its own live socket and sessions use the symlink
+  — verified: kill the ssh ControlMaster, reconnect, panes' agent works again without restarting anything.
 - **`github.com` in the guest's known_hosts** (`programs.ssh.knownHosts`, GitHub's published ed25519 key) — so a
   non-interactive agent's first `git fetch` can't stall on a host-key prompt (the ephemeral home would forget an
   accepted key on every stop anyway). It covers the `<acct>.github.com` aliases too: they carry `HostName github.com`,
@@ -394,8 +395,7 @@ edited as if local, integrated terminals landing in the guest as iosta. Four pie
   instead runs `ssh <host> sh` — an explicit remote command, so sshd invokes `fish -c sh` and the script runs under `sh`
   regardless of the login shell. Any future guest whose user shells out of bash/zsh needs this same setting; the
   alternative (bash as iosta's login shell, exec'ing fish when interactive) was rejected because the guest's agent.env
-  exports, `SSH_AUTH_SOCK` glue and herdr autostart all live in fish's config. Paired with it, two more `dev.vscode`
-  pieces:
+  exports and `SSH_AUTH_SOCK` glue live in fish's config. Paired with it, two more `dev.vscode` pieces:
   - `remote.SSH.remotePlatform = { "scoite-*" = "linux" }` — without a matching entry the extension asks for the
     platform on the first connect to each new instance. The map keys support `*` wildcards (per the extension's own
     setting description), and the extension notes this setting will become _required_ when `useLocalServer` is off.
@@ -408,11 +408,12 @@ edited as if local, integrated terminals landing in the guest as iosta. Four pie
     to the declared state (the accumulated exact entries are redundant with the wildcard anyway). Side benefit: ad-hoc
     UI settings tweaks stop erroring too — they now last until the next switch.
 
-Terminals inside a VS Code remote window are plain fish, not herdr (the herdr autostart is gated on `SSH_TTY`, which VS
-Code's exec-channel sessions don't set — deliberate, same as the qemu console). They get `/run/agent.env` exports like
-any other fish session, and the forwarded ssh-agent via the stable `~/.ssh/agent.sock` symlink whenever some
-agent-forwarding ssh session is (or has been) connected — VS Code's own connection uses `~/.ssh/config` now, so it
-forwards the agent itself per the `Host scoite-*` block.
+Terminals inside a VS Code remote window are plain fish, as is every other guest shell (there is no multiplexer since
+2026-08-26; historically the herdr autostart was gated on `SSH_TTY`, which VS Code's exec-channel sessions don't set —
+deliberate, same as the qemu console). They get `/run/agent.env` exports like any other fish session, and the forwarded
+ssh-agent via the stable `~/.ssh/agent.sock` symlink whenever some agent-forwarding ssh session is (or has been)
+connected — VS Code's own connection uses `~/.ssh/config` now, so it forwards the agent itself per the `Host scoite-*`
+block.
 
 Rollout gotchas: the host side (extension + setting) needs a `nixos-rebuild switch`; the guest side is rebuilt fresh on
 every `scoite` launch, so an **already-running** sandbox must be stopped and relaunched to pick it up. First connect per
@@ -634,7 +635,7 @@ all → no credential → local provider only.
      refreshed value — fish exports agent.env at shell start — which is enough, since `omp` reads it at process start.
      The push always runs with `-o ForwardAgent=no`: the guest's login shell re-points `~/.ssh/agent.sock` at whatever
      connection it sees, and a scripted connection's forwarded socket dies with that connection, so a forwarding push
-     would leave long-lived herdr panes holding a dead socket. Verified: after a push, the guest's `agent.sock` still
+     would leave long-lived guest sessions holding a dead socket. Verified: after a push, the guest's `agent.sock` still
      points at the previous, live socket.
   2. _The broker's Anthropic OAuth grant itself._ If a refresh comes back `invalid_grant` ("Refresh token not found or
      invalid" — Anthropic rotates the refresh token on every use, so a second holder of the same grant invalidates
@@ -733,6 +734,17 @@ Verified end-to-end on 2026-08-21 by booting a sandbox on a scratch project: `he
 - (Historical, fixed 2026-07-13: when the guest ran df's full HM identity via `roles.dev`, it also inherited the
   `scoite` binary itself and a spare `omp auth-broker serve` per boot. The iosta/`roles.sandbox.*` guest identity
   includes neither.)
+- **An interactive login waits for `scoite-workspace-init`** rather than racing it. The boot unit is already evaluating
+  the project's devenv/flake, and direnv in the login shell would start a _second_ evaluation of the same project
+  against the same shared `/workspace/.devenv`. Two concurrent devenv bootstraps do not survive that: seen 2026-08-26 on
+  `scoite new --ssh` into a large monorepo, where the pre-build took four minutes, the login raced it, and devenv failed
+  with `Failed to get shell attribute` inside a nixpkgs-bootstrap trace that says nothing about the real cause. The wait
+  is bounded at 20 minutes so a wedged pre-build cannot make the sandbox unreachable.
+- **File capabilities cannot be set on `/workspace`.** virtiofsd runs unprivileged (as df), so `security.capability`
+  xattrs are refused: a project whose devenv does `sudo setcap cap_net_bind_service=+ep …` on a binary under the
+  workspace gets `Invalid file '…' for capability operation`. It is non-fatal (the task fails, the shell is fine) and
+  only matters for binding ports < 1024 inside the guest — bind a high port, or keep the binary on the guest's own
+  filesystem. The unit's PATH does include `/run/wrappers/bin` now, so the `sudo` itself resolves.
 - **`scoite ssh` failing with `Permission denied (publickey)` almost always means the host ssh-agent is empty**, not
   that the guest is broken. The guest authorizes df's public key and nothing else, and by design no private key exists
   guest-side; `ssh-add -l` on the host is the first thing to check (the CLI prints it when a wait times out).
@@ -756,15 +768,14 @@ Verified end-to-end on 2026-08-21 by booting a sandbox on a scratch project: `he
   that was never actually deployed.
 - The console (`scoite -f`'s own foreground output — `ssh`'s fallback if SSH itself is broken) logs in as `iosta` /
   password `iosta`. Autologin was tried first and rejected (silently dropping into a shell on every launch); a throwaway
-  typeable password — same pattern as `virtualisation/vm-login.nix`'s debug VM — was the alternative. The console
-  deliberately does _not_ auto-start herdr (the autostart is gated on `SSH_TTY`), so it stays usable for debugging.
+  typeable password — same pattern as `virtualisation/vm-login.nix`'s debug VM — was the alternative. The console is a
+  plain fish shell, usable for debugging when ssh itself is broken.
 - `scoite list`'s NAME column shows the full `scoite-<name>` identity, which is also the SSH alias, the unit name and
   the mDNS name. Subcommands accept either spelling (`mono` or `scoite-mono`).
-- **herdr decides where a pane starts, not your shell.** Its `terminal.new_cwd` policy defaults to `$HOME` when a pane
-  has no source workspace, whatever the launching shell's cwd was — so the `dev` tier sets
-  `[terminal] new_cwd = "/workspace"` in `~/.config/herdr/config.toml`. herdr also _persists_ its session in
-  `~/.config/herdr/session.json` on the guest's home volume, so a sandbox that ran herdr before that config landed keeps
-  its old `$HOME`-rooted panes until `herdr server stop && rm ~/.config/herdr/session.json`.
+- **(Historical, moot since herdr was dropped on 2026-08-26.)** herdr decided where a pane started, not your shell: its
+  `terminal.new_cwd` policy defaults to `$HOME` when a pane has no source workspace, whatever the launching shell's cwd
+  was, and it persisted that session in `~/.config/herdr/session.json` on the guest's home volume. If herdr is ever
+  re-enabled, set `[terminal] new_cwd = "/workspace"` and remember the stale-session trap.
 - `paseo-desktop` (and any electron app) launched from an agent/CLI session inherits `ELECTRON_RUN_AS_NODE=1` when the
   agent itself runs inside electron, and fails with "Electron failed to install correctly".
   `env -u ELECTRON_RUN_AS_NODE` fixes it; nothing is wrong with the package.

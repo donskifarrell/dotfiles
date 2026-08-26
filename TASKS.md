@@ -895,6 +895,11 @@ not a configuration one.
 
 ### S17 result — 2026-08-25
 
+> **Superseded in part on 2026-08-26**: herdr was dropped entirely (follow-up F1 below), so an interactive
+> `ssh scoite-<name>` now lands in a plain fish shell that the login block has already `cd`'d to `/workspace`. The herdr
+> config this step added is gone with it; the analysis below is kept because it explains why the obvious fix did not
+> work.
+
 Not the confirmation it looked like: interactive `ssh scoite-<name>` was landing in **/home/iosta**, not `/workspace`.
 
 The login shell was innocent — `/etc/fish/config.fish`'s login block does `cd /workspace`, and the herdr _server_
@@ -1020,3 +1025,142 @@ documentation pass — are uncommitted in the working tree (`CLAUDE.md`, `TASKS.
 `docs/obsidian.md`, `modules/den/aspects/dev/tools/herdr.nix`, `modules/den/aspects/virtualisation/microvm-host.nix`,
 `modules/den/roles/sandbox.nix`, `pkgs/by-name/scoite/package.nix`). They are all live on abhaile — every one of them
 was applied with `nixos-rebuild switch` before being verified.
+
+---
+
+## Follow-ups after S19 (df, 2026-08-26)
+
+### F1 — herdr dropped from host and guests
+
+`dev.tools.herdr` is now included by **nothing**: removed from `roles.dev` (host) and from the `dev` tier's includes
+(guests), along with the `dev.tools.herdr.autostart` hook and the `~/.config/herdr/config.toml` the tier was writing.
+The aspect file `modules/den/aspects/dev/tools/herdr.nix` is kept intact and its header now says how to re-enable it
+(one `includes` line each side) and what to remember if you do (its `terminal.new_cwd` policy and its persisted
+`session.json` — the two traps from S17).
+
+Consequences, all of them simplifications: an interactive `ssh scoite-<name>` runs plain fish, so the login shell's own
+`cd /workspace` decides the landing directory again; there is no multiplexer session to go stale on the guest's home
+volume; and `herdr --remote` is no longer a way to attach from the host.
+
+**Verified 2026-08-26:** `type -P herdr` on abhaile finds nothing; in both guests `command -v herdr` → absent; an
+interactive `ssh scoite-main` reports `pwd` = `/workspace` and `$SHELL` = fish. Docs updated (`docs/microvm-sandbox.md`,
+`CLAUDE.md`, `docs/obsidian.md`).
+
+### F2 — a guest's `omp` runs with the sandbox config overlay
+
+df keeps a dedicated near-zero-approval overlay at `~/.omp/agent/config.sandbox.yml` ("use this ONLY inside a disposable
+VM"), meant to be used as `omp --config ~/.omp/agent/config.sandbox.yml`.
+
+- **Shipped in**: the CLI's `OMP_CONF` staging now also globs `config.*.yml` beside `config.yml`, so
+  `config.sandbox.yml` (and `config.no-codex.yml`) ride in with the rest of df's omp configuration and are re-pushed by
+  `scoite creds`. The glob is expanded against `$HOME/.omp/agent` explicitly — a glob in the `for` list would have been
+  expanded against the current directory instead.
+- **Used automatically**: `roles.sandbox.minimal` (so both tiers) installs a `pkgs.hiPrio (writeShellScriptBin "omp")`
+  wrapper that execs the real omp with `--config "$HOME/.omp/agent/config.sandbox.yml"` when that file exists, and
+  plainly otherwise. A wrapper rather than a shell alias because the callers that matter are not interactive shells —
+  the paseo daemon spawning an agent, a systemd unit, `scoite ssh <name> -- omp -p '…'`. `hiPrio` resolves the `bin/omp`
+  collision against `apps.ai-tools`' real omp in the same home-manager profile.
+
+**Verified 2026-08-26:** both guests list `config.yml`, `config.sandbox.yml`, `config.no-codex.yml` in `~/.omp/agent`;
+`command -v omp` resolves to the wrapper; a live `omp -p --model haiku` round trip answered `OMP_WRAPPER_OK`; and
+reading `/proc/<pid>/cmdline` of the running process shows the real binary invoked as
+`omp --config /home/iosta/.omp/agent/config.sandbox.yml -p --no-session --model haiku …`.
+
+### F3 — `ping` needed root on abhaile (busybox was shadowing half the system)
+
+Not a networking problem: `shell.bundles.system` installed **stock `pkgs.busybox`**, whose ~400 applet symlinks land in
+df's home-manager profile — and `/etc/profiles/per-user/df/bin` comes _before_ `/run/current-system/sw/bin` on PATH. So
+`ping` was busybox's applet, which opens a raw ICMP socket and needs root, instead of iputils' ping, which uses an
+unprivileged ICMP datagram socket (`net.ipv4.ping_group_range = 0 2147483647` here, so any user may). Hence
+`ping: permission denied (are you root?)`.
+
+The same shadowing hit `ip`, `ps`, `tar`, `wget`, `top`, `find`, `awk`, `sed`, `du` and more — it is why several
+commands in this very session failed oddly (busybox `tar` has no `--ignore-failed-read`, busybox `ip` no `-br`, busybox
+`ps` no `-p`).
+
+Fix: `pkgs.busybox.override { enableAppletSymlinks = false; }` — the package now ships only `bin/busybox`, so the
+toolbox is still one `busybox <applet>` away and nothing is shadowed.
+
+**Verified 2026-08-26:** `ping -c2 google.com` as df → 0% loss, no sudo; `type -P ip ps tar wget` all resolve to
+`/run/current-system/sw/bin/…`, `df` to coreutils; `busybox` alone still prints its applet list.
+
+### F4 — `scoite new --ssh` raced its own project pre-build
+
+Reported by df 2026-08-26: `sc new --workspace . --ssh` in `~/dev/mono` booted the guest fine, then died inside it with
+devenv's `× Failed to get shell attribute` under a 700-line nixpkgs-bootstrap trace.
+
+**Cause: two concurrent devenv evaluations of the same project.** `scoite-workspace-init` starts at boot and evaluates
+`/workspace`'s `.envrc`; `--ssh` then attaches, and direnv in the login shell starts a _second_ evaluation of the same
+project against the same shared `.devenv/`. On this monorepo the pre-build took four minutes (20:52:29 → 20:56:32) and
+the login landed squarely inside that window. Everything worked once both had finished, which is why a retry looked
+fine.
+
+Fixes:
+
+- The guest's fish `loginShellInit` now waits while `scoite-workspace-init` is `activating` (printing why), bounded at
+  20 minutes so a wedged pre-build cannot lock you out of the sandbox. It runs before direnv's hook, so the shell you
+  get has the environment ready instead of paying for it twice.
+- `scoite-workspace-init`'s PATH gained `/run/wrappers` and `/run/current-system/sw` — mono's devenv shells out to
+  `sudo setcap` for caddy, and a systemd unit's PATH had neither, so it failed with `sudo: command not found` (the same
+  class of bug as the credential installers in S14).
+- Two deprecation warnings from earlier work, both visible in df's paste, are gone: `pkgs.hiPrio` → `lib.hiPrio` (F2's
+  omp wrapper) and `services.resolved.llmnr` → `services.resolved.settings.Resolve.LLMNR` (S8).
+
+**Known limit, documented rather than fixed:** `setcap` on a file under `/workspace` cannot work — virtiofsd runs
+unprivileged, so `security.capability` xattrs are refused (`Invalid file … for capability operation`). It is non-fatal;
+it only matters for binding ports < 1024 from a workspace binary.
+
+**Verified 2026-08-26:** a purpose-built slow project (`.envrc` sleeping 75 s) reproduced the window — the login shell
+printed `scoite: waiting for the project environment pre-build (scoite-workspace-init)…`, direnv only loaded after the
+unit reached `success`, and the session landed in `/workspace` with the project's env var set. On the real
+`scoite-mono`: `scoite-workspace-init` → `Result=success`, `sudo setcap` now resolves and runs (setcap itself still
+refused by virtiofs, as above), and `devenv shell true` exits 0.
+
+### F5 — `Permission denied (publickey)` into a running sandbox
+
+Reported by df 2026-08-26. Not the sandbox's fault, and not a regression in the guest: **the host's ssh agent was
+empty.**
+
+The chain: a guest authorizes exactly one key, df's `aon.clan` (`modules/den/users/iosta.nix`); that private key is
+**passphrase-encrypted** (`aes256-ctr`), so it is usable only through the agent; home-manager's `ssh-agent.service` is
+restarted by `nixos-rebuild switch`, which drops every key added since login (it had last restarted at 21:48, minutes
+before the failure); and the `scoite-*` ssh block named **no `IdentityFile`**, so with an empty agent ssh had nothing to
+offer and the guest correctly refused. `ssh -i ~/.ssh/aon.clan` failed too, because the key cannot be decrypted without
+the passphrase.
+
+Fixes:
+
+- `dev.tools.scoite` now sets `IdentityFile ~/.ssh/aon.clan` and `AddKeysToAgent yes` on the `scoite-*` block. An
+  interactive `ssh scoite-<name>` asks for the passphrase once and puts the key back in the agent — which also restores
+  agent-forwarded git inside the guest.
+- The CLI says so up front instead of leaving a bare "Permission denied": `scoite start`/`new`/`ssh` print
+  `the ssh agent holds no keys - … (or run: ssh-add ~/.ssh/aon.clan)` when `ssh-add -l` comes back empty.
+
+**Verified 2026-08-26:** `ssh -G scoite-mono` reports `identityfile ~/.ssh/aon.clan`, `addkeystoagent true`,
+`forwardagent yes`; `sc ssh mono` prints the warning while the agent is empty. Note the passphrase itself is df's to
+type — with an empty agent the _unattended_ paths (`sc creds`, its 10-minute timer, `sc new --ssh`) still cannot connect
+until one interactive ssh has unlocked the key. A passphraseless sandbox-only key would remove that limitation; it needs
+a new sops secret and a change to what the guest authorizes, so it is df's call, not a default I picked.
+
+### F6 — opensnitch: allow forever, not deny after 30 s
+
+df (2026-08-26): "the defaults should be to allow the request forever, not 12h". The two halves of opensnitch had to be
+set separately, and the aspect now documents which is which:
+
+- **Daemon** (`services.opensnitch.settings`) — what it decides with no UI attached, or when the UI never answers:
+  `DefaultAction = "allow"` (already upstream's value) and `DefaultDuration = "always"`. Upstream ships `"once"`, so an
+  unattended allow evaporated immediately and the same connection re-prompted forever.
+- **UI** (`~/.config/opensnitch/settings.conf`) — the popup's pre-selected action and duration. `default_duration` was
+  `6`, which is **12h**: the combo is
+  `0 once · 1 30s · 2 5m · 3 15m · 4 30m · 5 1h · 6 12h · 7 until reboot · 8 forever` (upstream's
+  `DEFAULT_DURATION_IDX = 6` carries a stale `# until restart` comment — it is off by one). Now `8` = forever, with
+  `default_action = 1` = allow (`ACTION_DENY_IDX = 0`, `ACTION_ALLOW_IDX = 1` in the UI's `config.py`). The 30 s
+  countdown is kept — it is now a countdown to _allow forever_.
+
+The UI rewrites that ini whenever any preference changes, so it cannot be a home-manager symlink; the two keys are
+asserted on each activation by a `home.activation` entry (same mutable-seeded-file pattern as `dev/vscode.nix`), and
+everything else in the file stays the UI's business. Changing those two in the GUI will be reverted on the next rebuild
+— that is the trade for declaring them.
+
+**Verified 2026-08-26:** the daemon's rendered config shows `DefaultAction: allow`, `DefaultDuration: always`; the UI
+ini shows `default_action=1`, `default_duration=8`; `nix flake check` passes.

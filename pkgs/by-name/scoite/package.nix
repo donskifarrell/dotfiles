@@ -475,8 +475,9 @@ let
         fi
 
         # The *configuration* half of df's omp (TASKS.md S14): config.yml
-        # (what `omp config set` writes) plus the directories omp discovers
-        # agents/skills/rules/prompts/extensions from. Explicitly a list of
+        # (what `omp config set` writes) and its `config.*.yml` overlays, plus
+        # the directories omp discovers agents/skills/rules/prompts/extensions
+        # from. Explicitly a list of
         # what to take rather than a list of what to skip: ~/.omp/agent also
         # holds agent.db and models.db (session history, model catalogue),
         # sessions/, logs/ — and the broker token lives one level up. A
@@ -491,9 +492,21 @@ let
           local ompstage
           ompstage=$(mktemp -d)
           local item found=0
-          for item in config.yml agents skills rules prompts extensions hooks themes; do
+          for item in config.yml agents skills skills-vendor rules prompts extensions hooks themes *.md; do
             if [ -e "$ompsrc/$item" ]; then
               cp -a "$ompsrc/$item" "$ompstage/"
+              found=1
+            fi
+          done
+
+          # The overlay configs beside it — `config.sandbox.yml` is the one a
+          # guest's omp is actually launched with (roles/sandbox.nix). Globbed
+          # separately, and against $ompsrc: a glob in the `for` list above
+          # would be expanded relative to the *current* directory instead.
+          local overlay
+          for overlay in "$ompsrc"/config.*.yml; do
+            if [ -e "$overlay" ]; then
+              cp -a "$overlay" "$ompstage/"
               found=1
             fi
           done
@@ -566,9 +579,23 @@ let
       }
 
       # --- boot ---------------------------------------------------------------
+      # A guest authorizes exactly one key, df's passphrase-protected
+      # `aon.clan`, so an empty agent means every ssh into every sandbox fails
+      # with a bare "Permission denied (publickey)" that says nothing about
+      # why. The agent is emptied by any `nixos-rebuild switch` (it restarts
+      # home-manager's ssh-agent.service), so this is a routine state, not an
+      # exotic one — say so at launch instead of letting it surprise later.
+      warn_if_agent_empty() {
+        if ! ssh-add -l >/dev/null 2>&1; then
+          echo "scoite: the ssh agent holds no keys - 'ssh $(prefixed "$1")' will ask for your key passphrase (or run: ssh-add ~/.ssh/aon.clan)" >&2
+        fi
+      }
+
       boot() {
         local name=$1 foreground=$2 fresh=$3
         local dir=$STATE_ROOT/$name runner
+
+        warn_if_agent_empty "$name"
 
         if is_running "$name"; then echo "scoite: '$name' is already running"; return 0; fi
 
@@ -945,10 +972,15 @@ let
       }
 
       cmd_ssh() {
+        # Warn before the connection, not after it fails: an empty agent is
+        # the commonest reason a sandbox refuses a key (see
+        # warn_if_agent_empty).
+
         local name; name=$(resolve_name "''${1:-}")
         shift || true
         if [ "''${1:-}" = "--" ]; then shift; fi
         load_config "$name"
+        warn_if_agent_empty "$name"
         if ! is_running "$name"; then
           banner "$name"
           boot "$name" 0 0

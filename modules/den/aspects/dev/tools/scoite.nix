@@ -25,7 +25,25 @@
         # ~/.ssh/config.d/*` line — anything in those files is shadowed. This
         # block instead rides home-manager's guarantee that non-"*" settings
         # blocks render before the "*" default block, so it wins.
-        programs.ssh.settings."scoite-*".ForwardAgent = true;
+        programs.ssh.settings."scoite-*" = {
+          ForwardAgent = true;
+
+          # Name the key explicitly (2026-08-26). A guest authorizes exactly
+          # one key — df's `aon.clan` (modules/den/users/iosta.nix) — and that
+          # private key is passphrase-encrypted, so it is only usable through
+          # the agent. Without an IdentityFile here, ssh has *nothing to
+          # offer* the moment the agent is empty, and every sandbox answers
+          # `Permission denied (publickey)`.
+          #
+          # The agent empties more often than you would think: home-manager's
+          # ssh-agent.service is restarted by `nixos-rebuild switch`, which
+          # drops every key added since login. With this block an interactive
+          # ssh prompts for the passphrase once and `AddKeysToAgent` puts it
+          # back in the agent, which is also what makes agent-forwarded git
+          # inside the guest work again.
+          IdentityFile = "~/.ssh/aon.clan";
+          AddKeysToAgent = "yes";
+        };
 
         # Keep running sandboxes' credentials current (2026-08-23). A guest's
         # /run/agent.env — the omp auth-broker URL + bearer token it needs to
