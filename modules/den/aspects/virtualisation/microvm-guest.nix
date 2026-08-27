@@ -789,7 +789,9 @@ in
             echo "scoite: waiting for the project environment pre-build (scoite-workspace-init)…"
             # Bounded: a wedged pre-build must not make the sandbox
             # unreachable. 20 minutes, then carry on regardless.
-            for _ in (seq 1200)
+            # `_` is read-only in fish 4.x (it holds the current command
+            # name) — a loop variable named `_` aborts config.fish parsing.
+            for _i in (seq 1200)
               test (systemctl show scoite-workspace-init.service -p ActiveState --value 2>/dev/null) = activating
               or break
               sleep 1

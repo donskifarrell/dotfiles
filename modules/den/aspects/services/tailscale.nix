@@ -118,7 +118,13 @@
       };
 
     # Tailscale tray applet for df's desktop session (parity with the old
-    # flake.homeModules.tailscale).
+    # flake.homeModules.tailscale). This only reaches a user who *includes*
+    # `services.tailscale` (df does) — including the aspect on a host applies
+    # its nixos side only.
+    #
+    # The HM module just runs `tailscale systray` as a graphical-session user
+    # unit ordered after tray.target; GNOME needs the appindicator extension
+    # for a tray at all (services.gnome installs it).
     homeManager = {
       services.tailscale-systray.enable = true;
     };

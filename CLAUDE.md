@@ -54,6 +54,11 @@ secrets/*.yaml         sops-nix encrypted secrets (shared.yaml = multi-host, <ho
 An aspect is `den.aspects.<path>.{nixos|homeManager|darwin} = <module>`; reference it in an `includes` list as `<path>`
 (e.g. `core.network.openssh`). Files/dirs prefixed `_` are excluded from auto-import.
 
+**Host includes only apply an aspect's `nixos` side; user includes only its `homeManager` side** — the host->user
+projection (`den.batteries.host-aspects`) is deliberately off in `users/df.nix`. So an aspect with both sides (e.g.
+`services.tailscale`: daemon + `tailscale systray` user unit) must be listed in **both** `hosts/<host>.nix` and
+`users/df.nix`; the halves are still defined once, in the aspect.
+
 ## Machines
 
 | Host      | System         | Role                                                                                                                                                                                 |

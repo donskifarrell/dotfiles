@@ -19,6 +19,14 @@ in
       roles.dev
       roles.desktop
 
+      # The host includes services.tailscale for the daemon; a user include is
+      # what pulls its `homeManager` side (the `tailscale systray` applet's
+      # user unit) onto df — host aspects are NOT projected onto users here
+      # (den.batteries.host-aspects is deliberately off, below). Den ignores
+      # the aspect's `nixos` key for a user, so the daemon/secret stay defined
+      # once, on the host.
+      services.tailscale
+
       # Forward the host's (and its included roles') homeManager aspects onto
       # df. Without this, role/host-scoped home apps — fish config, git, the dev
       # tooling, the desktop graphical apps, etc. — never reach df's
