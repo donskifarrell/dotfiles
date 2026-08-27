@@ -90,11 +90,13 @@
             name = "den-tree";
             help = "Print the Den aspect tree applied to each host and user";
           }
-          {
-            package = config.packages.scoite;
-            name = "scoite";
-            help = "Launch a sandboxed per-folder microVM (background by default; -f for foreground)";
-          }
+          # Deliberately NOT here: `scoite`. It is home-manager-installed for
+          # df, and a devshell entry shadows that copy for anyone standing in
+          # this directory — pinned to whatever store path direnv last
+          # evaluated. That made `sc` mean two different things depending on
+          # the current directory, and cost real debugging time on 2026-08-26
+          # (a fix verified via the store path looked live, while `sc` in the
+          # repo kept running a build from hours earlier).
         ];
 
         devshell.startup.pre-commit.text = config.pre-commit.installationScript;

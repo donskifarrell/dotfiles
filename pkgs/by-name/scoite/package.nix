@@ -474,48 +474,43 @@ let
           chmod 600 "$SSH_CONF"
         fi
 
-        # The *configuration* half of df's omp (TASKS.md S14): config.yml
-        # (what `omp config set` writes) and its `config.*.yml` overlays, plus
-        # the directories omp discovers agents/skills/rules/prompts/extensions
-        # from. Explicitly a list of
-        # what to take rather than a list of what to skip: ~/.omp/agent also
-        # holds agent.db and models.db (session history, model catalogue),
-        # sessions/, logs/ — and the broker token lives one level up. A
-        # deny-list would ship any of those the day omp adds one.
+        # The *configuration* half of df's omp: config*.yml plus the trees
+        # omp discovers agents/skills/rules/prompts from. An **allow-list**,
+        # never a deny-list — ~/.omp/agent also holds agent.db and models.db
+        # (session history, model catalogue), sessions/, logs/, and the broker
+        # token lives one directory up; a deny-list would ship whichever of
+        # those omp adds next.
         #
-        # models.yml is left out on purpose: the guest's own copy points the
-        # `local` provider at the SLIRP gateway and is generated from
+        # Staged into a directory the guest 9p-mounts read-only, not a tar
+        # handed over as a systemd credential (changed 2026-08-26): systemd
+        # refuses any credential over 1 MiB and df's skills-vendor tree took
+        # the tar to 1.3 MiB, at which point the whole omp config silently
+        # stopped arriving. A directory has no ceiling, and because the share
+        # is live, `scoite creds` only has to re-run the guest-side copy.
+        #
+        # models.yml is deliberately NOT staged: the guest's own copy points
+        # omp's `local` provider at the SLIRP gateway and is generated from
         # modules/den/aspects/services/_llm-models.nix.
-        OMP_CONF=""
+        OMP_CONF_DIR=$dir/omp-conf.d
         local ompsrc=$HOME/.omp/agent
+        rm -rf "$OMP_CONF_DIR"
+        # Always present, even when empty: it is a qemu `-fsdev` path, and a
+        # missing source directory fails the launch rather than the copy.
+        mkdir -p "$OMP_CONF_DIR"
+        chmod 700 "$OMP_CONF_DIR"
         if [ -d "$ompsrc" ]; then
-          local ompstage
-          ompstage=$(mktemp -d)
-          local item found=0
-          for item in config.yml agents skills skills-vendor rules prompts extensions hooks themes *.md; do
-            if [ -e "$ompsrc/$item" ]; then
-              cp -a "$ompsrc/$item" "$ompstage/"
-              found=1
-            fi
+          local item
+          for item in agents skills skills-vendor rules prompts extensions hooks themes; do
+            if [ -e "$ompsrc/$item" ]; then cp -a "$ompsrc/$item" "$OMP_CONF_DIR/"; fi
           done
-
-          # The overlay configs beside it — `config.sandbox.yml` is the one a
-          # guest's omp is actually launched with (roles/sandbox.nix). Globbed
-          # separately, and against $ompsrc: a glob in the `for` list above
-          # would be expanded relative to the *current* directory instead.
-          local overlay
-          for overlay in "$ompsrc"/config.*.yml; do
-            if [ -e "$overlay" ]; then
-              cp -a "$overlay" "$ompstage/"
-              found=1
-            fi
+          # Globbed against $ompsrc explicitly. A glob in a `for` list is
+          # expanded relative to the *current* directory, which is wherever
+          # `scoite` happened to be run from — it would silently match nothing
+          # useful, or the wrong thing.
+          local f
+          for f in "$ompsrc"/config.yml "$ompsrc"/config.*.yml "$ompsrc"/*.md; do
+            if [ -e "$f" ]; then cp -a "$f" "$OMP_CONF_DIR/"; fi
           done
-          if [ "$found" -eq 1 ]; then
-            OMP_CONF=$dir/omp-conf.tar
-            (umask 077; tar -cf "$OMP_CONF" -C "$ompstage" .)
-            chmod 600 "$OMP_CONF"
-          fi
-          rm -rf "$ompstage"
         fi
 
         # The instance's own name, for the guest's hostname.
@@ -545,7 +540,7 @@ let
           "$HOME_DISK" "$EFFECTIVE_PORTS" "$SSH_PORT" "$ADDR" "$WORKSPACE" \
           "$(mac_for "$name")" \
           "''${AGENT_ENV:-}" "''${GITCONFIG:-}" "''${CLAUDE_CREDS:-}" \
-          "''${SSH_CONF:-}" "''${OMP_CONF:-}" \
+          "''${SSH_CONF:-}" "''${OMP_CONF_DIR:-}" \
           | sha256sum | cut -d' ' -f1)
 
         if [ "$fresh" -eq 0 ] && [ -L "$dir/runner" ] && [ -e "$dir/runner" ] \
@@ -570,7 +565,7 @@ let
         MICROVM_GITCONFIG="''${GITCONFIG:-}" \
         MICROVM_CLAUDE_CREDS="''${CLAUDE_CREDS:-}" \
         MICROVM_SSH_CONF="''${SSH_CONF:-}" \
-        MICROVM_OMP_CONF="''${OMP_CONF:-}" \
+        MICROVM_OMP_CONF_DIR="''${OMP_CONF_DIR:-}" \
         MICROVM_INSTANCE_FILE="$INSTANCE_FILE" \
           nix build --impure --no-warn-dirty --out-link "$dir/runner" \
             "$FLAKE#scoite-guest-$TYPE" >&2
@@ -940,9 +935,13 @@ let
         push_file "$name" "''${GITCONFIG:-}" \
           'cat > /run/gitconfig.local && scoite-install-gitconfig /run/gitconfig.local; rm -f /run/gitconfig.local'
 
-        # df's omp settings/agents/skills/rules (TASKS.md S14).
-        push_file "$name" "''${OMP_CONF:-}" \
-          'cat > /run/omp-conf.tar && scoite-install-omp-conf /run/omp-conf.tar; rm -f /run/omp-conf.tar'
+        # df's omp settings/agents/skills/rules. Nothing to stream: they live
+        # on the 9p share, which the guest already sees updated the moment
+        # collect_credentials re-staged them above — only the copy into
+        # ~/.omp/agent has to be re-run.
+        ssh -o ForwardAgent=no -o BatchMode=yes -o ConnectTimeout=5 \
+          -o StrictHostKeyChecking=accept-new "$(prefixed "$name")" -- \
+          'sudo -n scoite-install-omp-conf /run/scoite-omp' >/dev/null 2>&1 || true
       }
 
       # Only new shells see a refreshed /run/agent.env (fish exports it at

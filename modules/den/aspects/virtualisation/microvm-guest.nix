@@ -105,17 +105,61 @@ let
     # networking.hostName so the system closure stays identical across
     # instances. (credentialFiles values are paths, never inline values.)
     INSTANCE = builtins.getEnv "MICROVM_INSTANCE_FILE";
-    # A tar of the *configuration* half of df's ~/.omp/agent — config.yml and
-    # the agents/skills/rules/prompt directories, never the sqlite stores,
-    # sessions, logs or the broker token (TASKS.md S14). Same fw_cfg path as
-    # the others, so it never enters /nix/store.
-    OMP_CONF = builtins.getEnv "MICROVM_OMP_CONF";
   };
+
+  # The *configuration* half of df's ~/.omp/agent, staged per instance by the
+  # CLI (config*.yml and the agents/skills/rules/prompt trees — never the
+  # sqlite stores, sessions, logs or the broker token).
+  #
+  # A 9p share, NOT a fw_cfg credential like the others (changed 2026-08-26):
+  # systemd refuses to import a credential larger than 1 MiB, and df's
+  # skills-vendor tree alone took the tar to 1.3 MiB — at which point the
+  # credential vanished *silently*, the installer found nothing, and every new
+  # sandbox came up with an empty ~/.omp. A share has no such ceiling, and it
+  # is live: re-staging on the host is visible in the guest immediately, so
+  # `scoite creds` only has to re-run the copy.
+  ompConfDir = builtins.getEnv "MICROVM_OMP_CONF_DIR";
 in
 {
   den.aspects.virtualization.microvm-guest.nixos =
     { pkgs, ... }:
     let
+      omp = inputs.nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.omp;
+
+      # abhaile's llama-server (services.llm, 127.0.0.1:8080) is reachable from
+      # a guest at qemu's SLIRP gateway, so pre-declare it as omp's `local`
+      # provider. Model ids and context windows are GENERATED from
+      # ../services/_llm-models.nix — the same file llama-server's router
+      # presets come from — because the two used to be kept in step by hand and
+      # a mismatch is invisible until a request hangs.
+      #
+      # The list is built as its own string and interpolated whole, rather than
+      # `${...}` inside the indented block: Nix strips the *common* indentation
+      # of a `''` string, and an interpolation sitting at a shallower indent
+      # than its surroundings drags every generated line to column 0. That is
+      # exactly what happened between 2026-08-25 and 2026-08-26 — the file's
+      # list items lost their indentation and omp refused it with a yaml parse
+      # error. Any change here: re-read the built file, do not eyeball the Nix.
+      ompModels =
+        let
+          llm = import ../services/_llm-models.nix;
+          usable = lib.filter (m: m.omp) llm.models;
+          entries = lib.concatMapStringsSep "\n" (m: ''
+            ${"      "}- id: ${m.id}
+            ${"        "}name: ${m.name}
+            ${"        "}contextWindow: ${toString m.ctx}
+            ${"        "}maxTokens: ${toString m.maxTokens}'') usable;
+        in
+        pkgs.writeText "omp-models.yml" ''
+          providers:
+            local:
+              baseUrl: ${llm.guestBaseUrl}
+              auth: none
+              api: openai-completions
+              models:
+          ${entries}
+        '';
+
       # Host-identity installers. Each is used twice — from the boot unit that
       # reads the fw_cfg credential, and from `scoite creds`, which re-pushes
       # the same file into an already-running guest (TASKS.md S13/S14) — so
@@ -162,20 +206,46 @@ in
       installOmpConf = pkgs.writeShellApplication {
         name = "scoite-install-omp-conf";
         runtimeInputs = [
-          pkgs.gnutar
           pkgs.coreutils
+          pkgs.findutils
         ];
         text = ''
-          src=''${1:?usage: scoite-install-omp-conf <tar>}
-          [ -f "$src" ] || exit 0
+          src=''${1:-/run/scoite-omp}
+
           install -d -m 0755 -o iosta -g users /home/iosta/.omp
           install -d -m 0755 -o iosta -g users /home/iosta/.omp/agent
-          # models.yml is deliberately NOT in the tar and must not be
-          # clobbered: the host's copy (if any) points omp at providers as
-          # abhaile sees them, while the guest's points the `local` provider
-          # at the SLIRP gateway.
-          tar -xf "$src" -C /home/iosta/.omp/agent
-          chown -R iosta:users /home/iosta/.omp
+
+          # `local` provider, generated from
+          # modules/den/aspects/services/_llm-models.nix — the same file
+          # llama-server's router presets come from. Written on **every** run,
+          # not seeded once: it is derived config, a stale or truncated copy
+          # makes omp fail with a yaml parse error, and the previous
+          # copy-if-absent tmpfiles rule meant a guest kept whatever it first
+          # got, bad file included.
+          install -m 0644 -o iosta -g users ${ompModels} \
+            /home/iosta/.omp/agent/models.yml
+
+          if [ -d "$src" ]; then
+            # -T so the *contents* land in agent/, not a nested directory;
+            # --no-preserve=mode because the source is a 9p share of a
+            # host-staged tree.
+            cp -a --no-preserve=mode -T "$src" /home/iosta/.omp/agent
+            chown -R iosta:users /home/iosta/.omp
+            echo "scoite: installed omp config ($(find "$src" -type f | wc -l) files from $src)"
+          else
+            echo "scoite: no omp config staged at $src - guest keeps models.yml only" >&2
+          fi
+
+          # Straight to the prompt, no onboarding (df, 2026-08-26). omp runs
+          # its wizard when `startup.setupWizard` is true, and separately when
+          # the stored setupVersion is behind CURRENT_SETUP_VERSION (2 in
+          # omp 17.4.2) — set both, in the guest's copy only, using omp's own
+          # writer so the yaml stays valid. The *real* omp, not the sandbox
+          # wrapper: `--config` overlays must not be what gets written.
+          runuser -u iosta -- env HOME=/home/iosta \
+            ${omp}/bin/omp config set startup.setupWizard false >/dev/null 2>&1 || true
+          runuser -u iosta -- env HOME=/home/iosta \
+            ${omp}/bin/omp config set setupVersion 2 >/dev/null 2>&1 || true
         '';
       };
 
@@ -363,7 +433,12 @@ in
             source = "/var/lib/scoite/hostkey";
             mountPoint = "/etc/scoite-hostkey";
           }
-        ];
+        ]
+        ++ lib.optional (ompConfDir != "") {
+          tag = "ompconf";
+          source = ompConfDir;
+          mountPoint = "/run/scoite-omp";
+        };
 
         # Host's /nix/store is shared read-only (above) — without a writable
         # overlay the guest's whole store is read-only and nix-daemon
@@ -546,14 +621,20 @@ in
       # and git silently skips missing includes.
       systemd.services.scoite-omp-conf = {
         wantedBy = [ "multi-user.target" ];
-        after = [ "scoite-home-perms.service" ];
+        # The config arrives on a 9p share now, not as a credential, so this
+        # waits for the mount rather than importing anything.
+        after = [
+          "scoite-home-perms.service"
+          "run-scoite\\x2domp.mount"
+        ];
+        unitConfig.RequiresMountsFor = "/run/scoite-omp";
         serviceConfig = {
           Type = "oneshot";
           RemainAfterExit = true;
-          ImportCredential = "OMP_CONF";
         };
+        path = [ pkgs.util-linux ]; # runuser
         script = ''
-          ${lib.getExe installOmpConf} "$CREDENTIALS_DIRECTORY/OMP_CONF" || true
+          ${lib.getExe installOmpConf} /run/scoite-omp
         '';
       };
 
@@ -768,35 +849,11 @@ in
         Host *
       '';
 
-      # Local LLM: abhaile's llama-server (services.llm, 127.0.0.1:8080) is
-      # reachable from the guest at qemu's SLIRP gateway. Pre-declare it as an
-      # omp provider. Model ids and context windows are GENERATED from
-      # ../services/_llm-models.nix — the same file llama-server's router
-      # presets come from — because the two used to be kept in step by hand
-      # and a mismatch is invisible until a request hangs. Seeded with
-      # tmpfiles `C` (copy, only if absent) so omp can rewrite it at runtime.
-      systemd.tmpfiles.rules =
-        let
-          llm = import ../services/_llm-models.nix;
-          usable = lib.filter (m: m.omp) llm.models;
-          ompModels = pkgs.writeText "omp-models.yml" ''
-            providers:
-              local:
-                baseUrl: ${llm.guestBaseUrl}
-                auth: none
-                api: openai-completions
-                models:
-            ${lib.concatMapStringsSep "\n" (m: ''
-              - id: ${m.id}
-                name: ${m.name}
-                contextWindow: ${toString m.ctx}
-                maxTokens: ${toString m.maxTokens}'') usable}
-          '';
-        in
-        [
-          "d /home/iosta/.omp 0755 iosta users - -"
-          "d /home/iosta/.omp/agent 0755 iosta users - -"
-          "C /home/iosta/.omp/agent/models.yml 0644 iosta users - ${ompModels}"
-        ];
+      # The omp config directory itself; its *contents* (models.yml and
+      # whatever the host staged) are installed by scoite-omp-conf.service.
+      systemd.tmpfiles.rules = [
+        "d /home/iosta/.omp 0755 iosta users - -"
+        "d /home/iosta/.omp/agent 0755 iosta users - -"
+      ];
     };
 }

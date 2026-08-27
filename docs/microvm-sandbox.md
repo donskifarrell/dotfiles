@@ -563,18 +563,25 @@ Four host files reach a guest as qemu `fw_cfg` systemd credentials — read at V
 world-readable `/nix/store` — and **all four are also re-pushed into a _running_ guest** by `scoite creds` (which
 `scoite ssh` runs on every attach, plus a 10-minute host timer):
 
-| credential        | from                                                    | installed by                  | what it gives the guest                       |
-| ----------------- | ------------------------------------------------------- | ----------------------------- | --------------------------------------------- |
-| `AGENT_ENV`       | `~/.config/scoite/agent.env` + the broker token         | fish exports `/run/agent.env` | cloud LLM access via the host's auth-broker   |
-| `SSH_CONF`        | `~/.ssh/sshconfig.local` + the **public** keys it names | `scoite-install-ssh-conf`     | per-account git remotes (`<acct>.github.com`) |
-| `GITCONFIG_LOCAL` | `~/.config/git/gitconfig.local`                         | `scoite-install-gitconfig`    | git identity                                  |
-| `OMP_CONF`        | `~/.omp/agent/{config.yml,agents,skills,rules,…}`       | `scoite-install-omp-conf`     | df's omp settings, agents, skills and rules   |
+| credential        | from                                                            | installed by                  | what it gives the guest                       |
+| ----------------- | --------------------------------------------------------------- | ----------------------------- | --------------------------------------------- |
+| `AGENT_ENV`       | `~/.config/scoite/agent.env` + the broker token                 | fish exports `/run/agent.env` | cloud LLM access via the host's auth-broker   |
+| `SSH_CONF`        | `~/.ssh/sshconfig.local` + the **public** keys it names         | `scoite-install-ssh-conf`     | per-account git remotes (`<acct>.github.com`) |
+| `GITCONFIG_LOCAL` | `~/.config/git/gitconfig.local`                                 | `scoite-install-gitconfig`    | git identity                                  |
+| _9p share_        | `~/.omp/agent/{config*.yml,*.md,agents,skills,skills-vendor,…}` | `scoite-install-omp-conf`     | df's omp settings, agents, skills and rules   |
 
-`OMP_CONF` is staged from an **allow-list**, never a deny-list: `~/.omp/agent` also holds `agent.db` (session history),
+The omp config is the odd one out: it rides a **9p share**, not a credential. systemd refuses any credential larger than
+**1 MiB**, and df's `skills-vendor` tree took the tar to 1.3 MiB — at which point qemu still passed it, systemd dropped
+it, and every new sandbox came up with an empty `~/.omp` and no error anywhere (2026-08-26). The CLI now stages the tree
+into `~/.local/state/scoite/<name>/omp-conf.d/`, the guest mounts it read-only at `/run/scoite-omp` and copies it into
+`~/.omp/agent`. No ceiling, and the share is live, so `scoite creds` only re-runs the copy.
+
+It is staged from an **allow-list**, never a deny-list: `~/.omp/agent` also holds `agent.db` (session history),
 `models.db`, `sessions/` and `logs/`, and the broker token lives one directory up. `models.yml` is excluded too — the
 guest's copy points omp's `local` provider at the SLIRP gateway and is generated from
 `modules/den/aspects/services/_llm-models.nix`, the same file llama-server's router presets come from (they used to be
-hand-synced, and a mismatch is invisible until a request hangs).
+hand-synced, and a mismatch is invisible until a request hangs). Globs in the staging list are expanded against
+`~/.omp/agent` explicitly — a bare `*.md` in a shell `for` list matches the _current directory_ instead.
 
 The installers are commands, not inline unit scripts, precisely because they run twice — at boot and on every push. The
 units invoke them by **absolute store path**: a systemd unit's PATH does not include `/run/current-system/sw/bin`, and
@@ -740,6 +747,16 @@ Verified end-to-end on 2026-08-21 by booting a sandbox on a scratch project: `he
   `scoite new --ssh` into a large monorepo, where the pre-build took four minutes, the login raced it, and devenv failed
   with `Failed to get shell attribute` inside a nixpkgs-bootstrap trace that says nothing about the real cause. The wait
   is bounded at 20 minutes so a wedged pre-build cannot make the sandbox unreachable.
+- **`models.yml` is generated and rewritten on every boot**, from `modules/den/aspects/services/_llm-models.nix`. It
+  used to be seeded with a tmpfiles `C` (copy-if-absent) rule, which meant a guest kept whatever it first received —
+  including, briefly, a version whose list items had lost their indentation (a Nix `''` string strips the _common_
+  indent, and the interpolated list sat shallower than its surroundings) that omp rejected with a yaml parse error. When
+  changing that generator, read the **built** file; do not eyeball the Nix.
+- **The setup wizard is skipped in guests**: the installer sets `startup.setupWizard = false` and `setupVersion = 2`
+  (omp 17.4.2's `CURRENT_SETUP_VERSION`) in the guest's own `config.yml`, via `omp config set` so the YAML stays valid.
+- **`scoite` is not in the devshell** (removed 2026-08-26). It used to be, and it shadowed the home-manager copy for
+  anyone standing in `~/.dotfiles`, pinned to whatever store path direnv last evaluated — so `sc` meant different things
+  in different directories and "verified" fixes could be running hours-old code.
 - **File capabilities cannot be set on `/workspace`.** virtiofsd runs unprivileged (as df), so `security.capability`
   xattrs are refused: a project whose devenv does `sudo setcap cap_net_bind_service=+ep …` on a binary under the
   workspace gets `Invalid file '…' for capability operation`. It is non-fatal (the task fails, the shell is fine) and

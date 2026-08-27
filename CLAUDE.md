@@ -168,6 +168,9 @@ Gotchas (easy to forget):
   needed on omp ≥17.4.2.
 - Model ids/context sizes are generated for both llama-server and every guest's omp `models.yml` from
   `modules/den/aspects/services/_llm-models.nix` — edit that, not the two consumers.
+- Host omp config reaches a guest on a **9p share** (`/run/scoite-omp`, staged at
+  `~/.local/state/scoite/<name>/omp-conf.d/`), not as an fw_cfg credential — systemd caps credentials at 1 MiB and
+  silently drops anything larger. `models.yml` is generated from `_llm-models.nix` and rewritten every boot.
 - A guest login **waits** for `scoite-workspace-init` (the boot-time devenv/flake pre-build) instead of racing it — two
   concurrent devenv evaluations of the same `/workspace` fail. Also: `setcap` on a workspace file cannot work
   (unprivileged virtiofsd, no `security.capability` xattr).

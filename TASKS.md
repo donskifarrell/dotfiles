@@ -1164,3 +1164,58 @@ everything else in the file stays the UI's business. Changing those two in the G
 
 **Verified 2026-08-26:** the daemon's rendered config shows `DefaultAction: allow`, `DefaultDuration: always`; the UI
 ini shows `default_action=1`, `default_duration=8`; `nix flake check` passes.
+
+### F7 — an empty `~/.omp` in the guest, a corrupt `models.yml`, and the wizard
+
+Three faults in one report (df, 2026-08-26), plus a trap that had been hiding them.
+
+**1. The omp config silently stopped arriving.** `fw_cfg` systemd credentials are capped at **1 MiB**; adding
+`skills-vendor` to the staging list took the tar to 1,351,680 bytes. qemu still passed it, systemd refused to import it,
+`$CREDENTIALS_DIRECTORY/OMP_CONF` simply did not exist, and the installer's `[ -f "$src" ] || exit 0` turned that into a
+green unit. Nothing anywhere said "too big".
+
+Fixed by changing the transport: the config is now staged into `~/.local/state/scoite/<name>/omp-conf.d/` and the guest
+**9p-mounts it read-only at `/run/scoite-omp`**, then copies it into `~/.omp/agent`. No size ceiling, and the share is
+live — so `scoite creds` only re-runs the guest-side copy instead of streaming anything. The installer now logs what it
+did (file count, or a warning when nothing is staged) rather than exiting quietly.
+
+While there, df's staging edit was repaired: `*.md` in the `for item in …` list was expanded against the _current
+directory_ (wherever `sc` was invoked), not `~/.omp/agent`. All globs now name `$ompsrc` explicitly, and `config.yml`,
+`config.*.yml`, `*.md`, `agents`, `skills`, `skills-vendor`, `rules`, `prompts`, `extensions`, `hooks` and `themes` all
+ship.
+
+**2. `models.yml` was invalid YAML.** My generator interpolated the model list at a _shallower_ indentation than the
+surrounding `''` block, and Nix strips the common indentation of the whole string — which dragged every list item to
+column 0:
+
+```yaml
+    models:
+- id: qwen3.6-35b-a3b      # ← what the guest got; `yq` rejects it
+```
+
+That is the parse error df hit in an older VM. The list is now built as its own string and interpolated whole, with a
+comment saying to re-read the _built_ file rather than eyeball the Nix. It is also installed on **every** boot instead
+of tmpfiles' copy-if-absent `C` rule — the old rule meant a guest kept whatever it first received, corrupt file
+included, which is why the bug survived a restart and why my S14 verification saw a good file (that guest still had the
+pre-generation copy).
+
+**3. The setup wizard is skipped.** omp runs it when `startup.setupWizard` is true _or_ the stored `setupVersion` is
+behind `CURRENT_SETUP_VERSION` (2 in omp 17.4.2). The installer now sets both in the guest's copy — via `omp config set`
+(omp's own writer, so the YAML stays valid) run as iosta against the _real_ omp, not the sandbox wrapper, so a
+`--config` overlay is never what gets written.
+
+**The trap:** `modules/flake-parts/devshell.nix` published `scoite` as a devshell command, which shadowed the
+home-manager copy for anyone standing in `~/.dotfiles` — pinned to whatever store path direnv last evaluated. `sc`
+therefore meant two different things depending on the directory, and several of my own "verified" runs today were
+executing a build from hours earlier. The devshell entry is gone; df's `scoite` comes from home-manager only.
+
+**Verified 2026-08-26** (ssh into guests is currently impossible — see F5 — so this was checked by mounting the guest's
+home volume read-only on the host, `mount -o ro,loop,noload home.img`):
+
+- `~/.local/state/scoite/scoite-mono/omp-conf.d/` stages 2.1 MB: `agents`, `skills-vendor`, `APPEND_SYSTEM.md`,
+  `RULES.md`, `config.yml`, `config.sandbox.yml`, `config.no-codex.yml`.
+- The guest console shows `Mounted /run/scoite-omp` then `Finished scoite-omp-conf.service`.
+- Inside the guest's home image: all of the above present, `skills-vendor` 2.0 MB, and `config.yml` rewritten at boot
+  with `startup: setupWizard: false` and `setupVersion: 2`.
+- `models.yml` in the guest is the corrected file, and `yq` parses it (`.providers.local.models[0].id` →
+  `qwen3.6-35b-a3b`).

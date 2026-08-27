@@ -15,8 +15,9 @@
         };
 
         pulseaudio.enable = false;
+        playerctld.enable = true;
       };
 
-      environment.systemPackages = [ pkgs.pavucontrol ];
+      environment.systemPackages = [ pkgs.pwvucontrol ];
     };
 }
