@@ -119,6 +119,12 @@ let
   # is live: re-staging on the host is visible in the guest immediately, so
   # `scoite creds` only has to re-run the copy.
   ompConfDir = builtins.getEnv "MICROVM_OMP_CONF_DIR";
+
+  # GitHub's published ed25519 host key. Consumed twice below — by the ssh
+  # CLI (programs.ssh.knownHosts) and by iosta's *own* ~/.ssh/known_hosts —
+  # because those are two different files and only one of them is enough for
+  # each consumer. See the seeding rule in systemd.tmpfiles.rules.
+  githubHostKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl";
 in
 {
   den.aspects.virtualization.microvm-guest.nixos =
@@ -833,8 +839,7 @@ in
       # interactive host-key prompt. GitHub's published ed25519 key — it
       # covers the <acct>.github.com aliases too, since those carry
       # `HostName github.com` and ssh checks the key against that.
-      programs.ssh.knownHosts."github.com".publicKey =
-        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl";
+      programs.ssh.knownHosts."github.com".publicKey = githubHostKey;
 
       # Pick up what scoite-ssh-config drops in. NixOS renders extraConfig
       # first in /etc/ssh/ssh_config, and ssh_config is first-match-wins, so
@@ -853,9 +858,25 @@ in
 
       # The omp config directory itself; its *contents* (models.yml and
       # whatever the host staged) are installed by scoite-omp-conf.service.
+      #
+      # Plus iosta's own known_hosts (2026-08-28). The pin above only reaches
+      # /etc/ssh/ssh_known_hosts, which the ssh *CLI* reads — libgit2 doesn't:
+      # it checks ~/.ssh/known_hosts and nothing else. That matters because
+      # df's gitconfig (pushed in by `scoite creds`) carries
+      # `url."git@github.com:".insteadOf = "https://github.com/"`, so nix
+      # rewrites every github: flake input to ssh before libgit2 dials it —
+      # and with no ~/.ssh/known_hosts libgit2 fails the host-key check and
+      # reports it as `connecting to remote 'https://…': invalid or unknown
+      # remote ssh hostkey`, which reads like a TLS/CA problem and isn't one.
+      # `devenv update` in a guest could not lock a single input before this.
+      #
+      # `C` copies only when the destination is absent, so a host iosta
+      # accepts later still gets appended and survives the next boot.
       systemd.tmpfiles.rules = [
         "d /home/iosta/.omp 0755 iosta users - -"
         "d /home/iosta/.omp/agent 0755 iosta users - -"
+        "d /home/iosta/.ssh 0700 iosta users - -"
+        "C /home/iosta/.ssh/known_hosts 0600 iosta users - ${pkgs.writeText "scoite-known-hosts" "github.com ${githubHostKey}\n"}"
       ];
     };
 }

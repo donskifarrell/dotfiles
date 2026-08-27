@@ -340,10 +340,18 @@ Three pieces, all small:
   connection, so a long-lived session (a VS Code terminal, a multiplexer pane) would hold a dead `SSH_AUTH_SOCK` after
   an ssh drop + reattach. Every login re-points `~/.ssh/agent.sock` at its own live socket and sessions use the symlink
   — verified: kill the ssh ControlMaster, reconnect, panes' agent works again without restarting anything.
-- **`github.com` in the guest's known_hosts** (`programs.ssh.knownHosts`, GitHub's published ed25519 key) — so a
+- **`github.com` in the guest's known*hosts — in \_two* files** (both from the one `githubHostKey` binding in
+  `microvm-guest.nix`, GitHub's published ed25519 key). `programs.ssh.knownHosts` covers the ssh **CLI**, so a
   non-interactive agent's first `git fetch` can't stall on a host-key prompt (the ephemeral home would forget an
-  accepted key on every stop anyway). It covers the `<acct>.github.com` aliases too: they carry `HostName github.com`,
-  which is what ssh checks the host key against.
+  accepted key on every stop anyway); it covers the `<acct>.github.com` aliases too, since they carry
+  `HostName github.com`, which is what ssh checks the host key against. But that option only writes
+  `/etc/ssh/ssh_known_hosts`, and **libgit2 — the git client inside `nix` — reads `~/.ssh/known_hosts` and nothing
+  else**, so a tmpfiles `C` rule seeds `/home/iosta/.ssh/known_hosts` as well (copy-if-absent, so a host iosta accepts
+  later still survives the next boot). Without it every `nix`/`devenv` flake-input fetch fails; see the quirk below.
+- **`User git` on the alias blocks** (in `~/.ssh/sshconfig.local`, the sops secret). Without it ssh sends the local
+  username — `iosta` in a guest, `df` on abhaile — and GitHub answers `Permission denied (publickey)` even though the
+  right key was offered and accepted-shaped. Remotes written `git@…` were always fine; this only makes the bare forms
+  (`ssh -T github.com`, `ssh -T donskifarrell.github.com`) work too.
 - **The alias config itself** (`scoite-ssh-config`, above) — forwarding alone is not enough for a remote that uses one
   of df's per-account alias hostnames.
 
@@ -738,6 +746,16 @@ Verified end-to-end on 2026-08-21 by booting a sandbox on a scratch project: `he
 
 ## Known quirks
 
+- **`invalid or unknown remote ssh hostkey` from `nix`/`devenv` is a `~/.ssh/known_hosts` problem, not a TLS one**
+  (fixed 2026-08-28). The full error —
+  `connecting to remote 'https://github.com/cachix/devenv.git': invalid or unknown remote ssh hostkey`, which broke
+  every `devenv update` in a guest — names an **https** URL and an **ssh** host key, and both halves are literally true:
+  df's gitconfig (pushed in by `scoite creds`) carries `url."git@github.com:".insteadOf = "https://github.com/"`, so nix
+  rewrites each `github:` flake input to ssh before libgit2 dials it, and libgit2 then fails the host-key check against
+  a `~/.ssh/known_hosts` that did not exist. It is libgit2's `GIT_ECERTIFICATE` text, which is why the message reads
+  like a CA-bundle failure; `SSL_CERT_FILE` / `NIX_SSL_CERT_FILE` change nothing. `/etc/ssh/ssh_known_hosts` doesn't
+  help either — libgit2 never reads it. Hence the seeding rule above. Note that the ssh **CLI** was unaffected
+  throughout, so `ssh -T git@github.com` succeeding is no evidence that a `nix` fetch will.
 - (Historical, fixed 2026-07-13: when the guest ran df's full HM identity via `roles.dev`, it also inherited the
   `scoite` binary itself and a spare `omp auth-broker serve` per boot. The iosta/`roles.sandbox.*` guest identity
   includes neither.)

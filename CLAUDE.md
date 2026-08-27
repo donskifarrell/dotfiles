@@ -160,7 +160,15 @@ Gotchas (easy to forget):
   never Nix path literals, or the file gets copied into the world-readable store at eval time.
 - Git auth in a guest = **forwarded ssh-agent + `~/.ssh/sshconfig.local`**. The alias config and the _public_ halves of
   the keys it names ride in as the `SSH_CONF` credential; private keys never do. A remote using a bare `github.com` URL
-  works either way — one using `<acct>.github.com` needs that config.
+  works either way — one using `<acct>.github.com` needs that config. GitHub only accepts the user `git`: every alias
+  block carries `User git` (added 2026-08-28) so the bare `ssh -T <alias>` forms work, not just `git@<alias>` remotes.
+- **`nix`/`devenv` fetches use libgit2, which reads only `~/.ssh/known_hosts`** — not `/etc/ssh/ssh_known_hosts`, where
+  `programs.ssh.knownHosts` puts the guest's pinned github key. Combined with df's
+  `url."git@github.com:".insteadOf = "https://github.com/"`, every `github:` flake input goes out over ssh, so a guest
+  with no `~/.ssh/known_hosts` fails to lock a single input with the misleading
+  `connecting to remote 'https://…': invalid or unknown remote ssh hostkey` (libgit2's `GIT_ECERTIFICATE` text — it is
+  not a CA/TLS problem, and `SSL_CERT_FILE` does nothing). A tmpfiles `C` rule now seeds that file; see
+  docs/microvm-sandbox.md.
 - Running sandboxes don't pick up _system_ config changes — stop and start them. **Host identity is the exception**:
   `scoite creds [<name>|--all]` re-pushes agent.env, ssh config, gitconfig and omp config into a _running_ guest, and
   runs on every `scoite ssh` plus a 10-min host timer. New guest shells only.
