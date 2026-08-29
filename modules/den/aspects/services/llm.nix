@@ -69,7 +69,18 @@
         );
       in
       {
-        environment.systemPackages = lib.mapAttrsToList suffixed backends;
+        environment.systemPackages = lib.mapAttrsToList suffixed backends ++ [
+          # llmfit: sizes GGUF models against this box's RAM/VRAM/CPU
+          # (`llmfit system`, `llmfit list`, `llmfit recommend`) — the
+          # picking-a-model half of docs/llm.md, which the model list below
+          # is the picked half of. Pinned ahead of nixpkgs by the overlay.
+          pkgs.llmfit
+        ];
+
+        # Overlay pinning llmfit to its latest upstream release (nixpkgs lags
+        # several point releases behind). Scoped to hosts including this
+        # aspect; delete _llmfit.nix and this line once nixpkgs catches up.
+        nixpkgs.overlays = [ (import ./_llmfit.nix) ];
 
         systemd.tmpfiles.rules = [ "d ${modelsDir} 0755 df users -" ];
 

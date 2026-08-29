@@ -276,6 +276,17 @@ order:
 7. **MacBook wiring (with item 15)**: HM `services.syncthing` user service on darwin with the same folder id
    `vault-main`; `apps.obsidian` is already portable (registers the vault via the HM module's darwin paths).
 
+### 18. Drop the `llmfit` version-pin overlay when nixpkgs catches up
+
+Added 2026-08-29. `modules/den/aspects/services/_llmfit.nix` pins `llmfit` to **1.1.12** (upstream latest) because the
+locked FlakeHub-weekly nixpkgs ships 1.1.8; it is applied by `services/llm.nix`, which also puts `pkgs.llmfit` in
+abhaile's `environment.systemPackages`. Check after a `nix flake update`: comment out the `nixpkgs.overlays` line in
+`llm.nix` and run `nix eval .#nixosConfigurations.abhaile.pkgs.llmfit.version` — if nixpkgs is at or past the version
+you want, delete `_llmfit.nix`, the overlay line, and the two doc paragraphs (docs/llm.md "Bump the pinned `llmfit`" +
+the CLAUDE.md LLM gotcha). Otherwise bump the pin instead: version, src hash (`nix-prefetch-url --unpack` the tag
+tarball → `nix hash convert --to sri`), then `cargoDeps.hash` from a fake-hash build. `cargoHash` itself is NOT
+overridable — `buildRustPackage` reads it off `args`, not `finalAttrs`.
+
 ## Done
 
 - 2026-08-22 — **sandvm rework: four types, real lifecycle, shared closures** (closed items 13.1 and 13.3). Full

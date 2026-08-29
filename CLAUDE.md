@@ -181,6 +181,9 @@ Gotchas (easy to forget):
   needed on omp ≥17.4.2.
 - Model ids/context sizes are generated for both llama-server and every guest's omp `models.yml` from
   `modules/den/aspects/services/_llm-models.nix` — edit that, not the two consumers.
+- `llmfit` (model-vs-hardware sizing TUI) is installed by the same aspect and **pinned ahead of nixpkgs** by the overlay
+  in `services/_llmfit.nix` (nixpkgs lags). Bumping it means version + src hash + `cargoDeps` hash — NOT `cargoHash`,
+  which `buildRustPackage` reads off `args` so `overrideAttrs` can't reach it. Recipe: docs/llm.md.
 - Host omp config reaches a guest on a **9p share** (`/run/scoite-omp`, staged at
   `~/.local/state/scoite/<name>/omp-conf.d/`), not as an fw_cfg credential — systemd caps credentials at 1 MiB and
   silently drops anything larger. `models.yml` is generated from `_llm-models.nix` and rewritten every boot.

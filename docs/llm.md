@@ -12,6 +12,8 @@ the reasoning, and the parameter/model research so decisions can be re-derived w
   per-invocation, no rebuild.
 - Models in `/var/lib/llm/models` (df-owned; NOT `$HOME` — the service is DynamicUser + ProtectHome).
 - Device 0 = RX 9070, device 1 = Raphael iGPU in both stacks — always pin (`--device Vulkan0` / `-dev ROCm0`).
+- **Model picking**: `llmfit` (TUI/CLI, scores GGUFs against this box's RAM/VRAM/cores) — installed by the same aspect,
+  pinned ahead of nixpkgs by `modules/den/aspects/services/_llmfit.nix` (see the recipe below).
 
 ## What the benchmark numbers mean (in terms of real use)
 
@@ -170,3 +172,16 @@ Sources: [Qwen3.6-35B-A3B blog](https://qwen.ai/blog?id=qwen3.6-35b-a3b),
   rebuild. Clients select it via the `model` field; `--models-max 1` swaps on demand.
 - **Free the VRAM** (e.g. before gaming): `systemctl restart llama-cpp` (unloads models until next request) or
   `systemctl stop llama-cpp`.
+
+- **Pick a model for this hardware**: `llmfit system` (what it detects), `llmfit list`, `llmfit recommend`,
+  `llmfit --json <cmd>` for scripted/agent use. It only scores and suggests — actually serving a model still means the
+  "add a model to the router" recipe above. Its `--memory/--ram/--cpu-cores` overrides also answer "what would fit if I
+  upgraded".
+
+- **Bump the pinned `llmfit`**: nixpkgs lags upstream by several point releases, so
+  `modules/den/aspects/services/_llmfit.nix` is an overlay that overrides only nixpkgs' version + hashes (the shape of
+  every upstream release bump — cf. NixOS/nixpkgs#556371). Steps are in that file's header; the one non-obvious part is
+  that `cargoHash` **cannot** be overridden — `buildRustPackage` reads it off `args`, not `finalAttrs`, so the overlay
+  replaces `cargoDeps` (a fresh `rustPlatform.fetchCargoVendor`) instead. Check what nixpkgs itself ships with
+  `nix eval .#nixosConfigurations.abhaile.pkgs.llmfit.version` after deleting the overlay line; drop the file once it
+  has caught up.
