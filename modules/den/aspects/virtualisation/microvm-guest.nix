@@ -105,6 +105,9 @@ let
     # networking.hostName so the system closure stays identical across
     # instances. (credentialFiles values are paths, never inline values.)
     INSTANCE = builtins.getEnv "MICROVM_INSTANCE_FILE";
+    # "<slot> <guest path>" lines: where to bind each /mnt/host/<slot> share.
+    # Absent when the instance has no binds (see bindSlots above).
+    BINDS = builtins.getEnv "MICROVM_BINDS_FILE";
   };
 
   # The *configuration* half of df's ~/.omp/agent, staged per instance by the
@@ -119,6 +122,29 @@ let
   # is live: re-staging on the host is visible in the guest immediately, so
   # `scoite creds` only has to re-run the copy.
   ompConfDir = builtins.getEnv "MICROVM_OMP_CONF_DIR";
+
+  # `scoite bind`: extra host folders, passed through as virtiofs exactly the
+  # way /workspace is (real host uid/gid, so a host dir owned by df is
+  # read-write to the guest's uid-1000 iosta).
+  #
+  # A *fixed* number of slots at *fixed* mount points, because a share's
+  # `mountPoint` lands in `system.build.toplevel` while its `source` does not
+  # (nixos-modules/microvm/mounts.nix renders only tag/proto/mountPoint into
+  # `fileSystems`). Slots therefore keep every instance of a tier on one
+  # system closure — the invariant this whole aspect is built around — and the
+  # two genuinely per-instance halves travel the way per-instance data always
+  # travels here: the host paths never reach the guest at all (they are
+  # virtiofsd's `--shared-dir`, set by the CLI), and the guest-side
+  # destinations arrive as the BINDS credential, applied by
+  # scoite-binds.service below.
+  #
+  # `source` is a placeholder for the same reason: the CLI starts every
+  # virtiofsd itself (see `boot` in pkgs/by-name/scoite/package.nix), so the
+  # only thing qemu takes from a virtiofs share is its socket path. Slots an
+  # instance does not use still get a daemon — qemu refuses to start when a
+  # declared vhost-user socket is missing — pointed at an empty read-only
+  # placeholder. Raising bindSlots means changing BIND_SLOTS in the CLI too.
+  bindSlots = 4;
 
   # GitHub's published ed25519 host key. Consumed twice below — by the ssh
   # CLI (programs.ssh.knownHosts) and by iosta's *own* ~/.ssh/known_hosts —
@@ -444,7 +470,15 @@ in
           tag = "ompconf";
           source = ompConfDir;
           mountPoint = "/run/scoite-omp";
-        };
+        }
+        ++ map (i: {
+          tag = "bind${toString i}";
+          proto = "virtiofs";
+          # Placeholder, deliberately: the real host directory is virtiofsd's
+          # --shared-dir and never enters this eval (see bindSlots).
+          source = "/var/empty";
+          mountPoint = "/mnt/host/${toString i}";
+        }) (lib.range 0 (bindSlots - 1));
 
         # Host's /nix/store is shared read-only (above) — without a writable
         # overlay the guest's whole store is read-only and nix-daemon
@@ -561,6 +595,75 @@ in
         script = ''
           chown iosta:users /home/iosta
           chmod 0700 /home/iosta
+        '';
+      };
+
+      # `scoite bind`: put each host folder the CLI shared this launch where
+      # the instance asked for it. The shares themselves are the fixed
+      # /mnt/host/<slot> mounts (see bindSlots); this is the per-instance half,
+      # and it is a bind mount rather than a symlink so the destination is a
+      # real directory to anything that inspects it (`realpath`, a config
+      # loader that rejects symlinks, an editor watching for renames).
+      #
+      # Ordered before the two things that would otherwise observe an
+      # unpopulated destination: home-manager activation and the first login.
+      # Failures are per-entry and never fatal — a sandbox must still boot with
+      # a bind it cannot satisfy, or a typo'd destination would cost a
+      # reachable machine.
+      systemd.services.scoite-binds = {
+        description = "Bind host folders shared by `scoite bind` into place";
+        wantedBy = [ "multi-user.target" ];
+        after = [
+          "local-fs.target"
+          "scoite-home-perms.service"
+        ];
+        before = [
+          "home-manager-iosta.service"
+          "sshd.service"
+        ];
+        unitConfig.RequiresMountsFor = map (i: "/mnt/host/${toString i}") (lib.range 0 (bindSlots - 1));
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+          ImportCredential = "BINDS";
+        };
+        path = [ pkgs.util-linux ];
+        script = ''
+          creds=''${CREDENTIALS_DIRECTORY:-}
+          [ -n "$creds" ] && [ -s "$creds/BINDS" ] || exit 0
+
+          while read -r slot dest; do
+            [ -n "''${slot:-}" ] && [ -n "''${dest:-}" ] || continue
+            src=/mnt/host/$slot
+
+            case "$dest" in
+              /*) ;;
+              *) echo "scoite-binds: '$dest' is not an absolute path - skipped"; continue ;;
+            esac
+            if ! mountpoint -q "$src"; then
+              echo "scoite-binds: $src is not mounted - $dest skipped"
+              continue
+            fi
+            if mountpoint -q "$dest"; then continue; fi
+            if [ -e "$dest" ] && [ ! -d "$dest" ]; then
+              echo "scoite-binds: $dest exists and is not a directory - skipped"
+              continue
+            fi
+
+            mkdir -p "$dest" || { echo "scoite-binds: cannot create $dest"; continue; }
+            # Only for a fresh mountpoint inside iosta's home: after the bind
+            # the guest sees the *host* directory's ownership, which lands on
+            # iosta anyway (uid 1000 both sides).
+            case "$dest" in
+              /home/iosta/*) chown iosta:users "$dest" || true ;;
+            esac
+
+            if mount --bind "$src" "$dest"; then
+              echo "scoite-binds: $dest <- host bind slot $slot"
+            else
+              echo "scoite-binds: could not bind $src onto $dest"
+            fi
+          done < "$creds/BINDS"
         '';
       };
 

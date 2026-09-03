@@ -9,6 +9,7 @@
   den.aspects.roles.dev.includes = with den.aspects; [
     dev.lang.go
     dev.lang.nix
+    dev.lang.node
     dev.lang.python
 
     dev.apps
@@ -17,9 +18,11 @@
     dev.git.github
     dev.git.lazygit
 
+    dev.tools.cc
     dev.tools.devenv
     dev.tools.direnv
     dev.tools.distrobox
+    dev.tools.herdr
     dev.tools.omp-auth-broker
     dev.tools.scoite
     dev.tools.trippy

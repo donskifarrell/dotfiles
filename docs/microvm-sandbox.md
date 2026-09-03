@@ -30,6 +30,8 @@ scoite stop [<name>]            stop it (state is kept)
 scoite rm [<name>...]           stop + delete it, storage and all (irreversible)
 scoite rename [<name>] <new>    rename it, without a restart
 scoite ssh [<name>] [-- cmd]    ssh in, starting it first if stopped
+scoite bind [<name>] [<host> [<guest>]]   share a host folder into the guest, live both ways (or list binds)
+scoite unbind [<name>] <path>   stop sharing one
 scoite creds [<name>|--all]     re-push host credentials/config into a running sandbox (no restart)
 scoite list                     list every sandbox: type, state, DNS name, bridge IP, forward address, disk, workspace
 scoite resize [<name>] [opts]   grow a sandbox's disks
@@ -41,16 +43,17 @@ scoite <path>                   shorthand: new-or-start for a folder
 
 new/start options: `--name <name>` (new only), `--type minimal|dev` (new only), `--workspace <path>` (new only),
 `--cpu N`, `--mem MiB`, `--disk MiB`, `--home-disk MiB`, `--port N` (repeatable; only for ports outside the default
-forwarded set), `--ssh`/`-s`, `-f`/`--foreground`, `--fresh`.
+forwarded set), `--bind <host>[:<guest>]` (repeatable, max 4 — see
+[Binding extra host folders](#binding-extra-host-folders-scoite-bind)), `--ssh`/`-s`, `-f`/`--foreground`, `--fresh`.
 
 ```console
 $ sc new --type minimal --ssh scratch          # named, no host folder, drops you into a shell
 $ cd ~/dev/myproject && sc new                 # proposes scoite-myproject, lets you edit it; type dev
 $ sc ssh myproject -- claude -p 'run the tests'
 $ sc list
-NAME                     TYPE     STATUS   DNS                        IP            FORWARD       LAN       ON-DISK WORKSPACE
-scoite-myproject         dev      running  scoite-myproject.local     10.77.0.106   127.44.19.1   -         2.1G    /home/df/dev/myproject
-scoite-scratch           minimal  stopped  -                          -             127.212.6.1   -         136M    …/scoite-scratch/workspace
+NAME                     TYPE     STATUS   DNS                        IP            FORWARD       LAN       BINDS  ON-DISK WORKSPACE
+scoite-myproject         dev      running  scoite-myproject.local     10.77.0.106   127.44.19.1   -         1      2.1G    /home/df/dev/myproject
+scoite-scratch           minimal  stopped  -                          -             127.212.6.1   -         -      136M    …/scoite-scratch/workspace
 ```
 
 A guest web server is viewable from the host at that address on the **same port it uses inside the guest** — a Vite dev
@@ -200,9 +203,11 @@ free. Disks only ever grow — `resize` refuses to shrink.
 
 ## The security boundary
 
-microVMs only ever see the host filesystem through explicit `microvm.shares`. The guest gets exactly three:
+microVMs only ever see the host filesystem through explicit `microvm.shares`. The guest gets three, plus four opt-in
+bind slots that are empty and read-only until you fill them:
 
-- `/workspace` ← the project folder, **read-write**. The only writable channel back to the host's _actual_ files.
+- `/workspace` ← the project folder, **read-write**. Unless `scoite bind` is used, the only writable channel back to the
+  host's _actual_ files.
 - `/nix/.ro-store` ← host's `/nix/store`, **read-only** (standard microvm.nix pattern; shrinks the guest closure/boot
   time — read-only content-addressed store paths aren't an escape vector).
 - `/etc/scoite-hostkey` ← the persistent SSH host key directory, read-write but containing nothing except that key.
@@ -220,7 +225,49 @@ so they don't weaken this boundary:
   `~/.vscode-server` had a volume of its own, so an agent re-installed and re-logged-in on every boot.
 
 The guest's actual root filesystem (`/`) stays ephemeral tmpfs, discarded on stop. Even a fully compromised agent inside
-the guest cannot touch host files outside `/workspace`, see df's `$HOME`, other projects, or secrets.
+the guest cannot touch host files outside `/workspace` and whatever `scoite bind` was pointed at, see df's `$HOME`,
+other projects, or secrets.
+
+### Binding extra host folders (`scoite bind`)
+
+`scoite bind ~/.pi` makes `~/.pi` on abhaile and `/home/iosta/.pi` in the guest **the same directory** — a file written
+on either side is there on the other, immediately, with no sync layer. It is the same virtiofs passthrough `/workspace`
+uses, so ownership maps straight through (guest `iosta` is uid 1000, same as df) and it is genuinely read-write.
+
+```console
+$ sc bind ~/.pi                       # -> /home/iosta/.pi  (default: ~/<basename>)
+$ sc bind ~/notes '~/n' --ro          # explicit guest path (quote the ~), read-only
+$ sc bind                             # what is bound here
+$ sc unbind ~/.pi                     # either side's path identifies the entry
+$ sc new --bind ~/.pi myproj          # bound from its first boot
+```
+
+**Binds are applied at boot**: adding or removing one on a running sandbox takes effect on its next `stop`/`start` (qemu
+cannot grow a vhost-user device on the fly). `--ro` is enforced host-side by `virtiofsd --readonly`, so the guest's
+mount options still read `rw` while writes fail with `EROFS`.
+
+**This is the one deliberate hole in the boundary above.** Whatever is bound is writable by an agent inside the guest,
+with none of the containment `/workspace` gets from being the only channel. The CLI refuses host paths that hold host
+credentials or system state (`~/.ssh`, `~/.gnupg`, `~/.omp`, `~/.claude`, `~/.config/sops`, `~/.config/scoite`, the
+scoite state root, `$HOME` itself, `/`, `/nix`, `/etc`, `/run`, …) unless `--force` says otherwise, and refuses guest
+destinations owned by the guest system (`/nix`, `/etc`, `/run`, `/workspace`, `/mnt/host`, `/home/iosta` itself) with no
+override. It also refuses a host path that contains or sits inside this sandbox's own workspace: two virtiofsd over one
+tree both cache metadata (`cache=auto`) and would serve each other stale results.
+
+**How it keeps one closure per tier.** A share's `mountPoint` lands in `system.build.toplevel`; its `source` does not
+(`nixos-modules/microvm/mounts.nix` renders only tag/proto/mountPoint into `fileSystems`). So the guest declares a
+**fixed** four slots at fixed mount points — `/mnt/host/0…3` — and the two per-instance halves travel the way
+per-instance data always travels here:
+
+- the **host** paths never reach the guest eval at all; they are `virtiofsd --shared-dir`, set by the CLI's `boot`,
+- the **guest** destinations arrive as the `BINDS` systemd credential (`<slot> <path>` lines), and
+  `scoite-binds.service` bind-mounts each `/mnt/host/<slot>` into place before home-manager activation and the first
+  login. A bind mount, not a symlink, so the destination is a real directory to anything that inspects it.
+
+Every slot needs a `virtiofsd` whether or not it is used — qemu aborts the launch when a declared vhost-user socket is
+missing — so unused slots get an empty placeholder in the instance's state dir, read-only twice over (`--readonly`, and
+mode 0500 under df's own uid) so that an unused slot is not a writable host channel by accident. Raising the slot count
+means changing `bindSlots` in `microvm-guest.nix` **and** `BIND_SLOTS` in `pkgs/by-name/scoite/package.nix`.
 
 ### Why a writable store overlay
 

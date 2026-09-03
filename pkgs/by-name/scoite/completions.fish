@@ -1,5 +1,5 @@
 # Fish completions for `scoite` (see package.nix and docs/microvm-sandbox.md).
-set -l subcommands new start stop rm rename mv ssh list ls resize expose unexpose
+set -l subcommands new start stop rm rename mv ssh cp bind unbind creds list ls resize expose unexpose
 
 function __scoite_names --description 'Known scoite instance names'
     scoite list 2>/dev/null | tail -n +2 | string match -r '^\S+'
@@ -14,6 +14,10 @@ complete -c scoite -n "not __fish_seen_subcommand_from $subcommands" -a stop -d 
 complete -c scoite -n "not __fish_seen_subcommand_from $subcommands" -a rm -d 'Stop and delete a sandbox, storage and all (irreversible)'
 complete -c scoite -n "not __fish_seen_subcommand_from $subcommands" -a rename -d 'Rename a sandbox (no restart needed)'
 complete -c scoite -n "not __fish_seen_subcommand_from $subcommands" -a ssh -d 'SSH in, starting the sandbox first if needed'
+complete -c scoite -n "not __fish_seen_subcommand_from $subcommands" -a cp -d 'Copy a host file/folder into a sandbox (starts it first if needed)'
+complete -c scoite -n "not __fish_seen_subcommand_from $subcommands" -a bind -d 'Share a host folder into a sandbox (applied on next start)'
+complete -c scoite -n "not __fish_seen_subcommand_from $subcommands" -a unbind -d 'Stop sharing a host folder'
+complete -c scoite -n "not __fish_seen_subcommand_from $subcommands" -a creds -d 'Re-push host credentials into a running sandbox'
 complete -c scoite -n "not __fish_seen_subcommand_from $subcommands" -a list -d 'List every sandbox and its state'
 complete -c scoite -n "not __fish_seen_subcommand_from $subcommands" -a resize -d 'Grow a sandbox'\''s disks'
 complete -c scoite -n "not __fish_seen_subcommand_from $subcommands" -a expose -d 'Forward a port into a running sandbox (no restart)'
@@ -21,7 +25,15 @@ complete -c scoite -n "not __fish_seen_subcommand_from $subcommands" -a unexpose
 complete -c scoite -n "not __fish_seen_subcommand_from $subcommands" -a '(__fish_complete_directories)' -d 'Folder shorthand'
 
 # Instance names.
-complete -c scoite -n "__fish_seen_subcommand_from start stop rm rename ssh resize expose unexpose" -a '(__scoite_names)' -d Sandbox
+complete -c scoite -n "__fish_seen_subcommand_from start stop rm rename ssh cp bind unbind creds resize expose unexpose" -a '(__scoite_names)' -d Sandbox
+
+# cp options.
+complete -c scoite -n "__fish_seen_subcommand_from cp" -l force -s f -d 'Overwrite an existing destination in the sandbox'
+
+# bind: host folders, and its options.
+complete -c scoite -n "__fish_seen_subcommand_from bind" -a '(__fish_complete_directories)' -d 'Host folder to share'
+complete -c scoite -n "__fish_seen_subcommand_from bind" -l ro -d 'Share it read-only'
+complete -c scoite -n "__fish_seen_subcommand_from bind" -l force -d 'Share it even though it looks like host credentials'
 
 # new/start options.
 complete -c scoite -n "__fish_seen_subcommand_from new" -l name -x -d 'Name the sandbox (default: the workspace folder name)'
@@ -32,6 +44,7 @@ complete -c scoite -n "__fish_seen_subcommand_from new start" -l mem -x -d 'Memo
 complete -c scoite -n "__fish_seen_subcommand_from new start resize" -l disk -x -d 'Nix store overlay size in MiB (sparse; default 32768)'
 complete -c scoite -n "__fish_seen_subcommand_from new start resize" -l home-disk -x -d '/home/iosta size in MiB (sparse; default 16384)'
 complete -c scoite -n "__fish_seen_subcommand_from new start" -l port -x -d 'Forward an extra host<->guest TCP port (repeatable)'
+complete -c scoite -n "__fish_seen_subcommand_from new start" -l bind -r -a '(__fish_complete_directories)' -d 'Share a host folder into the guest, <host>[:<guest>] (repeatable, max 4)'
 complete -c scoite -n "__fish_seen_subcommand_from new start" -s s -l ssh -d 'Wait for boot, then SSH straight in'
 complete -c scoite -n "__fish_seen_subcommand_from new start" -s f -l foreground -d 'Run attached to this terminal instead of in the background'
 complete -c scoite -n "__fish_seen_subcommand_from new start" -l fresh -d 'Rebuild the guest runner even if nothing changed'

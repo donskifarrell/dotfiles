@@ -190,6 +190,14 @@ Gotchas (easy to forget):
 - A guest login **waits** for `scoite-workspace-init` (the boot-time devenv/flake pre-build) instead of racing it — two
   concurrent devenv evaluations of the same `/workspace` fail. Also: `setcap` on a workspace file cannot work
   (unprivileged virtiofsd, no `security.capability` xattr).
+- `scoite bind <host-dir> [<guest-dir>]` shares an extra host folder into a guest, live both ways (virtiofs, uid
+  passthrough) — e.g. `~/.pi` <-> `/home/iosta/.pi`. **Four fixed slots**, applied at boot (bind/unbind needs a
+  stop/start), `--ro` enforced host-side by virtiofsd. The slots exist to keep the single-closure invariant: a share's
+  `mountPoint` is in the toplevel but its `source` is not, so the host paths stay on qemu's command line and the guest
+  destinations arrive as the `BINDS` credential. Unused slots still get a virtiofsd (qemu will not start without the
+  socket) pointed at an empty read-only placeholder. Slot count lives in **two** places that must agree: `bindSlots`
+  (microvm-guest.nix) and `BIND_SLOTS` (pkgs/by-name/scoite/package.nix). It is the one deliberate hole in "workspace is
+  the only writable host channel" — credential paths are refused without `--force`.
 - herdr is installed **nowhere** since 2026-08-26 (aspect kept, included by nothing): an interactive `ssh scoite-<name>`
   lands in a plain fish shell in `/workspace`.
 - A guest's `omp` is a wrapper that adds `--config ~/.omp/agent/config.sandbox.yml` when that file is present (it rides
@@ -225,6 +233,18 @@ that skew is gone. Two gotchas:
   `flake-file.nix`; a full `nix flake update` keeps both nodes in lockstep — never update one alone.
 - search.nixos.org's "unstable" index lags the FlakeHub weekly; verify option shapes against the locked store path
   (`nix eval --raw --impure --expr 'toString (builtins.getFlake "/path").inputs.nixpkgs'`) when it matters.
+
+## Native build toolchain (`dev.tools.cc`)
+
+`make`/`cc`/`g++`/`ar`/`pkg-config` reach df's PATH from `modules/den/aspects/dev/tools/cc.nix` (in `roles.dev` since
+2026-09-02) — NixOS has no global build-essential, so anything that falls back to compiling from source
+(`node-gyp rebuild` when no prebuilt binary matches, `pip install` of an sdist, …) fails with a bare `not found: make`
+until this aspect is present. `roles.sandbox.dev` installs the same set on its own `nixos` side for guests.
+
+- Prefer this over a one-off `nix shell nixpkgs#gnumake nixpkgs#gcc`: the compiled addon keeps an rpath into whichever
+  gcc built it, and an ad-hoc shell's store path is not a GC root — the next `nix-collect-garbage -d` breaks the
+  already-installed addon at runtime.
+- It is a fallback, not a substitute for per-project toolchains in `devenv.nix`/`flake.nix`.
 
 ## Conventions
 

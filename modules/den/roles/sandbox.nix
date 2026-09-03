@@ -81,6 +81,8 @@
       dev.tools.devenv
       dev.tools.direnv
       dev.tools.headless-browser
+      dev.tools.herdr
+      dev.tools.herdr.autostart
       dev.tools.paseo
       dev.tools.trippy
 

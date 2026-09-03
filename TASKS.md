@@ -1219,3 +1219,45 @@ home volume read-only on the host, `mount -o ro,loop,noload home.img`):
   with `startup: setupWizard: false` and `setupVersion: 2`.
 - `models.yml` in the guest is the corrected file, and `yq` parses it (`.providers.local.models[0].id` →
   `qwen3.6-35b-a3b`).
+
+### F8 — `scoite bind`: extra host folders, live in both directions (df, 2026-09-02)
+
+`sc cp` could hand a folder to a guest, but only as a copy. df asked for the other thing: `~/.pi` on abhaile and
+`/home/iosta/.pi` in the guest being **one directory**, so either side sees the other's writes.
+
+The mechanism was already here — `/workspace` is exactly that, virtiofs with real uid/gid passthrough — so the work was
+making it repeatable without breaking the invariant that every instance of a tier shares one system closure. A share's
+`mountPoint` lands in `system.build.toplevel`; its `source` does not. So the guest declares a **fixed four** slots at
+fixed mount points (`/mnt/host/0…3`), and the two per-instance halves travel the established routes: host paths are
+`virtiofsd --shared-dir` on qemu's command line, guest destinations arrive as the `BINDS` fw_cfg credential and
+`scoite-binds.service` bind-mounts each slot into place before home-manager activation and the first login.
+
+Unused slots still need a daemon (qemu aborts when a declared vhost-user socket is missing), so they get an empty
+placeholder in the state dir, `--readonly` and mode 0500 — an unused slot must not become a writable host channel by
+accident. `boot` now starts one virtiofsd per share and waits for all their sockets.
+
+CLI: `scoite bind [<name>] [--ro] [--force] <host> [<guest>]`, `scoite unbind [<name>] <path>` (either side's path
+identifies the entry), `scoite bind` alone lists, `--bind <host>[:<guest>]` on `new`/`start`, a `BINDS` column in
+`scoite list`, fish completions. Binds are recorded in the instance config and applied at boot — bind/unbind on a
+running guest needs a stop/start. Host paths holding credentials (`~/.ssh`, `~/.gnupg`, `~/.omp`, `~/.claude`,
+`~/.config/sops`, the scoite state root, `$HOME`, `/`, `/nix`, `/etc`, `/run`, …) are refused without `--force`; guest
+destinations owned by the guest system are refused outright; a host path containing or inside the sandbox's own
+workspace is refused because two virtiofsd over one tree serve each other stale metadata.
+
+One bug caught in testing and fixed: the guest path was checked as a raw string, so `~/../../nix` passed the forbidden
+list and would have mounted a host folder over the guest's `/nix`. It is now normalised lexically (`realpath -m -s`)
+before the check.
+
+**Verified 2026-09-02** (`scoite-bindtest`, minimal tier, created with `--bind ~/.pi`):
+
+- `nix eval` of `scoite-dev`'s toplevel drvPath is **byte-identical** with and without `MICROVM_BINDS_FILE`/`--bind`
+  (`p29p54lk…`), i.e. the single-closure invariant holds; only `MICROVM_OMP_CONF_DIR` changes it, as it did before.
+- Guest: `findmnt /home/iosta/.pi` → `bind0 … virtiofs`, listed as `iosta users`. `date > ~/.pi/probe` on the host was
+  readable in the guest; a file written in the guest appeared on the host as `df users` immediately.
+- Four binds at once mount as `bind0…bind3`; `scoite-binds` logs one line each. A fifth is refused ("all 4 bind slots
+  are used").
+- `--ro`: writing to the bound `/home/iosta/mono` fails `Read-only file system`.
+- Unused slot: `touch /mnt/host/1/x` → `Permission denied`, and as guest root → `Read-only file system`.
+- Refusals: `~/.ssh` and `$HOME` refused without `--force`; `~/../../nix` as a destination refused after the fix.
+- Regression: `scoite-mono` (dev tier, **no** binds) boots unchanged with the four placeholder slots mounted and
+  `scoite-binds` active/no-op.

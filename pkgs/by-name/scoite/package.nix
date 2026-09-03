@@ -69,6 +69,19 @@ let
       # them and there is nothing left to hash around.
       GUEST_SSH_PORT=2222
 
+      # The guest's only user (see docs/microvm-sandbox.md); fixed by the
+      # shared guest closure, never per-instance. Used to expand a literal
+      # `~` in a `scoite cp` guest-side path.
+      GUEST_HOME=/home/iosta
+
+      # How many host folders one sandbox can bind (`scoite bind`). Fixed, and
+      # it MUST match `bindSlots` in
+      # modules/den/aspects/virtualisation/microvm-guest.nix: the guest closure
+      # declares exactly this many virtiofs shares at fixed mount points, and
+      # every one of them needs a virtiofsd from `boot` below — qemu will not
+      # start with a declared vhost-user socket missing.
+      BIND_SLOTS=4
+
       # Forwarded on every launch so a guest dev server is viewable from the
       # host with no --port and no restart. 6767 is the paseo daemon
       # (dev.tools.paseo), which every `dev` guest runs. One qemu listening socket each, all
@@ -89,6 +102,11 @@ let
         scoite rm [<name>...]           stop + delete it, storage and all
         scoite rename [<name>] <new>    rename it, without a restart
         scoite ssh [<name>] [-- cmd]    ssh in (starts it first if stopped)
+        scoite cp [<name>] <host> <guest> [--force]
+                                         copy a host file/folder into the sandbox
+        scoite bind [<name>] [<host> [<guest>]]
+                                         share a host folder live (or list binds)
+        scoite unbind [<name>] <path>   stop sharing one
         scoite creds [<name>|--all]     re-push host credentials into a running sandbox
         scoite list                     list every sandbox and its state
         scoite resize [<name>] [opts]   grow a sandbox's disks
@@ -132,6 +150,9 @@ let
                              minimal: 4096)
         --port <n>           also forward this TCP port (repeatable; only
                              needed outside the default set above)
+        --bind <host>[:<guest>]
+                             share a host folder into the guest (repeatable,
+                             max 4; see `bind` below)
         --ssh, -s            wait for boot, then ssh straight in
         -f, --foreground     block in this terminal instead of detaching
         --fresh              rebuild the runner even if nothing changed
@@ -142,6 +163,34 @@ let
       Disks only ever grow; images are sparse, so a size is a ceiling, not a
       cost. A running guest picks the new size up within ~2 minutes (the
       guest's scoite-grow-fs timer), a stopped one on next start.
+
+      cp:
+        Copies a host file or folder (recursively) into the sandbox over scp,
+        starting it first if it's stopped. `~` expands against your host home
+        in <host>, and against /home/iosta in <guest>: quote the guest side
+        (e.g. `scoite cp ~/.pi '~/.pi'`) or the shell will expand it against
+        your own home before scoite ever sees it. If <guest> is an existing
+        directory, the copy lands inside it, same as `cp`/`scp`. Refuses to
+        overwrite an existing destination unless --force is given.
+
+      bind:
+        Shares a host *folder* into the guest over virtiofs, live in both
+        directions: `scoite bind ~/.pi` makes ~/.pi on abhaile and
+        /home/iosta/.pi in the guest the same directory, so a file written on
+        either side is there on the other. Ownership passes straight through
+        (guest iosta is uid 1000, same as df), so it is genuinely read-write
+        unless you pass --ro. A second argument picks the guest path
+        (quote a leading `~`, as with cp); the default is ~/<basename>.
+
+        Up to 4 folders per sandbox, applied at boot: bind/unbind on a running
+        guest takes effect on its next start. `scoite bind` with no path lists
+        what a sandbox has.
+
+        This is the one deliberate hole in the sandbox's isolation: whatever
+        is bound is writable by the agent inside the guest, with none of the
+        protection /workspace gets from being the only channel. Paths holding
+        host credentials (~/.ssh, ~/.gnupg, ~/.omp, ~/.claude, sops keys) are
+        refused unless --force says otherwise.
 
       Guest types:
         minimal  shell + git + agent harness, with internet access. No dev
@@ -320,6 +369,170 @@ let
         printf '%s' "$out" | tr ' ' ','
       }
 
+      # --- host folder binds --------------------------------------------------
+      # BINDS in the instance config: "<host>:<guest>:<rw|ro>,…", one entry per
+      # virtiofs slot (see BIND_SLOTS). Position in this list *is* the slot
+      # number, which is why unbinding renumbers the rest — harmless, since the
+      # mapping is only read at boot.
+      #
+      # Both paths are validated on the way in (bind_valid_path) so this file
+      # stays a plain KEY=value line and so every path can be single-quoted
+      # into boot's virtiofsd command line unescaped.
+      bind_list() { printf '%s' "''${BINDS:-}" | tr ',' '\n' | grep -v '^$' || true; }
+      bind_count() { bind_list | grep -c . || true; }
+      bind_entry() { bind_list | sed -n "$(( $1 + 1 ))p"; }
+
+      bind_host_of() { printf '%s' "''${1%%:*}"; }
+      bind_guest_of() { local r=''${1#*:}; printf '%s' "''${r%%:*}"; }
+      bind_mode_of() { case "''${1##*:}" in ro) printf 'ro' ;; *) printf 'rw' ;; esac; }
+
+      # The host path for a slot, or "" when the slot is unused.
+      bind_source() {
+        local e; e=$(bind_entry "$1")
+        [ -n "$e" ] || return 0
+        bind_host_of "$e"
+      }
+
+      # No comma or colon (the config's own separators), no quote or whitespace
+      # (they would need escaping in boot's generated shell), absolute.
+      bind_valid_path() {
+        case "$1" in
+          *[,:]* | *"'"* | *[[:space:]]*) return 1 ;;
+          /*) return 0 ;;
+          *) return 1 ;;
+        esac
+      }
+
+      # Host paths that must not be handed to an agent by accident. Everything
+      # here is either host credential material (the sandbox's whole point is
+      # that it holds none of df's identity beyond what docs/microvm-sandbox.md
+      # lists) or a path that would make no sense as a shared folder. --force
+      # overrides, because "I know, that is what I want" is a real answer.
+      bind_host_risky() {
+        local p=$1
+        case "$p" in
+          / | /nix | /nix/* | /etc | /etc/* | /boot | /boot/* | /dev | /dev/* \
+          | /proc | /proc/* | /sys | /sys/* | /run | /run/* \
+          | /var/lib/scoite | /var/lib/scoite/*) return 0 ;;
+        esac
+        [ "$p" = "$HOME" ] && return 0
+        case "$p" in
+          "$HOME"/.ssh | "$HOME"/.ssh/* \
+          | "$HOME"/.gnupg | "$HOME"/.gnupg/* \
+          | "$HOME"/.omp | "$HOME"/.omp/* \
+          | "$HOME"/.claude | "$HOME"/.claude/* \
+          | "$HOME"/.config/sops | "$HOME"/.config/sops/* \
+          | "$HOME"/.config/scoite | "$HOME"/.config/scoite/* \
+          | "$HOME"/.local/state/scoite | "$HOME"/.local/state/scoite/*) return 0 ;;
+        esac
+        return 1
+      }
+
+      # Guest paths that would shadow something the guest closure owns. Not
+      # --force-able: binding over /nix or /home/iosta breaks the machine
+      # rather than exposing anything.
+      bind_guest_forbidden() {
+        case "$1" in
+          / | /nix | /nix/* | /etc | /etc/* | /run | /run/* | /proc/* | /sys/* | /dev/* \
+          | /mnt/host | /mnt/host/* | /workspace | /workspace/* \
+          | "$GUEST_HOME") return 0 ;;
+        esac
+        return 1
+      }
+
+      # Add one entry to $BINDS (in memory; the caller saves). Host path is
+      # taken as already tilde-expanded and real.
+      bind_add() {
+        local host=$1 guest=$2 mode=$3 force=$4 e
+
+        [ -d "$host" ] || die "not a directory: $host (a bind shares a folder; single files: scoite cp)"
+        host=$(realpath "$host")
+        # `-m -s`: the guest path does not exist on this machine, and it must
+        # be normalised *lexically* before it is checked — without this,
+        # `~/../../nix` sails past bind_guest_forbidden and mounts a host
+        # folder over the guest's /nix.
+        guest=$(realpath -m -s "$(expand_guest_tilde "$guest")")
+
+        bind_valid_path "$host" \
+          || die "cannot bind '$host': a bound path must be absolute and free of spaces, quotes, ':' and ','"
+        bind_valid_path "$guest" \
+          || die "cannot bind onto '$guest': the guest path must be absolute and free of spaces, quotes, ':' and ','"
+        bind_guest_forbidden "$guest" && die "'$guest' is owned by the guest system - pick another destination"
+
+        if [ "$force" -eq 0 ] && bind_host_risky "$host"; then
+          die "refusing to share '$host' with a sandboxed agent (host credentials or system path) - pass --force if you mean it"
+        fi
+
+        # /workspace is already shared, by a virtiofsd of its own. Two daemons
+        # over one tree serve each other stale metadata (both cache=auto), so
+        # this is a correctness refusal, not tidiness.
+        case "$host/" in
+          "$WORKSPACE"/*) die "'$host' is inside this sandbox's workspace ($WORKSPACE) - it is already shared at /workspace" ;;
+        esac
+        case "$WORKSPACE/" in
+          "$host"/*) die "'$host' contains this sandbox's workspace ($WORKSPACE) - bind something narrower" ;;
+        esac
+
+        for e in $(bind_list); do
+          [ "$(bind_guest_of "$e")" != "$guest" ] \
+            || die "'$guest' is already bound to $(bind_host_of "$e") - unbind it first"
+        done
+
+        [ "$(bind_count)" -lt "$BIND_SLOTS" ] \
+          || die "all $BIND_SLOTS bind slots are used (scoite unbind <path> frees one)"
+
+        BINDS=''${BINDS:+$BINDS,}$host:$guest:$mode
+        echo "  $host -> $guest ($mode)"
+      }
+
+      # Drop every entry matching a host path or a guest path. Returns 1 when
+      # nothing matched, so the caller can complain.
+      bind_del() {
+        local out="" hit=0 e wh wg
+        # Either side identifies an entry, and `~` is expanded both ways: the
+        # caller may well name the guest path (`scoite unbind '~/.pi'`) or the
+        # host one (`scoite unbind ~/.pi`), and after expansion those are two
+        # different strings.
+        wh=$(expand_host_tilde "$1")
+        wg=$(expand_guest_tilde "$1")
+        for e in $(bind_list); do
+          case "$(bind_host_of "$e")" in "$wh" | "$wg") hit=1; continue ;; esac
+          case "$(bind_guest_of "$e")" in "$wh" | "$wg") hit=1; continue ;; esac
+          out=''${out:+$out,}$e
+        done
+        BINDS=$out
+        [ "$hit" -eq 1 ]
+      }
+
+      # `--bind <host>[:<guest>]` on new/start. Same validation as the `bind`
+      # command; the point of having it here is that a sandbox can be created
+      # with its folders already mounted rather than created, bound, restarted.
+      bind_apply_opts() {
+        local spec host guest
+        for spec in "''${OPT_BINDS[@]:-}"; do
+          [ -n "$spec" ] || continue
+          host=$(expand_host_tilde "''${spec%%:*}")
+          case "$spec" in
+            *:*) guest=$(expand_guest_tilde "''${spec#*:}") ;;
+            *) guest=$GUEST_HOME/$(basename "$host") ;;
+          esac
+          bind_add "$host" "$guest" rw 0
+        done
+      }
+
+      bind_show() {
+        local name=$1 e
+        if [ -z "''${BINDS:-}" ]; then
+          echo "no host folders bound into '$name' (scoite bind $name <folder>)"
+          return 0
+        fi
+        printf '%-44s %-30s %s\n' HOST GUEST MODE
+        for e in $(bind_list); do
+          printf '%-44s %-30s %s\n' \
+            "$(bind_host_of "$e")" "$(bind_guest_of "$e")" "$(bind_mode_of "$e")"
+        done
+      }
+
       # --- per-instance config ------------------------------------------------
       # A plain KEY=value file, sourced on start/resize/ssh so a sandbox keeps
       # the shape it was created with. This is what makes `scoite start <name>`
@@ -328,7 +541,7 @@ let
       load_config() {
         local name=$1
         [ -f "$STATE_ROOT/$name/config" ] || die "no such sandbox: $name (try: scoite list)"
-        ADDR="" PORTS="" ID="" LAN_PORTS=""
+        ADDR="" PORTS="" ID="" LAN_PORTS="" BINDS=""
         # shellcheck disable=SC1090
         . "$STATE_ROOT/$name/config"
 
@@ -368,6 +581,7 @@ let
       HOME_DISK=$HOME_DISK
       PORTS=$PORTS
       LAN_PORTS=''${LAN_PORTS:-}
+      BINDS=''${BINDS:-}
       SSH_PORT=$SSH_PORT
       ADDR=$ADDR
       CFG
@@ -513,6 +727,19 @@ let
           done
         fi
 
+        # Where the guest should bind each /mnt/host/<slot> share: "<slot>
+        # <guest path>" lines. Only the guest-side halves — the host paths are
+        # virtiofsd's --shared-dir (see boot) and the guest has no use for
+        # them, nor any way to act on them.
+        BINDS_FILE=$dir/binds.conf
+        : > "$BINDS_FILE"
+        local slot=0 entry
+        for entry in $(bind_list); do
+          printf '%s %s\n' "$slot" "$(bind_guest_of "$entry")" >> "$BINDS_FILE"
+          slot=$(( slot + 1 ))
+        done
+        if [ ! -s "$BINDS_FILE" ]; then rm -f "$BINDS_FILE"; BINDS_FILE=""; fi
+
         # The instance's own name, for the guest's hostname.
         INSTANCE_FILE=$dir/instance
         printf '%s' "$1" > "$INSTANCE_FILE"
@@ -540,7 +767,7 @@ let
           "$HOME_DISK" "$EFFECTIVE_PORTS" "$SSH_PORT" "$ADDR" "$WORKSPACE" \
           "$(mac_for "$name")" \
           "''${AGENT_ENV:-}" "''${GITCONFIG:-}" "''${CLAUDE_CREDS:-}" \
-          "''${SSH_CONF:-}" "''${OMP_CONF_DIR:-}" \
+          "''${SSH_CONF:-}" "''${OMP_CONF_DIR:-}" "''${BINDS:-}" \
           | sha256sum | cut -d' ' -f1)
 
         if [ "$fresh" -eq 0 ] && [ -L "$dir/runner" ] && [ -e "$dir/runner" ] \
@@ -566,6 +793,7 @@ let
         MICROVM_CLAUDE_CREDS="''${CLAUDE_CREDS:-}" \
         MICROVM_SSH_CONF="''${SSH_CONF:-}" \
         MICROVM_OMP_CONF_DIR="''${OMP_CONF_DIR:-}" \
+        MICROVM_BINDS_FILE="''${BINDS_FILE:-}" \
         MICROVM_INSTANCE_FILE="$INSTANCE_FILE" \
           nix build --impure --no-warn-dirty --out-link "$dir/runner" \
             "$FLAKE#scoite-guest-$TYPE" >&2
@@ -604,15 +832,51 @@ let
 
         write_ssh_block "$name" "$SSH_PORT" "$ADDR"
 
+        # One virtiofsd per virtiofs share: /workspace, plus every one of the
+        # BIND_SLOTS bind slots the guest closure declares. A slot the instance
+        # doesn't use still gets a daemon — qemu aborts the launch if a
+        # declared vhost-user socket is missing — pointed at an empty
+        # placeholder that is read-only twice over (--readonly, and mode 0500
+        # under df's own uid), so an unused slot is not a writable host channel
+        # the way /workspace deliberately is.
+        local tags=(workspace) srcs=("$WORKSPACE") flags=("")
+        local i entry placeholder
+        for i in $(seq 0 $(( BIND_SLOTS - 1 ))); do
+          entry=$(bind_entry "$i")
+          tags+=("bind$i")
+          if [ -n "$entry" ]; then
+            srcs+=("$(bind_host_of "$entry")")
+            if [ "$(bind_mode_of "$entry")" = ro ]; then flags+=("--readonly"); else flags+=(""); fi
+          else
+            placeholder=$dir/binds/$i
+            mkdir -p "$placeholder"
+            chmod 0500 "$placeholder"
+            srcs+=("$placeholder")
+            flags+=("--readonly")
+          fi
+        done
+
         # Defensive cleanup: a crashed launch can leave an orphaned virtiofsd
         # holding this instance's socket lock, after which every relaunch fails
         # with "Resource temporarily unavailable" forever. The socket path is
         # absolute precisely so this pattern can't match a sibling instance —
         # the guest hostname (and so microvm.nix's socket basename) is now the
         # same string for every sandbox.
-        local sock=$dir/sandbox-virtiofs-workspace.sock
-        pkill -f "virtiofsd --socket-path=$sock" 2>/dev/null || true
-        rm -f "$sock" "$sock.pid"
+        local vfsd="" socks="" sock n
+        for n in "''${!tags[@]}"; do
+          sock=$dir/sandbox-virtiofs-''${tags[$n]}.sock
+          pkill -f "virtiofsd --socket-path=$sock" 2>/dev/null || true
+          rm -f "$sock" "$sock.pid"
+          socks="''${socks:+$socks }$sock"
+          # `@Q` rather than hand-written quotes: this line is expanded once
+          # more, by the `bash -c` below, so every path has to survive a
+          # second round of word splitting — and a nix indented string cannot
+          # write a literal `'` immediately before a `''${`, which is exactly
+          # what quoting them by hand would need.
+          vfsd="$vfsd${virtiofsd}/bin/virtiofsd --socket-path=''${sock@Q} \
+              --shared-dir=''${srcs[$n]@Q} --xattr --cache=auto ''${flags[$n]} &
+            "
+        done
 
         # --working-directory: qemu's relative paths (volume images, the QMP
         # socket, the virtiofs socket) resolve inside the instance's state dir
@@ -634,10 +898,11 @@ let
         systemd-run --user --collect --unit "$(unit_of "$name")" "''${pty_flag[@]}" \
           --working-directory="$dir" \
           bash -c "
-            ${virtiofsd}/bin/virtiofsd --socket-path='$sock' \
-              --shared-dir='$WORKSPACE' --xattr --cache=auto &
+            $vfsd
             for _ in \$(seq 300); do
-              [ -S '$sock' ] && break
+              missing=0
+              for s in $socks; do [ -S \"\$s\" ] || missing=1; done
+              [ \$missing -eq 0 ] && break
               sleep 0.1
             done
             exec '$runner/bin/microvm-run'
@@ -673,11 +938,11 @@ let
       # Shared by new/start/resize; each caller decides which results it honours.
       OPT_NAME="" OPT_SSH=0 OPT_FG=0 OPT_FRESH=0
       OPT_TYPE="" OPT_WORKSPACE="" OPT_CPU="" OPT_MEM="" OPT_DISK="" OPT_HOME_DISK=""
-      OPT_PORTS=()
+      OPT_PORTS=() OPT_BINDS=()
       parse_opts() {
         OPT_NAME="" OPT_SSH=0 OPT_FG=0 OPT_FRESH=0
         OPT_TYPE="" OPT_WORKSPACE="" OPT_CPU="" OPT_MEM="" OPT_DISK="" OPT_HOME_DISK=""
-        OPT_PORTS=()
+        OPT_PORTS=() OPT_BINDS=()
         while [ $# -gt 0 ]; do
           case "$1" in
             --name) OPT_NAME=$2; shift 2 ;;
@@ -688,6 +953,7 @@ let
             --disk) OPT_DISK=$2; shift 2 ;;
             --home-disk) OPT_HOME_DISK=$2; shift 2 ;;
             --port) OPT_PORTS+=("$2"); shift 2 ;;
+            --bind) OPT_BINDS+=("$2"); shift 2 ;;
             -s|--ssh) OPT_SSH=1; shift ;;
             -f|--foreground) OPT_FG=1; shift ;;
             --fresh) OPT_FRESH=1; shift ;;
@@ -764,6 +1030,8 @@ let
         DISK=''${OPT_DISK:-$DEFAULT_DISK}
         HOME_DISK=''${OPT_HOME_DISK:-$DEFAULT_HOME_DISK}
         PORTS=$(IFS=,; echo "''${OPT_PORTS[*]:-}")
+        BINDS=""
+        bind_apply_opts
         SSH_PORT=$GUEST_SSH_PORT
         ADDR=$(free_addr "$name")
         save_config "$name"
@@ -785,6 +1053,7 @@ let
         if [ -n "$OPT_CPU" ]; then CPU=$OPT_CPU; fi
         if [ -n "$OPT_MEM" ]; then MEM=$OPT_MEM; fi
         if [ ''${#OPT_PORTS[@]} -gt 0 ]; then PORTS=$(IFS=,; echo "''${OPT_PORTS[*]}"); fi
+        bind_apply_opts
         save_config "$name"
 
         banner "$name"
@@ -955,6 +1224,10 @@ let
           for dir in "$STATE_ROOT"/*/; do
             name=$(basename "$dir")
             is_running "$name" || continue
+            # Per instance, not once: collect_credentials stages this
+            # sandbox's binds.conf from $BINDS, so the loop must not carry the
+            # previous instance's config into the next one.
+            load_config "$name"
             if push_credentials "$name"; then
               echo "scoite: credentials refreshed in '$name'"
             else
@@ -995,6 +1268,98 @@ let
         fi
       }
 
+      # --- cp -------------------------------------------------------------
+      # A leading `~` is expanded by hand rather than left to the shell: the
+      # *host* side is normally pre-expanded by the caller's own shell before
+      # scoite ever sees it, but the *guest* side must not be — df's shell
+      # would expand `~/.pi` against $HOME on abhaile, not against iosta's
+      # home in the guest, so a caller quotes it and this function is what
+      # turns `~/.pi` into `$GUEST_HOME/.pi`.
+      # shellcheck disable=SC2088 # pattern-matching a literal ~, not expanding one
+      expand_host_tilde() {
+        case "$1" in
+          "~") printf '%s' "$HOME" ;;
+          "~/"*) printf '%s' "$HOME/''${1#\~/}" ;;
+          *) printf '%s' "$1" ;;
+        esac
+      }
+
+      # shellcheck disable=SC2088 # pattern-matching a literal ~, not expanding one
+      expand_guest_tilde() {
+        case "$1" in
+          "~") printf '%s' "$GUEST_HOME" ;;
+          "~/"*) printf '%s' "$GUEST_HOME/''${1#\~/}" ;;
+          *) printf '%s' "$1" ;;
+        esac
+      }
+
+      # `scoite cp <host> <guest>` as well as `scoite cp <name> <host> <guest>`
+      # — disambiguated the same way `expose_args` does, by counting the
+      # positionals left after flags are stripped.
+      cmd_cp() {
+        local force=0 rest=()
+        while [ $# -gt 0 ]; do
+          case "$1" in
+            --force|-f) force=1; shift ;;
+            -h|--help) usage; exit 0 ;;
+            -*) die "unknown option: $1" ;;
+            *) rest+=("$1"); shift ;;
+          esac
+        done
+
+        local name host_path guest_path
+        case ''${#rest[@]} in
+          2) name=$(resolve_name ""); host_path=''${rest[0]}; guest_path=''${rest[1]} ;;
+          3) name=$(resolve_name "''${rest[0]}"); host_path=''${rest[1]}; guest_path=''${rest[2]} ;;
+          *) die "usage: scoite cp [<name>] <host_path> <guest_path> [--force]" ;;
+        esac
+
+        host_path=$(expand_host_tilde "$host_path")
+        guest_path=$(expand_guest_tilde "$guest_path")
+        [ -e "$host_path" ] || die "no such file or directory: $host_path"
+
+        load_config "$name"
+        if ! is_running "$name"; then
+          banner "$name"
+          boot "$name" 0 0
+        fi
+        wait_for_ssh "$name"
+        local alias; alias=$(prefixed "$name")
+
+        # One remote round trip: work out the *effective* destination (same
+        # rule scp/cp use — an existing guest directory gets the source
+        # copied *into* it, by basename) and make sure its parent exists,
+        # then report whether it already exists so --force can be enforced
+        # before anything is transferred.
+        # iosta's login shell is fish (not sh), and ssh runs a remote command
+        # through it — so this has to be a single already-fully-quoted `sh
+        # -c '...'` argument (same idiom as push_file's `sudo -n sh -c
+        # '$remote_cmd'`), or fish chokes on the POSIX `if`/`$(...)` syntax
+        # below.
+        local base remote_script out status effective
+        base=$(basename "$host_path")
+        remote_script="dest=\"$guest_path\"
+        if [ -d \"\$dest\" ]; then dest=\"\$dest/$base\"; fi
+        mkdir -p \"\$(dirname \"\$dest\")\" || exit 1
+        if [ -e \"\$dest\" ]; then echo exists; else echo absent; fi
+        printf \"%s\\n\" \"\$dest\""
+        out=$(ssh -o BatchMode=yes -o ConnectTimeout=5 \
+          -o StrictHostKeyChecking=accept-new "$alias" -- \
+          "sh -c '$remote_script'") || die "could not prepare '$guest_path' in '$name'"
+        status=$(printf '%s\n' "$out" | sed -n '1p')
+        effective=$(printf '%s\n' "$out" | sed -n '2p')
+
+        if [ "$force" -eq 0 ] && [ "$status" = exists ]; then
+          die "'$effective' already exists in '$name' - pass --force to overwrite"
+        fi
+
+        scp -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new \
+          -r "$host_path" "$alias:$guest_path" \
+          || die "copy to '$name' failed"
+
+        echo "scoite: copied $host_path -> $name:$effective"
+      }
+
       # The guest's address on the scoitebr0 bridge, or "-" if it has none
       # (stopped, or booted before the bridge NIC existed). mDNS first — that
       # is the same path a browser or ssh takes, so an answer here means the
@@ -1011,10 +1376,87 @@ let
         printf '%s' "''${ip:--}"
       }
 
+      # --- bind ---------------------------------------------------------------
+      # Positionals are disambiguated by what they *are*, the way cp/expose do
+      # it: a leading argument that names an existing sandbox is the name,
+      # anything else is the host folder.
+      is_sandbox() { [ -f "$STATE_ROOT/$(resolve_name "$1")/config" ]; }
+
+      cmd_bind() {
+        local mode=rw force=0 rest=()
+        while [ $# -gt 0 ]; do
+          case "$1" in
+            --ro) mode=ro; shift ;;
+            --rw) mode=rw; shift ;;
+            --force) force=1; shift ;;
+            -h|--help) usage; exit 0 ;;
+            -*) die "unknown option: $1" ;;
+            *) rest+=("$1"); shift ;;
+          esac
+        done
+
+        local name="" host="" guest=""
+        case ''${#rest[@]} in
+          0)
+            name=$(resolve_name ""); load_config "$name"; bind_show "$name"; return 0 ;;
+          1)
+            if is_sandbox "''${rest[0]}"; then
+              name=$(resolve_name "''${rest[0]}"); load_config "$name"; bind_show "$name"; return 0
+            fi
+            name=$(resolve_name ""); host=''${rest[0]}
+            ;;
+          2)
+            if is_sandbox "''${rest[0]}"; then
+              name=$(resolve_name "''${rest[0]}"); host=''${rest[1]}
+            else
+              name=$(resolve_name ""); host=''${rest[0]}; guest=''${rest[1]}
+            fi
+            ;;
+          3)
+            name=$(resolve_name "''${rest[0]}"); host=''${rest[1]}; guest=''${rest[2]} ;;
+          *)
+            die "usage: scoite bind [<name>] [--ro] [--force] <host_path> [<guest_path>]" ;;
+        esac
+
+        host=$(expand_host_tilde "$host")
+        [ -d "$host" ] || die "no such directory: $host"
+        load_config "$name"
+        if [ -z "$guest" ]; then guest=$GUEST_HOME/$(basename "$(realpath "$host")"); fi
+
+        echo "scoite: '$name' binds:"
+        bind_add "$host" "$guest" "$mode" "$force"
+        save_config "$name"
+        if is_running "$name"; then
+          echo "  applied on the next start: scoite stop $name; scoite start $name"
+        fi
+      }
+
+      cmd_unbind() {
+        local rest=() name target
+        while [ $# -gt 0 ]; do
+          case "$1" in
+            -h|--help) usage; exit 0 ;;
+            -*) die "unknown option: $1" ;;
+            *) rest+=("$1"); shift ;;
+          esac
+        done
+        case ''${#rest[@]} in
+          1) name=$(resolve_name ""); target=''${rest[0]} ;;
+          2) name=$(resolve_name "''${rest[0]}"); target=''${rest[1]} ;;
+          *) die "usage: scoite unbind [<name>] <host_or_guest_path>" ;;
+        esac
+
+        load_config "$name"
+        bind_del "$target" || die "'$target' is not bound in '$name' (scoite bind $name)"
+        save_config "$name"
+        echo "scoite: unbound $target from '$name'"
+        if is_running "$name"; then echo "  applied on the next start"; fi
+      }
+
       cmd_list() {
-        local fmt='%-24s %-8s %-8s %-26s %-13s %-13s %-9s %-7s %s\n'
+        local fmt='%-24s %-8s %-8s %-26s %-13s %-13s %-9s %-6s %-7s %s\n'
         # shellcheck disable=SC2059
-        printf "$fmt" NAME TYPE STATUS DNS IP FORWARD LAN ON-DISK WORKSPACE
+        printf "$fmt" NAME TYPE STATUS DNS IP FORWARD LAN BINDS ON-DISK WORKSPACE
         shopt -s nullglob
         for dir in "$STATE_ROOT"/*/; do
           local name status used dns ip
@@ -1029,17 +1471,22 @@ let
           used=$(du -sh "$dir" 2>/dev/null | cut -f1)
           if [ -f "$dir/config" ]; then
             ( # subshell: don't leak one instance's config into the next
+              # Reset first: a config written before `scoite bind` existed has
+              # no BINDS line, and would otherwise show the previous row's.
+              BINDS=""
               # shellcheck disable=SC1091
               . "$dir/config"
+              local nbinds; nbinds=$(bind_count)
+              if [ "$nbinds" = 0 ]; then nbinds="-"; fi
               # shellcheck disable=SC2059
               printf "$fmt" \
                 "$name" "$TYPE" "$status" "$dns" "$ip" \
-                "''${ADDR:-(on next start)}" "''${LAN_PORTS:--}" "$used" "$WORKSPACE"
+                "''${ADDR:-(on next start)}" "''${LAN_PORTS:--}" "$nbinds" "$used" "$WORKSPACE"
             )
           else
             # A state dir from before the two-type rework — `scoite rm` it.
             # shellcheck disable=SC2059
-            printf "$fmt" "$name" "legacy" "$status" "-" "-" "-" "-" "$used" "-"
+            printf "$fmt" "$name" "legacy" "$status" "-" "-" "-" "-" "-" "$used" "-"
           fi
         done
       }
@@ -1334,6 +1781,9 @@ let
         rm|delete) shift; cmd_rm "$@" ;;
         rename|mv) shift; cmd_rename "$@" ;;
         ssh) shift; cmd_ssh "$@" ;;
+        cp) shift; cmd_cp "$@" ;;
+        bind) shift; cmd_bind "$@" ;;
+        unbind) shift; cmd_unbind "$@" ;;
         creds) shift; cmd_creds "$@" ;;
         list|ls) cmd_list ;;
         resize) shift; cmd_resize "$@" ;;
