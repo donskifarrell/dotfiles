@@ -6,7 +6,7 @@
 # (secrets/home.nix), forwarded into scoite guests as a launch credential
 # (microvm-guest.nix, scoite-gitconfig) so it never enters the /nix/store.
 {
-  den.aspects.dev.git.homeManager = {
+  den.aspects.dev.git.homeManager = { pkgs, ... }: {
     programs.git = {
       enable = true;
 
@@ -65,5 +65,9 @@
 
       lfs.enable = true;
     };
+
+    home.packages = [
+      pkgs.git-filter-repo
+    ];
   };
 }

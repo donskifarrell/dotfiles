@@ -155,6 +155,8 @@ Files:
   `ForwardAgent` for `scoite-*`.
 - `modules/den/aspects/dev/tools/headless-browser.nix` — headless Chromium + playwright/puppeteer wiring, in the `dev`
   tier (see "UI validation").
+- `modules/den/aspects/shell/xdg-open.nix` — a headless `xdg-open` that reports the URL instead of opening it, in both
+  tiers (see "`xdg-open` for a machine with nothing to open with").
 - `modules/den/aspects/dev/vscode.nix` — not scoite-specific but load-bearing: Remote-SSH extension +
   `remote.SSH.configFile` pointing at `~/.ssh/config`.
 - `modules/den/aspects/dev/tools/herdr.nix` — herdr (herdr.dev, from `nix-ai-tools`). **Included by nothing since
@@ -790,6 +792,33 @@ Gotchas:
 Verified end-to-end on 2026-08-21 by booting a sandbox on a scratch project: `headless-chromium` and
 `playwright screenshot` both captured correct PNGs of a `file://` page and of one served over `busybox httpd` on
 `127.0.0.1:8080`, and `playwright-mcp` starts.
+
+## `xdg-open` for a machine with nothing to open with (2026-09-04)
+
+A sandbox has no desktop, so nothing in the guest closure provides `xdg-open` — and a tool that wants to show a human a
+URL does not degrade when it is missing, it dies. `pi`'s stats-dashboard extension is the case that surfaced this: it
+starts a local server and hands the URL to `xdg-open`, the spawn fails with `ENOENT`, and because that happens in a
+callback the uncaught exception takes the whole `pi` process down, losing the session.
+
+`shell.xdg-open` (in `roles.sandbox.minimal`, so both tiers) answers that with a `writeShellScriptBin` that never opens
+anything and never fails — it tells the human the URL instead, and exits 0. Guest-only: df's real hosts keep the real
+`xdg-open` from xdg-utils. It also sets `BROWSER=xdg-open` as a session variable, so the tools that consult `$BROWSER`
+first (gh, python's `webbrowser`, npm's `open`) land on the same shim rather than on their own assorted failure modes.
+
+Two details it exists for, both of which a naive `echo "$1"` gets wrong:
+
+- **It writes to the user's ptys, not to its own stdio.** The callers that matter spawn it as pi does —
+  `spawn(cmd, args, { detached: true, stdio: "ignore" })` — with no stdio and no controlling terminal, so anything
+  printed to stdout/stderr goes to `/dev/null`. An ssh pty is mode `0620` owned by the session user, so the shim writes
+  the message to every `/dev/pts/*` it can write to (skipping its own stderr device, so the ordinary interactive case
+  doesn't print twice). `$XDG_STATE_HOME/xdg-open.log` catches whatever nobody saw live. Verified with a detached,
+  `stdio`-ignored call from one ssh session landing in another's terminal.
+- **For a loopback URL it prints the tunnel command.** The URL a guest tool prints is `127.0.0.1:<port>` _inside the
+  guest_, which the forwarded ports do not reach — qemu's `hostfwd` rules point at the user-net guest address, not at
+  the guest's loopback (see [Networking](#networking)). The thing that does work is an ssh tunnel over the connection
+  the human already has, so the shim prints `ssh -N -L <port>:127.0.0.1:<port> <guest>` and lets them open the URL in a
+  browser on abhaile. `hostname` in a guest is set from the `INSTANCE` credential at boot and is exactly the host-side
+  ssh alias (`scoite-bbm`), so it can be quoted straight into that command.
 
 ## Known quirks
 

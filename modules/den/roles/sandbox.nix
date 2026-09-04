@@ -24,11 +24,13 @@
 {
   # --- minimal ---------------------------------------------------------
   # roles.default already carries `shell` + shell.bundles.base, so this is
-  # only the delta: an interactive fish, git, and the agent tools.
+  # only the delta: an interactive fish, git, the agent tools, and a headless
+  # `xdg-open` so an agent tool reaching for a browser degrades instead of dying.
   den.aspects.roles.sandbox.minimal = {
     includes = with den.aspects; [
       shell.fish
       shell.starship
+      shell.xdg-open
       dev.git
       apps.ai-tools
     ];
