@@ -312,6 +312,20 @@ overridable — `buildRustPackage` reads it off `args`, not `finalAttrs`.
   - Still open: `boot.initrd.systemd.enable` is pinned `false` to match the adopted box while this nixpkgs defaults it
     true. Flip it as its own reboot-verified step.
 
+- 2026-09-05 — **eachtrach: Tailscale SSH off, root ssh + deploys back on the tailnet name.** `ssh eachtrach` failed
+  because the host declares no users (it tried `df`, which the tailnet ACL denies) and root was behind Tailscale SSH's
+  interactive browser check. Rather than special-casing the client, Tailscale SSH was disabled on that host
+  (`services.tailscale.no-ssh`), so port 22 on the tailnet is the real sshd again:
+  - `core.network.ssh` gained `settings."eachtrach".User = "root"` — takes effect after a `nixos-rebuild switch`.
+  - The `deployHost` public-ip override in `modules/flake-parts/deploy.nix` is **gone**; `deploy .#eachtrach` uses the
+    bare name again (verified). The rationale for reinstating it is kept in that file's header.
+  - **Trap found the hard way**: `tailscale set --ssh=false` exits 1 without `--accept-risk=lose-ssh`, and raises the
+    warning even when the caller is not on a Tailscale SSH session — that non-zero exit fails activation and rolls the
+    deploy back. Both flags are in the aspect.
+  - Also cleared a stale `known_hosts` line for `100.82.196.62`: creating `/etc/ssh/ssh_host_ed25519_key` had made
+    Tailscale SSH swap its self-generated host key for the machine's real one.
+  - Not done: eachtrach still has no browser-auth fallback by design; abhaile keeps Tailscale SSH.
+
 - 2026-08-22 — **sandvm rework: four types, real lifecycle, shared closures** (closed items 13.1 and 13.3). Full
   writeup: `docs/microvm-sandbox.md`. What changed:
   - **Four guest types** (`modules/den/roles/sandbox.nix`, nesting tiers `minimal` ⊂ `generic` ⊂ `devenv` ⊂

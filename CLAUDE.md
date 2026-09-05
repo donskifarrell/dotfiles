@@ -62,11 +62,11 @@ projection (`den.batteries.host-aspects`) is deliberately off in `users/df.nix`.
 
 ## Machines
 
-| Host      | System         | Role                                                                                                                                                                                                                                                             |
-| --------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| abhaile   | x86_64-linux   | df's AMD desktop workstation (LUKS root, systemd-boot)                                                                                                                                                                                                           |
-| eachtrach | x86_64-linux   | Hetzner x86 VPS (2 vCPU/4 GB/40 GB) — tailscale **exit node**, headless, no users. Adopted in place from its clan bootstrap 2026-09-04 (not reprovisioned). BIOS boot → `roles.server` (grub, not systemd-boot). Deploys over its **public IP**, not the tailnet |
-| (macbook) | aarch64-darwin | (planned) df's MacBook Pro on nix-darwin + homebrew — inputs already kept for it                                                                                                                                                                                 |
+| Host      | System         | Role                                                                                                                                                                                                                                                                                                                           |
+| --------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| abhaile   | x86_64-linux   | df's AMD desktop workstation (LUKS root, systemd-boot)                                                                                                                                                                                                                                                                         |
+| eachtrach | x86_64-linux   | Hetzner x86 VPS (2 vCPU/4 GB/40 GB) — tailscale **exit node**, headless, no users. Adopted in place from its clan bootstrap 2026-09-04 (not reprovisioned). BIOS boot → `roles.server` (grub, not systemd-boot). Tailscale SSH off, so `ssh eachtrach` / `deploy .#eachtrach` reach the real sshd as **root** over the tailnet |
+| (macbook) | aarch64-darwin | (planned) df's MacBook Pro on nix-darwin + homebrew — inputs already kept for it                                                                                                                                                                                                                                               |
 
 ## Common commands
 
@@ -134,10 +134,21 @@ from `git show 220c93e^:machines/eachtrach/…`; the derived partlabels were che
 
 Gotchas (easy to forget):
 
-- **Deploys go to the public IP (`91.99.168.74`), not the tailnet name.** eachtrach runs Tailscale SSH, which intercepts
-  port 22 on the tailnet ip before sshd sees it and puts it behind an interactive browser check — that hangs a
-  non-interactive `deploy` forever. The override is `deployHost` in `modules/flake-parts/deploy.nix`. Bonus: the deploy
-  path is not the tunnel a bad deploy to the exit node could take down. There is no DNS record, hence the literal ip.
+- **Tailscale SSH is OFF here** (`services.tailscale.no-ssh`), and that is load-bearing. While it was on, tailscaled
+  intercepted port 22 on the tailnet ip before sshd saw it and applied the tailnet ACL: `ssh eachtrach` tried user `df`
+  and was denied outright, root was gated behind an interactive "visit this URL" browser check, and that same check hung
+  non-interactive `deploy` (which is why deploys briefly used the public ip instead). With it off, port 22 on the
+  tailnet is the real sshd — plain key auth over WireGuard — so both `ssh eachtrach` and `deploy .#eachtrach` use the
+  bare name. Cost: no browser-auth fallback; recovery is the ssh key or Hetzner's web console.
+- **Turning a tailscale pref off needs `--flag=false`, not the absence of a flag** — prefs persist in
+  `/var/lib/tailscale`. And `tailscale set --ssh=false` **exits 1** without `--accept-risk=lose-ssh` ("you are connected
+  using Tailscale SSH…"), which it raises even when the caller is not on a Tailscale SSH session. A non-zero exit from
+  `tailscaled-set.service` fails activation, so omitting it makes every deploy of this host roll back.
+- **`ssh eachtrach` needs `User root`** — the host declares no users. That block lives in `core.network.ssh`
+  (`settings."eachtrach".User = "root"`), so it reaches `~/.ssh/config` only after a `nixos-rebuild switch` on abhaile.
+- Creating `/etc/ssh/ssh_host_ed25519_key` during the adoption also made **Tailscale SSH switch from its own
+  self-generated host key to the machine's real one**, so a stale `known_hosts` line for the raw tailnet ip
+  (`100.82.196.62`) caused a REMOTE HOST IDENTIFICATION HAS CHANGED warning. Cleared 2026-09-05 with `ssh-keygen -R`.
 - **Exit-node advertisement is `extraSetFlags`, never `extraUpFlags`.** `tailscaled-autoconnect` returns the moment the
   backend state is `Running`, so on an already-joined node an `extraUpFlags` entry is never applied. `extraSetFlags`
   becomes `tailscaled-set.service` — a `tailscale set …` that runs every activation and is idempotent.

@@ -5,32 +5,28 @@
 #
 # Every Den-emitted nixosConfiguration except the `scoite-*` guest templates
 # (not real machines — imperatively launched by the `scoite` CLI) becomes a
-# deploy node. Node hostname defaults to the bare host name:
-# services.tailscale's /etc/hosts alias sync makes that resolve tailnet-wide,
-# so deploys ride tailscale with no extra DNS. `deployHost` below overrides
-# that per host where the tailnet is the wrong path. Provisioning a brand-new
-# box is nixos-anywhere's job, not this file's (its kexec path takes over a
-# stock Ubuntu VPS image).
+# deploy node. Node hostname = the bare host name: services.tailscale's
+# /etc/hosts alias sync makes that resolve tailnet-wide, so deploys ride
+# tailscale with no extra DNS. Provisioning a brand-new box is nixos-anywhere's
+# job, not this file's (its kexec path takes over a stock Ubuntu VPS image).
+#
+# History worth keeping (2026-09-04/05): eachtrach briefly needed a per-host
+# override to its public ip, because Tailscale SSH intercepted port 22 on the
+# tailnet and gated it behind an interactive browser check that hangs a
+# non-interactive `deploy`. That is fixed at the source instead —
+# `services.tailscale.no-ssh` on the host — so the bare name works again. If a
+# future host ever needs a different transport, reintroduce a
+# `deployHost = { <host> = "<addr>"; }` lookup and use
+# `hostname = deployHost.${name} or name`. The one real argument for the public
+# ip was that it is not the tunnel a bad deploy to the *exit node* could take
+# down; magic rollback covers that case, and the public ip stays available
+# manually.
 {
   inputs,
   lib,
   config,
   ...
 }:
-let
-  # Per-host transport override. The default (the bare host name) is right for
-  # anything reachable over the tailnet, but eachtrach runs Tailscale SSH:
-  # tailscaled intercepts port 22 on the tailnet ip before sshd ever sees the
-  # connection, and the tailnet's ACL puts that behind an interactive
-  # "visit this URL to authenticate" check — which hangs a non-interactive
-  # `deploy` forever. Its public ip reaches the real sshd directly (root, key
-  # only), and has the bonus property of not being the tunnel that a bad deploy
-  # to the exit node might take down. No DNS record exists for the host, hence
-  # the literal.
-  deployHost = {
-    eachtrach = "91.99.168.74";
-  };
-in
 {
   flake-file.inputs.deploy-rs = {
     url = "github:serokell/deploy-rs";
@@ -38,7 +34,7 @@ in
   };
 
   flake.deploy.nodes = lib.mapAttrs (name: cfg: {
-    hostname = deployHost.${name} or name;
+    hostname = name;
     profiles.system = {
       sshUser = "root";
       user = "root";

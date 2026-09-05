@@ -31,6 +31,14 @@
 
         settings."root@localhost root@127.0.0.1 root@::1".ForwardAgent = true;
 
+        # eachtrach is headless and declares no users, so root is the only
+        # account to log in as — without this, `ssh eachtrach` tries `df` and
+        # fails. The name resolves tailnet-wide via services.tailscale's
+        # /etc/hosts alias sync, and Tailscale SSH is off on that host
+        # (services.tailscale.no-ssh), so this lands on the real sshd and
+        # authenticates with ~/.ssh/aon.clan out of the agent.
+        settings."eachtrach".User = "root";
+
         # macOS compatibility / keychain integration
         extraConfig = lib.mkMerge [
           ''

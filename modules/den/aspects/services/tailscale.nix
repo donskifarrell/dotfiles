@@ -4,7 +4,7 @@
 # services/tailscale/default.nix). Joins the aon tailnet with Tailscale SSH and
 # /etc/hosts alias sync.
 #
-# Three aspects live here, so a host takes only what it needs:
+# Several aspects live here, so a host takes only what it needs:
 #
 #   services.tailscale            the daemon itself. Carries NO secret, so a
 #                                 host that is already joined (eachtrach) can
@@ -12,6 +12,7 @@
 #   services.tailscale.authkey    the shared.yaml auth key + authKeyFile
 #                                 wiring. abhaile's; requires secrets.sops.
 #   services.tailscale.exit-node  advertise this node as an exit node.
+#   services.tailscale.no-ssh     turn Tailscale SSH OFF for this host.
 #
 # Sub-aspects are NOT implied by their parent — a host lists both (same as
 # dev.tools.herdr / dev.tools.herdr.autostart in roles/sandbox.nix).
@@ -19,8 +20,15 @@
 # Auth keys expire (~90d). An already-joined node does not need one to stay
 # connected: `tailscaled-autoconnect` exits immediately when the backend state
 # is already `Running`, so the key only matters for a fresh join or a re-login.
-# The same mechanism is why `extraUpFlags` is NOT the way to change an existing
-# node's prefs — see the exit-node aspect below.
+#
+# **That same mechanism is the thing to understand before editing this file.**
+# `extraUpFlags` only ever reaches `tailscale up`, which only runs on a fresh
+# join or re-login — so on a node that is already Running, adding OR removing an
+# entry there changes nothing. Prefs live in /var/lib/tailscale and persist.
+# Anything that must actually take effect on a running node belongs in
+# `extraSetFlags` (→ `tailscaled-set.service`, a `tailscale set …` that runs on
+# every activation and is idempotent). This is why turning a pref off needs an
+# explicit `--flag=false` rather than the absence of a flag: see no-ssh.
 { inputs, ... }:
 {
   den.aspects.services.tailscale = {
@@ -164,6 +172,46 @@
     # `enp1s0`.
     exit-node.nixos = {
       services.tailscale.extraSetFlags = [ "--advertise-exit-node" ];
+    };
+
+    # --- no-ssh ----------------------------------------------------------
+    # Turn Tailscale SSH off for this host (eachtrach).
+    #
+    # Tailscale SSH intercepts port 22 on the tailnet ip *before* sshd sees the
+    # connection, and then applies the tailnet ACL. On eachtrach that made
+    # interactive access worse than no tailscale at all: `ssh eachtrach` tried
+    # user `df`, which the policy denies outright, and root was gated behind an
+    # interactive "visit this URL" browser check — which also hangs any
+    # non-interactive `deploy`. With it off, port 22 on the tailnet reaches the
+    # real sshd, so `ssh root@eachtrach` is a plain key login over WireGuard:
+    # no browser check, no ACL, and deploys can use the tailnet name again.
+    #
+    # `--ssh=false`, not "leave --ssh out of extraUpFlags". Removing the up-flag
+    # would do nothing at all here: the pref is already stored in
+    # /var/lib/tailscale, and `tailscale up` never runs again on a joined node.
+    # Only `tailscale set` can flip a live pref — see this file's header.
+    #
+    # So yes, a host with this aspect still has an inert `--ssh` sitting in the
+    # base aspect's extraUpFlags, which reads like a contradiction. It is not
+    # worth removing: it applies only on a fresh join, and tailscaled-set runs
+    # After=tailscaled-autoconnect, so even that path ends with SSH off.
+    #
+    # Trade-off accepted 2026-09-05 (df): the box loses Tailscale SSH's
+    # browser-auth fallback. Recovery if the ssh key is ever lost is Hetzner's
+    # web console (root's password survived the adoption).
+    # `--accept-risk=lose-ssh` is REQUIRED, not defensive. Without it
+    # `tailscale set --ssh=false` refuses with exit 1 —
+    #   "You are connected using Tailscale SSH; this action will result in your
+    #    session disconnecting. To skip this warning, use --accept-risk=lose-ssh"
+    # — and it raises that even when the caller is *not* on a Tailscale SSH
+    # session (verified over the public ip). A non-zero exit from
+    # tailscaled-set.service fails activation, so leaving this out makes every
+    # deploy of this host roll back.
+    no-ssh.nixos = {
+      services.tailscale.extraSetFlags = [
+        "--ssh=false"
+        "--accept-risk=lose-ssh"
+      ];
     };
   };
 }

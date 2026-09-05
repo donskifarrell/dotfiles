@@ -48,6 +48,10 @@ in
       # supplies authKeyFile from the per-host file instead.
       services.tailscale
       services.tailscale.exit-node
+      # Tailscale SSH off: it intercepted port 22 on the tailnet and gated
+      # every login behind the tailnet ACL (df denied, root behind a browser
+      # check). Off, `ssh root@eachtrach` is a plain key login over WireGuard.
+      services.tailscale.no-ssh
     ];
 
     nixos =

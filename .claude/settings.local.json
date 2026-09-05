@@ -246,7 +246,23 @@
       "Bash(ssh -o BatchMode=yes root@91.99.168.74 'cat /etc/ssh/ssh_host_ed25519_key.pub')",
       "Bash(ssh -o BatchMode=yes root@91.99.168.74 'echo \"== mise passwd entry ==\"; getent passwd mise; echo \"== home contents ==\"; ls -la /home/mise 2>/dev/null || echo \"\\(no /home/mise\\)\"; echo \"== du ==\"; du -sh /home/mise 2>/dev/null; echo \"== processes owned by mise ==\"; ps -u mise 2>/dev/null | head; echo \"== files owned by mise outside home ==\"; find / -xdev -user mise -not -path \"/home/mise/*\" 2>/dev/null | head -10')",
       "Bash(timeout 1500 deploy .#eachtrach)",
-      "Bash(ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=no root@91.99.168.74 'uptime -p')"
+      "Bash(ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=no root@91.99.168.74 'uptime -p')",
+      "Bash(timeout 15 ssh -o BatchMode=yes -o ConnectTimeout=8 root@100.82.196.62 'echo TAILNET_ROOT_OK')",
+      "Read(//etc/**)",
+      "Bash(ssh -o BatchMode=yes root@91.99.168.74 ' *)",
+      "Bash(timeout 20 ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=10 root@100.82.196.62 'echo TAILSCALE_SSH_ROOT_OK; whoami')",
+      "Bash(nixos-version)",
+      "Bash(ssh -o BatchMode=yes root@91.99.168.74 'nixos-version')",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); n=d['locks']['nodes']['nixpkgs']['locked']; print\\(n.get\\('url',''\\)[:100] or n\\)\")",
+      "Bash(ssh -o BatchMode=yes root@91.99.168.74 'tailscale set --help 2>&1 | grep -iE \"^\\\\s*--ssh|ssh\" | head -5')",
+      "Bash(ssh -o BatchMode=yes root@91.99.168.74 'echo \"--- running: tailscale set --ssh=false ---\"; tailscale set --ssh=false; echo \"exit=$?\"; echo \"--- RunSSH pref now ---\"; tailscale debug prefs | grep -i runssh')",
+      "Bash(ssh-keyscan -t ed25519 100.82.196.62)",
+      "Bash(ssh -o BatchMode=yes root@91.99.168.74 'tailscale debug prefs | grep -i runssh; echo \"exit node still?\"; tailscale status --self --peers=false')",
+      "Bash(ssh-keygen -R 100.82.196.62)",
+      "Bash(ssh-keyscan -t ed25519,rsa 100.82.196.62)",
+      "Bash(ssh-keygen -F 100.82.196.62 -f ~/.ssh/known_hosts)",
+      "Bash(awk '{print $2, substr\\($3,1,30\\)}')",
+      "Bash(timeout 20 ssh -o BatchMode=yes -o ConnectTimeout=10 root@eachtrach 'echo \"LOGGED IN AS: $\\(whoami\\) on $\\(hostname\\) via $\\(echo $SSH_CONNECTION | awk \"{print \\\\$3}\"\\)\"')"
     ],
     "additionalDirectories": ["/tmp", "/var/lib/llm/models"]
   }
