@@ -1,27 +1,37 @@
 # modules/den/aspects/services/tailscale.nix
 #
 # De-clanned tailscale aspect (ported from the old clan service
-# services/tailscale/default.nix). abhaile joins the aon tailnet as a plain peer
-# with Tailscale SSH and /etc/hosts alias sync; it is NOT an exit node.
+# services/tailscale/default.nix). Joins the aon tailnet with Tailscale SSH and
+# /etc/hosts alias sync.
 #
-# The auth key secret is declared HERE (next to its consumer) from
-# secrets/shared.yaml, so including this aspect requires the secrets.sops base
-# aspect on the same host. Auth keys expire (~90d): for an already-joined
-# node it isn't needed to stay connected; mint a fresh one and
-# `sops secrets/shared.yaml` for new joins.
+# Three aspects live here, so a host takes only what it needs:
+#
+#   services.tailscale            the daemon itself. Carries NO secret, so a
+#                                 host that is already joined (eachtrach) can
+#                                 take it without pulling in sops.
+#   services.tailscale.authkey    the shared.yaml auth key + authKeyFile
+#                                 wiring. abhaile's; requires secrets.sops.
+#   services.tailscale.exit-node  advertise this node as an exit node.
+#
+# Sub-aspects are NOT implied by their parent — a host lists both (same as
+# dev.tools.herdr / dev.tools.herdr.autostart in roles/sandbox.nix).
+#
+# Auth keys expire (~90d). An already-joined node does not need one to stay
+# connected: `tailscaled-autoconnect` exits immediately when the backend state
+# is already `Running`, so the key only matters for a fresh join or a re-login.
+# The same mechanism is why `extraUpFlags` is NOT the way to change an existing
+# node's prefs — see the exit-node aspect below.
 { inputs, ... }:
 {
   den.aspects.services.tailscale = {
     nixos =
       {
-        config,
         pkgs,
         lib,
         ...
       }:
       let
         enableSSH = true;
-        exitNode = false;
         enableHostAliases = true;
 
         # abhaile *uses* an exit node (eachtrach) — a runtime pref, not
@@ -40,19 +50,11 @@
         allowLanWithExitNode = true;
       in
       {
-        sops.secrets."tailscale-aon_tailnet-authkey" = {
-          sopsFile = inputs.self + "/secrets/shared.yaml";
-          key = "tailscale/aon_tailnet_authkey";
-          mode = "0400";
-        };
-
         services.tailscale = {
           enable = true;
           useRoutingFeatures = "both";
-          authKeyFile = config.sops.secrets."tailscale-aon_tailnet-authkey".path;
           extraUpFlags =
             (lib.optional enableSSH "--ssh")
-            ++ (lib.optional exitNode "--advertise-exit-node")
             ++ (lib.optional allowLanWithExitNode "--exit-node-allow-lan-access");
         };
 
@@ -60,13 +62,6 @@
           checkReversePath = "loose";
           trustedInterfaces = [ "tailscale0" ];
           allowedUDPPorts = [ 41641 ];
-        };
-
-        # NAT for exit nodes (no-op while exitNode = false).
-        networking.nat = lib.mkIf exitNode {
-          enable = true;
-          externalInterface = lib.mkDefault (if config.networking.interfaces ? "eth0" then "eth0" else "");
-          internalInterfaces = [ "tailscale0" ];
         };
 
         environment.systemPackages = [ pkgs.tailscale ];
@@ -127,6 +122,48 @@
     # for a tray at all (services.gnome installs it).
     homeManager = {
       services.tailscale-systray.enable = true;
+    };
+
+    # --- authkey ---------------------------------------------------------
+    # The aon tailnet auth key, for hosts that may need to (re-)join. Split out
+    # of the base aspect 2026-09-04 so that eachtrach — already joined, and
+    # internet-facing — can run tailscale without being made a recipient of
+    # secrets/shared.yaml (which also holds df's GitHub ssh private keys).
+    # A host with its own per-host key sets authKeyFile itself instead; see
+    # secrets/eachtrach.nix.
+    #
+    # Requires the secrets.sops base aspect on the same host.
+    authkey.nixos =
+      { config, ... }:
+      {
+        sops.secrets."tailscale-aon_tailnet-authkey" = {
+          sopsFile = inputs.self + "/secrets/shared.yaml";
+          key = "tailscale/aon_tailnet_authkey";
+          mode = "0400";
+        };
+
+        services.tailscale.authKeyFile = config.sops.secrets."tailscale-aon_tailnet-authkey".path;
+      };
+
+    # --- exit-node -------------------------------------------------------
+    # Advertise this node as a tailnet exit node (eachtrach).
+    #
+    # `extraSetFlags`, not `extraUpFlags`: `tailscale up` only runs via
+    # tailscaled-autoconnect, which returns as soon as the backend state is
+    # `Running` — so on an already-joined node an extraUpFlags entry would
+    # never be applied. extraSetFlags becomes `tailscaled-set.service`, a
+    # `tailscale set …` that runs on every activation and is idempotent.
+    #
+    # NO `networking.nat` here, deliberately. tailscaled does its own exit-node
+    # SNAT (NetfilterMode=2): the live eachtrach has a `ts-postrouting` chain
+    # with `-m mark --mark 0x40000/0xff0000 -j MASQUERADE` and no nixos-nat
+    # service at all. `useRoutingFeatures = "both"` in the base aspect already
+    # supplies the other half, the ipv4/ipv6 forwarding sysctls. Adding
+    # networking.nat on top would be a second, conflicting NAT implementation —
+    # and the old dead code here guessed `eth0`, while this VPS's uplink is
+    # `enp1s0`.
+    exit-node.nixos = {
+      services.tailscale.extraSetFlags = [ "--advertise-exit-node" ];
     };
   };
 }

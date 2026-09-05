@@ -4,11 +4,12 @@ Branch: migrate/off-clan · Plan: clan-to-den-migration-prompt.md (the task prom
 
 ## Resume here
 
-Next action: abhaile is DONE (on Den + sops-nix + systemd-boot across a reboot). Remaining, lower-risk: Phase 5b flake
-update (isolated), Phase 6 fresh eachtrach (nixos-anywhere + deploy-rs), Phase 7 remove clan
+Next action: abhaile is DONE (on Den + sops-nix + systemd-boot across a reboot). **Phase 6 is also DONE as of
+2026-09-04** — but by adoption, not provisioning: eachtrach was already running and serving as the tailnet exit node, so
+it was brought onto Den in place instead of being reprovisioned with nixos-anywhere (details in TODO.md's Done section
+and the `## eachtrach` section of CLAUDE.md). Remaining, lower-risk: Phase 5b flake update (isolated).
 
-- doc cleanup, Phase 8 optional agenix. Pick up at whichever the user wants next. Blocked on: nothing. (Phase 6 needs a
-  new eachtrach VM to provision; user-driven.)
+- Phase 7 remove clan + doc cleanup is done; Phase 8 (agenix) resolved as "stay on sops-nix". Blocked on: nothing.
 
 ## Day-2 deploy / rollback (abhaile, verified working)
 
@@ -55,7 +56,8 @@ update (isolated), Phase 6 fresh eachtrach (nixos-anywhere + deploy-rs), Phase 7
 - [x] 4 Build + closure diff (.migration-staging/phase4-closure-diff.txt; safety set verified)
 - [x] 5 Cut over abhaile (switched + rebooted 2026-06-28; gen 92, systemd-boot, 0 failed units, sops+tailscale OK)
 - [~] 5b Flake update (d5b046b lock; built + flake-check green; SWITCH pending user)
-- [ ] 6 Fresh eachtrach (nixos-anywhere) (when a new VM is ready)
+- [x] 6 eachtrach onto Den — **adopted in place 2026-09-04**, not reprovisioned (deploy-rs over its public ip; exit
+      node + ssh host key + root password preserved; rebooted clean). nixos-anywhere never ran.
 - [x] 7 Remove Clan + doc cleanup (clan-core/flake.clan/vars/sops/try removed; docs rewritten; build+check green)
 - [x] 8 (optional) agenix — RESOLVED 2026-07-02: staying on sops-nix (same age identity model, working setup,
       neededForUsers + multi-secret YAML in use); plumbing simplified instead (single-map secrets/home.nix, secrets
@@ -79,7 +81,9 @@ Mark each `[x]` with its commit sha when done.
   private host key in Phase 1; install it at /etc/ssh/ssh_host_ed25519_key{,.pub} as a one-time persistent step before
   the Phase 5 switch.
 - Secrets backend target: sops-nix; host identity = /etc/ssh/ssh_host_ed25519_key.
-- eachtrach: DISPOSABLE — secrets dropped, reprovision fresh in Phase 6.
+- eachtrach: was marked DISPOSABLE (clan-era secrets dropped). Superseded 2026-09-04 — the machine was adopted as-is
+  rather than wiped, and its pre-existing ssh host key became its sops identity. It is NOT a shared.yaml recipient; its
+  one secret lives in secrets/eachtrach.yaml.
 - Bootloader: UEFI confirmed; grub→systemd-boot transition happens on first abhaile switch (Phase 5).
 
 ## Open questions for the user
@@ -145,4 +149,4 @@ Mark each `[x]` with its commit sha when done.
   `sops updatekeys secrets/<file>.yaml`.
 - Backups in .migration-staging/ (gitignored): plaintext/ (incl. abhaile's host key), INVENTORY.md, bootloader.md,
   closure diffs. Safe to delete once you're confident; the host key also lives at /etc/ssh.
-- Phase 6 (eachtrach) + Phase 8 (agenix) remain optional/when-ready.
+- Phase 6 (eachtrach) closed 2026-09-04 by adoption; Phase 8 (agenix) resolved as "stay on sops-nix".

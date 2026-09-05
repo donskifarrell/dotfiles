@@ -5,17 +5,32 @@
 #
 # Every Den-emitted nixosConfiguration except the `scoite-*` guest templates
 # (not real machines — imperatively launched by the `scoite` CLI) becomes a
-# deploy node. Node
-# hostname = the bare host name: services.tailscale's /etc/hosts alias sync
-# makes that resolve tailnet-wide, so deploys ride tailscale with no extra
-# DNS. Provisioning a brand-new box is nixos-anywhere's job, not this file's
-# (its kexec path takes over a stock Ubuntu VPS image — TODO item 2).
+# deploy node. Node hostname defaults to the bare host name:
+# services.tailscale's /etc/hosts alias sync makes that resolve tailnet-wide,
+# so deploys ride tailscale with no extra DNS. `deployHost` below overrides
+# that per host where the tailnet is the wrong path. Provisioning a brand-new
+# box is nixos-anywhere's job, not this file's (its kexec path takes over a
+# stock Ubuntu VPS image).
 {
   inputs,
   lib,
   config,
   ...
 }:
+let
+  # Per-host transport override. The default (the bare host name) is right for
+  # anything reachable over the tailnet, but eachtrach runs Tailscale SSH:
+  # tailscaled intercepts port 22 on the tailnet ip before sshd ever sees the
+  # connection, and the tailnet's ACL puts that behind an interactive
+  # "visit this URL to authenticate" check — which hangs a non-interactive
+  # `deploy` forever. Its public ip reaches the real sshd directly (root, key
+  # only), and has the bonus property of not being the tunnel that a bad deploy
+  # to the exit node might take down. No DNS record exists for the host, hence
+  # the literal.
+  deployHost = {
+    eachtrach = "91.99.168.74";
+  };
+in
 {
   flake-file.inputs.deploy-rs = {
     url = "github:serokell/deploy-rs";
@@ -23,7 +38,7 @@
   };
 
   flake.deploy.nodes = lib.mapAttrs (name: cfg: {
-    hostname = name;
+    hostname = deployHost.${name} or name;
     profiles.system = {
       sshUser = "root";
       user = "root";

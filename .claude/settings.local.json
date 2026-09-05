@@ -242,7 +242,11 @@
       "Bash(/nix/store/jqv9d018sy5hbqzi30vhyjdk87nhqqb8-sandvm/bin/sandvm rm *)",
       "Bash(rm -rf /tmp/claude-1000/-home-df--dotfiles/3bf8e883-d5e9-4a93-a046-1ce41aab28d1/scratchpad/nettest /tmp/claude-1000/-home-df--dotfiles/3bf8e883-d5e9-4a93-a046-1ce41aab28d1/scratchpad/runner)",
       "Bash(/nix/store/jqv9d018sy5hbqzi30vhyjdk87nhqqb8-sandvm/bin/sandvm list *)",
-      "Bash(ssh -o BatchMode=yes sandvm-mono-18915ff1 -- 'rm -rf ~/.ssh/testcfg /tmp/df_gh.pub /tmp/sshconfig.local && ls -a ~/.ssh')"
+      "Bash(ssh -o BatchMode=yes sandvm-mono-18915ff1 -- 'rm -rf ~/.ssh/testcfg /tmp/df_gh.pub /tmp/sshconfig.local && ls -a ~/.ssh')",
+      "Bash(ssh -o BatchMode=yes root@91.99.168.74 'cat /etc/ssh/ssh_host_ed25519_key.pub')",
+      "Bash(ssh -o BatchMode=yes root@91.99.168.74 'echo \"== mise passwd entry ==\"; getent passwd mise; echo \"== home contents ==\"; ls -la /home/mise 2>/dev/null || echo \"\\(no /home/mise\\)\"; echo \"== du ==\"; du -sh /home/mise 2>/dev/null; echo \"== processes owned by mise ==\"; ps -u mise 2>/dev/null | head; echo \"== files owned by mise outside home ==\"; find / -xdev -user mise -not -path \"/home/mise/*\" 2>/dev/null | head -10')",
+      "Bash(timeout 1500 deploy .#eachtrach)",
+      "Bash(ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=no root@91.99.168.74 'uptime -p')"
     ],
     "additionalDirectories": ["/tmp", "/var/lib/llm/models"]
   }

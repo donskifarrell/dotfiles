@@ -19,44 +19,37 @@ skipped 2026-07-03 because the gap was open; Ollama was measured slower than lla
 dropped as a candidate). Also worth testing then: Qwen3.6-35B-A3B **MTP** GGUF + llama-server speculative decoding
 (`--spec-type draft-mtp`) for a possible large tg boost.
 
-### 2. Provision eachtrach (migration Phase 6)
+### 2. eachtrach hosted apps (the leftover of "provision eachtrach")
 
-Fresh Hetzner VPS, tailscale exit node, disposable. Decided 2026-07-14 (df): **x86 instance (2 vCPU / 4 GB RAM / 40 GB
-disk), initial image = stock Ubuntu** (nixos-anywhere kexec's it into NixOS), custom apps run as **native NixOS
-services** (not containers), some internet-exposed + some tailnet-only behind one Caddy (rewrite the orphaned
-short-specific `services.web.caddy` aspect; `services.tailscale.permitCertUid = "caddy"` gets real certs for ts.net
-names, normal ACME for public ones). Full recipe:
+**The host itself is done** — eachtrach was _adopted in place_ on 2026-09-04 rather than reprovisioned (it had been
+running since 2025-10-26 and is the live tailscale exit node; wiping it was never worth it). See the Done section and
+the `## eachtrach` section of CLAUDE.md. What that closed: the host + role + aspects, per-host secrets, deploy-rs
+transport, and the exit-node advertisement.
 
-1. Create the VM; get root ssh access.
-2. `nixos-anywhere --flake .#eachtrach root@<ip>` (needs `modules/den/hosts/eachtrach.nix` +
-   `hosts/eachtrach/{disko.nix,facter.json}` — model on abhaile's; include `secrets.sops` + `services.tailscale` in its
-   includes, plus an exit-node variant: `services.tailscale` currently hardcodes `exitNode = false`, parameterize or add
-   an aspect variant).
-3. On the new box: `ssh-to-age < /etc/ssh/ssh_host_ed25519_key.pub` → uncomment + fill `&host_eachtrach` in
-   `.sops.yaml`; uncomment the `secrets/eachtrach.yaml` creation rule if it gets per-host secrets; add it to the
-   `shared.yaml` key group.
-4. `sops updatekeys secrets/shared.yaml` (and any other file it must read).
-5. Mint a **fresh** tailscale auth key (old ones expire ~90d) — as an exit node it likely wants its own key/secret
-   rather than reusing `tailscale/aon_tailnet_authkey` (which is abhaile's peer key); add e.g.
-   `tailscale/eachtrach_authkey` to shared.yaml or eachtrach.yaml and declare it in the exit-node aspect.
-6. ~~Wire deploy-rs for day-2 (`deploy .#eachtrach`).~~ **Done 2026-07-14**: `modules/flake-parts/deploy.nix` — input +
-   auto-generated `deploy.nodes` for every real host (hostname = bare host name, resolves via the tailscale /etc/hosts
-   alias sync) + deployChecks in `nix flake check` + `deploy`/`nixos-anywhere` in the devshell. The eachtrach node
-   appears automatically once its host file exists.
+What is still open is only the _hosted apps_ half of the original item:
 
-Additions from the 2026-07-14 repo review:
+- Custom apps as **native NixOS services** (not containers), some internet-exposed and some tailnet-only, behind one
+  Caddy. Rewrite the orphaned short-specific `services.web.caddy` aspect for eachtrach (item 12 tracks the orphan).
+  `services.tailscale.permitCertUid = "caddy"` gets real certs for `ts.net` names; normal ACME for public ones.
+- The clan-era caddy site was **dropped** by the adoption: it served `/srv/www/site/donalfarrell.com`, but
+  `test.donalfarrell.com` had no DNS record any more and the apex points at GitHub Pages. `/srv/www` is still on the box
+  (unserved), as is the removed `gh_deployer` SFTP user's home. Decide whether any of it is worth restoring before
+  garbage-collecting it.
+- Ports 80/443 are closed again (the firewall is now 22/tcp + 41641/udp only) — re-open them in the caddy aspect when
+  something actually listens.
 
-- **Bootloader**: `roles.default` pulls in `core.systemd.boot` (systemd-boot = UEFI-only). Hetzner Cloud x86 VMs (df's
-  confirmed choice) boot legacy BIOS → eachtrach needs a grub disko/boot variant (GPT + `bios_boot` partition,
-  `boot.loader.grub`) and must exclude/override `core.systemd.boot`.
-- **Avoid the two-step secrets bootstrap**: instead of provision → read host key → updatekeys → redeploy, pre-generate
-  eachtrach's SSH host keypair locally, compute its ssh-to-age recipient, updatekeys _first_, and hand the key to
-  `nixos-anywhere --extra-files` (or `--copy-host-keys`) so the very first boot already decrypts sops secrets (tailscale
-  joins immediately).
-- **facter.json**: no need to model on abhaile's —
-  `nixos-anywhere --generate-hardware-config nixos-facter hosts/eachtrach/facter.json` produces it during provisioning.
-- Compose it from `roles.default` (now genuinely minimal — NM/avahi moved out 2026-07-14) + a new thin `roles.server`
-  (systemd-networkd DHCP, maybe fail2ban) rather than any workstation role.
+Notes for whoever picks this up:
+
+- `roles.server` exists now and is the right base for a second VPS. It is `roles.default` with `core.systemd.boot`
+  swapped for `core.boot.grub` and `core.home-manager` excluded. It deliberately does **not** configure networking —
+  eachtrach pins `networking.useNetworkd` + `facter.detected.dhcp.enable` in its own host file because it was adopted,
+  not installed. A genuinely _fresh_ VPS is the case where folding systemd-networkd DHCP into `roles.server` makes
+  sense.
+- For a fresh box, the 2026-07-14 review's advice still stands and was never exercised: pre-generate the host keypair
+  locally, compute its ssh-to-age recipient, `sops updatekeys` **first**, then hand the key to
+  `nixos-anywhere --extra-files` so the very first boot already decrypts secrets. `facter.json` comes from
+  `nixos-anywhere --generate-hardware-config nixos-facter hosts/<host>/facter.json`.
+- Keep new hosts off `secrets/shared.yaml` (see the Secrets gotchas in CLAUDE.md).
 
 ### 3. Back up the sops editor identity
 
@@ -288,6 +281,36 @@ tarball → `nix hash convert --to sri`), then `cargoDeps.hash` from a fake-hash
 overridable — `buildRustPackage` reads it off `args`, not `finalAttrs`.
 
 ## Done
+
+- 2026-09-04 — **eachtrach adopted into Den in place** (closed the host half of item 2; migration Phase 6, by a
+  different route than planned). The machine was never reprovisioned: it had been running since 2025-10-26 off a
+  clan.lol bootstrap and is the tailnet's exit node, so it was brought under Den as-is. Reference + gotchas: the
+  `## eachtrach` section of CLAUDE.md. What changed:
+  - **Host data recovered, not regenerated**: `hosts/eachtrach/{disko.nix,facter.json}` came verbatim out of git
+    (`220c93e^:machines/eachtrach/…`). Verified before deploying — the layout's derived partlabels (`eaab…`→sda3,
+    `21d8…`→sda2) match the live `/dev/disk/by-partlabel` exactly.
+  - **`roles.server`** (new): `roles.default` with `core.systemd.boot` excluded in favour of **`core.boot.grub`** (new)
+    — Hetzner Cloud x86 boots legacy BIOS. `core.home-manager` is excluded too: with no users declared, Den's HM battery
+    never imports the module and its settings fail to evaluate. Den's `excludes` resolves through roles.default's nested
+    include, confirmed by eval.
+  - **`services.tailscale` split into three aspects**: the base daemon (now secret-free), `…​.authkey` (shared.yaml,
+    abhaile's) and `…​.exit-node`. The dead `exitNode`/`networking.nat` block is gone — tailscaled does its own
+    exit-node SNAT, and the old code guessed the wrong interface anyway. Verified a no-op for abhaile: identical unit
+    set, byte-identical tailscale units, only the flake-source path inside sops-nix's manifest differs.
+  - **Secrets**: `secrets/eachtrach.yaml` + `secrets.eachtrach`, encrypted to `&admin_df` and a new `&host_eachtrach`.
+    eachtrach is deliberately **not** a `shared.yaml` recipient. Its age identity is the pre-existing ssh host key,
+    which lived only on a clan tmpfs and was copied to `/etc/ssh/ssh_host_ed25519_key` — so the machine's ssh
+    fingerprint never changed.
+  - **Deploys go to the public ip**, via a new `deployHost` override in `modules/flake-parts/deploy.nix`: Tailscale SSH
+    intercepts port 22 on the tailnet behind an interactive check, which hangs a non-interactive `deploy`.
+  - **Dropped**: the clan-era caddy site, `gh_deployer`, and the `mise` account (see item 2 for what to do about
+    `/srv/www`). Kept: tailscale identity/prefs, root's password, the network setup, the ssh host key.
+  - Verified end to end: `nix flake check`, `deploy --dry-activate`, `deploy`, then a **reboot** — comes back on kernel
+    6.18.44 with no failed units, default route intact, exit node advertising `0.0.0.0/0 + ::/0`, and sops decrypting
+    from a cold boot. **Known first-switch failure** off a 25.11 clan system: root's user `dbus-broker.service` fails to
+    reload (25.11→26.11 swaps dbus-daemon for dbus-broker) and deploy-rs rolls back — just run `deploy` again.
+  - Still open: `boot.initrd.systemd.enable` is pinned `false` to match the adopted box while this nixpkgs defaults it
+    true. Flip it as its own reboot-verified step.
 
 - 2026-08-22 — **sandvm rework: four types, real lifecycle, shared closures** (closed items 13.1 and 13.3). Full
   writeup: `docs/microvm-sandbox.md`. What changed:

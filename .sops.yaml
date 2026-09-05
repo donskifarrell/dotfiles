@@ -9,9 +9,15 @@
 #                    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIISW7n05i04ujUtjywXbAgIVOUK6lCc6FFVtGSzoByJJ"
 #                    => age1gglfnksmkvjlvnzunt6lmvzngam66cpwrek73t3dnn5l05qlq3ls4pcjdn
 #                    (abhaile decrypts with the host key it already holds - nothing to deploy.)
-#   host_eachtrach = FILL IN after the fresh eachtrach is provisioned (Phase 6):
-#                    `ssh-to-age < /etc/ssh/ssh_host_ed25519_key.pub` on the new box,
-#                    then `sops updatekeys secrets/shared.yaml`.
+#   host_eachtrach = ssh-to-age of eachtrach's /etc/ssh/ssh_host_ed25519_key.
+#                    Filled in 2026-09-04 when the running machine was adopted
+#                    into Den in place. The key itself predates the adoption
+#                    (clan generated it); it lived only on a tmpfs under
+#                    /run/secrets, and was copied to /etc/ssh so sops-nix could
+#                    use it — so the machine's ssh fingerprint never changed.
+#                    Verified: ssh-to-age of
+#                    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAIEjarTHfNMXJd1RxLBpWfv60d4Ez/GAyhN5LZ198CC"
+#                    => age16fyjpn3uu2qyp824tnn5aw0hg9d642qe8llj9xl3lpcfc77ysczqxghhgw
 #
 # To recompute a host recipient at any time:
 #   ssh-to-age < /etc/ssh/ssh_host_ed25519_key.pub
@@ -20,26 +26,29 @@
 keys:
   - &admin_df age1awmgrhav72rx0dluch3ztj0ku6xkrg2utnrkva2qhm8sdw76sf7qqc9c5t
   - &host_abhaile age1gglfnksmkvjlvnzunt6lmvzngam66cpwrek73t3dnn5l05qlq3ls4pcjdn
-  # - &host_eachtrach age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+  - &host_eachtrach age16fyjpn3uu2qyp824tnn5aw0hg9d642qe8llj9xl3lpcfc77ysczqxghhgw
 creation_rules:
   # Shared secrets: anything consumed on more than one host (df's home ssh/git
   # files, tailscale auth keys). Must list EVERY host that reads them + admin.
+  #
+  # eachtrach is deliberately NOT here. It is an internet-facing VPS, and a
+  # recipient of this file can decrypt ALL of it — df's df_gh/ff_gh/uf_gh/
+  # pgstar_gh/aon.clan private keys included. Its one secret (a tailscale auth
+  # key) lives in secrets/eachtrach.yaml instead.
   - path_regex: secrets/shared\.yaml$
     key_groups:
       - age:
           - *admin_df
           - *host_abhaile
-          # - *host_eachtrach   # uncomment + updatekeys once eachtrach exists
   # abhaile-only secrets (password hashes, machine services).
   - path_regex: secrets/abhaile\.yaml$
     key_groups:
       - age:
           - *admin_df
           - *host_abhaile
-
-# Template for the fresh eachtrach (Phase 6); leave commented until it exists.
-# - path_regex: secrets/eachtrach\.yaml$
-#   key_groups:
-#     - age:
-#         - *admin_df
-#         - *host_eachtrach
+  # eachtrach-only secrets (its tailscale auth key).
+  - path_regex: secrets/eachtrach\.yaml$
+    key_groups:
+      - age:
+          - *admin_df
+          - *host_eachtrach

@@ -55,7 +55,9 @@ in
       secrets.abhaile # df/root password-hash secrets
       secrets.home # df's ~/.ssh + ~/.config/git files from shared.yaml
 
-      services.tailscale # tailscale peer (declares its own authkey secret)
+      services.tailscale # tailscale peer
+      services.tailscale.authkey # its aon-tailnet key from shared.yaml
+      # (a sub-aspect is not implied by its parent — both are listed)
       services.llm # llama.cpp vulkan+rocm on the RX 9070 (benchmarked on-box)
       services.syncthing # Obsidian vault <-> Android phone (docs/obsidian.md)
     ];

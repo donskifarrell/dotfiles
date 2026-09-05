@@ -41,6 +41,7 @@ modules/                everything else, auto-imported as flake-parts modules
     aspects/             feature modules by category: core, hardware, shell, dev,
                          services, secrets, apps, gaming, virtualisation
     roles/               aspect bundles: default, workstation, dev, desktop,
+                         server (headless/BIOS — eachtrach),
                          sandbox.{minimal,dev} (the two scoite guest tiers)
     users/df.nix         the df user aspect (home-manager)
     users/iosta.nix      the scoite-guest-only user: uid pinned 1000 (virtiofs); its tier
@@ -61,11 +62,11 @@ projection (`den.batteries.host-aspects`) is deliberately off in `users/df.nix`.
 
 ## Machines
 
-| Host      | System         | Role                                                                                                                                                                                 |
-| --------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| abhaile   | x86_64-linux   | df's AMD desktop workstation (LUKS root, systemd-boot)                                                                                                                               |
-| eachtrach | x86_64-linux   | (planned, TODO item 2) Hetzner x86 VPS — tailscale exit node + hosted apps; provisioned from a stock Ubuntu image via nixos-anywhere kexec; BIOS boot → needs grub, not systemd-boot |
-| (macbook) | aarch64-darwin | (planned) df's MacBook Pro on nix-darwin + homebrew — inputs already kept for it                                                                                                     |
+| Host      | System         | Role                                                                                                                                                                                                                                                             |
+| --------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| abhaile   | x86_64-linux   | df's AMD desktop workstation (LUKS root, systemd-boot)                                                                                                                                                                                                           |
+| eachtrach | x86_64-linux   | Hetzner x86 VPS (2 vCPU/4 GB/40 GB) — tailscale **exit node**, headless, no users. Adopted in place from its clan bootstrap 2026-09-04 (not reprovisioned). BIOS boot → `roles.server` (grub, not systemd-boot). Deploys over its **public IP**, not the tailnet |
+| (macbook) | aarch64-darwin | (planned) df's MacBook Pro on nix-darwin + homebrew — inputs already kept for it                                                                                                                                                                                 |
 
 ## Common commands
 
@@ -119,6 +120,50 @@ Gotchas (easy to forget):
 - NEVER manage a host's own `/etc/ssh/ssh_host_ed25519_key` via sops — it's the key sops-nix decrypts with.
 - Tailscale auth keys expire (~90d). Already-joined nodes stay connected; mint a fresh key only for new joins.
 - Flakes gotcha: `git add` new files before building/evaluating, or the flake won't see them.
+- **eachtrach is deliberately NOT a recipient of `shared.yaml`** — it is internet-facing, and a recipient there can
+  decrypt df's GitHub ssh private keys. Its one secret lives in `secrets/eachtrach.yaml`. Keep it that way; if it ever
+  needs something from shared.yaml, move that value to its own file rather than adding the recipient.
+
+## eachtrach — Hetzner VPS / tailscale exit node
+
+Headless x86 VPS, **adopted in place** on 2026-09-04 from its 2025-10-26 clan.lol bootstrap — it was never
+reprovisioned, so `hosts/eachtrach/{disko.nix,facter.json}` describe a disk that already exists (both recovered verbatim
+from `git show 220c93e^:machines/eachtrach/…`; the derived partlabels were checked against the live
+`/dev/disk/by-partlabel` before deploying). Composed from `roles.server` + `services.tailscale{,.exit-node}` +
+`secrets.{sops,eachtrach}`. Deploy with `deploy .#eachtrach`.
+
+Gotchas (easy to forget):
+
+- **Deploys go to the public IP (`91.99.168.74`), not the tailnet name.** eachtrach runs Tailscale SSH, which intercepts
+  port 22 on the tailnet ip before sshd sees it and puts it behind an interactive browser check — that hangs a
+  non-interactive `deploy` forever. The override is `deployHost` in `modules/flake-parts/deploy.nix`. Bonus: the deploy
+  path is not the tunnel a bad deploy to the exit node could take down. There is no DNS record, hence the literal ip.
+- **Exit-node advertisement is `extraSetFlags`, never `extraUpFlags`.** `tailscaled-autoconnect` returns the moment the
+  backend state is `Running`, so on an already-joined node an `extraUpFlags` entry is never applied. `extraSetFlags`
+  becomes `tailscaled-set.service` — a `tailscale set …` that runs every activation and is idempotent.
+- **No `networking.nat`.** tailscaled does its own exit-node SNAT (`ts-postrouting` … `-j MASQUERADE`, NetfilterMode=2);
+  `useRoutingFeatures = "both"` supplies the forwarding sysctls. Adding networking.nat would be a second, conflicting
+  NAT — and the uplink is `enp1s0`, not the `eth0` the old dead code guessed.
+- **`facter.detected.dhcp.enable` must be forced back on** (`hosts/eachtrach.nix`). The shared `hardware.facter` aspect
+  turns it off for abhaile's sake (NetworkManager drives that host); eachtrach gets its address from exactly that
+  module, so without the `mkForce` the box comes up with **no default route**. Hetzner hands out a /32 whose gateway is
+  off-prefix, so keep `networking.useNetworkd = true` too — that is what the box already ran.
+- **`system.stateVersion` needs `lib.mkForce "25.11"`** — `core.stateVersion` sets 26.11 as a plain definition.
+- `roles.server` excludes `core.home-manager` as well as `core.systemd.boot`: with no users declared, Den's home-manager
+  battery never imports the HM NixOS module, and `core.home-manager`'s settings then fail to evaluate.
+- `core.boot.grub` pins `boot.initrd.systemd.enable = false`. This nixpkgs defaults it to **true**, and eachtrach was
+  adopted on a scripted initrd — flip it as its own reboot-verified step, not folded into another change.
+- **First switch off a 25.11 clan system fails once**, on `Failed to reload user unit dbus-broker.service` → "user
+  activation for root failed" → deploy-rs rolls back. 25.11→26.11 swaps dbus-daemon for dbus-broker, and activation
+  tries to _reload_ root's user dbus-broker before it is running. **Just run `deploy` again** — it succeeds. Watch out
+  for the in-between state: the rollback leaves the new system running with the profile pointed at the old generation.
+- The machine's ssh host key predates the adoption. It lived only on a clan tmpfs (`/run/secrets/vars/openssh/…`), and
+  was copied to `/etc/ssh/ssh_host_ed25519_key` so sops-nix could use it — so the **fingerprint never changed**, and
+  `age16fyjpn3uu2qyp824tnn5aw0hg9d642qe8llj9xl3lpcfc77ysczqxghhgw` in `.sops.yaml` is derived from it.
+- Adoption dropped the clan-era caddy site, the `gh_deployer` SFTP user and the `mise` account. Declaring no users
+  removes users NixOS used to manage — `mutableUsers = true` protects _unmanaged_ accounts and passwords (root's
+  password, the only way into Hetzner's web console, survives), not ones this config stopped declaring. Home directories
+  are never deleted by user removal; `/srv/www` is still on disk, unserved.
 
 ## Obsidian vault + sync + vault agent (abhaile)
 

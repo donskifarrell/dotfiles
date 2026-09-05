@@ -14,11 +14,11 @@ Configs borrow heavily from [onix-core](https://github.com/onixcomputer/onix-cor
 
 ## Machines
 
-| Host      | System         | What                                                                       |
-| --------- | -------------- | -------------------------------------------------------------------------- |
-| abhaile   | x86_64-linux   | df's AMD desktop workstation (LUKS root, systemd-boot)                     |
-| eachtrach | x86_64-linux   | (planned) Hetzner VPS — tailscale exit node + hosted apps, reprovisionable |
-| (macbook) | aarch64-darwin | (planned) MacBook Pro on nix-darwin + homebrew                             |
+| Host      | System         | What                                                                    |
+| --------- | -------------- | ----------------------------------------------------------------------- |
+| abhaile   | x86_64-linux   | df's AMD desktop workstation (LUKS root, systemd-boot)                  |
+| eachtrach | x86_64-linux   | Hetzner VPS — tailscale exit node, headless (grub/BIOS, `roles.server`) |
+| (macbook) | aarch64-darwin | (planned) MacBook Pro on nix-darwin + homebrew                          |
 
 ## Layout
 
