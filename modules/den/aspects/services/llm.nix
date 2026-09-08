@@ -44,9 +44,9 @@
           '';
 
         # Model data (ids, context sizes, per-model llama-server flags) lives
-        # in _llm-models.nix, because a sandbox guest's omp models.yml has to
-        # agree with it exactly and used to be kept in step by hand. Both are
-        # generated from that one file now.
+        # in _llm-models.nix — its own file because it used to have a second
+        # consumer (a sandbox guest's generated agent models.yml) that had to
+        # agree with it exactly.
         llm = import ./_llm-models.nix;
         inherit (llm) modelsDir;
 
@@ -74,13 +74,13 @@
           # (`llmfit system`, `llmfit list`, `llmfit recommend`) — the
           # picking-a-model half of docs/llm.md, which the model list below
           # is the picked half of. Pinned ahead of nixpkgs by the overlay.
-          pkgs.llmfit
+          # pkgs.llmfit
         ];
 
         # Overlay pinning llmfit to its latest upstream release (nixpkgs lags
         # several point releases behind). Scoped to hosts including this
         # aspect; delete _llmfit.nix and this line once nixpkgs catches up.
-        nixpkgs.overlays = [ (import ./_llmfit.nix) ];
+        # nixpkgs.overlays = [ (import ./_llmfit.nix) ];
 
         systemd.tmpfiles.rules = [ "d ${modelsDir} 0755 df users -" ];
 

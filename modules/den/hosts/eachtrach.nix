@@ -52,6 +52,15 @@ in
       # every login behind the tailnet ACL (df denied, root behind a browser
       # check). Off, `ssh root@eachtrach` is a plain key login over WireGuard.
       services.tailscale.no-ssh
+
+      # bbm — the app this VPS exists to host, reachable only
+      # over the tailnet. `services.web.caddy` is the ingress it needs;
+      # `services.bbm.backup` adds the snapshot + the read-only pull account
+      # that abhaile's `services.bbm.backup.pull` connects to. Full reference:
+      # docs/bbm.md.
+      services.web.caddy
+      services.bbm
+      services.bbm.backup
     ];
 
     nixos =

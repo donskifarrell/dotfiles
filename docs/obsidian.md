@@ -42,8 +42,8 @@ real files under `.obsidian/plugins/` and then sync to other desktops as ordinar
   host) rides in as a launch credential and is re-pushed by `sc creds`, so the guest has a git identity. In practice the
   agent edits files and the **host-side** obsidian-git commits and pushes them. The agent has **no push credentials** —
   ssh-agent forwarding exists only while df is attached over `ssh scoite-*`.
-- Anthropic auth reaches the guest via the omp-auth-broker / agent.env flow (docs/microvm-sandbox.md); no API keys land
-  in the vault or the store.
+- Cloud LLM auth reaches the guest via the `agent.env` credential flow (docs/microvm-sandbox.md); no API keys land in
+  the vault or the store.
 - `drop/` and any note editable from the phone are untrusted agent input (prompt-injection surface). The blast radius
   is: the vault itself.
 

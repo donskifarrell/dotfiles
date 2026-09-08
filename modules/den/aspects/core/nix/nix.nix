@@ -23,7 +23,7 @@
               "https://cache.nixos.org/"
               "https://nix-community.cachix.org"
               "https://numtide.cachix.org"
-              "https://cache.numtide.com" # nix-ai-tools (claude-code, omp)
+              "https://cache.numtide.com" # nix-ai-tools (claude-code, pi, herdr)
             ];
 
             trusted-public-keys = [

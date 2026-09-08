@@ -11,7 +11,7 @@
 #     vars below point both at store-provided browsers, so their post-install
 #     downloads are skipped (a downloaded Chromium is dynamically linked
 #     against paths that don't exist on NixOS and won't start).
-#   - `playwright-mcp` — MCP server, so claude-code/omp can drive the browser
+#   - `playwright-mcp` — MCP server, so claude-code/pi can drive the browser
 #     as a tool rather than by shelling out. Register per project with
 #     `claude mcp add playwright -- playwright-mcp --headless --isolated`.
 #

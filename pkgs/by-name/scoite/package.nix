@@ -83,15 +83,14 @@ let
       BIND_SLOTS=4
 
       # Forwarded on every launch so a guest dev server is viewable from the
-      # host with no --port and no restart. 6767 is the paseo daemon
-      # (dev.tools.paseo), which every `dev` guest runs. One qemu listening socket each, all
-      # on the instance's private address, so a wide net costs ~nothing.
+      # host with no --port and no restart. One qemu listening socket each,
+      # all on the instance's private address, so a wide net costs ~nothing.
       # Deliberately here and not in the guest module: which of these can
       # actually be bound depends on host state at launch (see
       # effective_ports), which is exactly the kind of per-launch concern the
       # CLI owns and the guest's system closure must never see.
       DEFAULT_DEV_PORTS="$(seq 3000 3009) $(seq 4000 4009) $(seq 5000 5009) \
-        $(seq 5173 5182) 6006 6767 $(seq 8000 8009) $(seq 8080 8089) $(seq 9000 9009)"
+        $(seq 5173 5182) 6006 $(seq 8000 8009) $(seq 8080 8089) $(seq 9000 9009)"
 
       usage() {
         cat <<'USAGE'
@@ -189,7 +188,7 @@ let
         This is the one deliberate hole in the sandbox's isolation: whatever
         is bound is writable by the agent inside the guest, with none of the
         protection /workspace gets from being the only channel. Paths holding
-        host credentials (~/.ssh, ~/.gnupg, ~/.omp, ~/.claude, sops keys) are
+        host credentials (~/.ssh, ~/.gnupg, ~/.claude, sops keys) are
         refused unless --force says otherwise.
 
       Guest types:
@@ -306,7 +305,7 @@ let
       # the ssh port used to use) so an instance keeps its address for life,
       # and 127.<1-254>.<0-255>.1 deliberately avoids 127.0.x.y, where
       # abhaile's own loopback services live (llama-server :8080, harmonia
-      # :5000, the omp auth-broker :8765). That separation is the whole point:
+      # :5000). That separation is the whole point:
       # a guest's :8080 is 127.x.y.1:8080 and collides with nothing, so guest
       # ports can be forwarded 1:1 instead of being renumbered.
       free_addr() {
@@ -419,7 +418,6 @@ let
         case "$p" in
           "$HOME"/.ssh | "$HOME"/.ssh/* \
           | "$HOME"/.gnupg | "$HOME"/.gnupg/* \
-          | "$HOME"/.omp | "$HOME"/.omp/* \
           | "$HOME"/.claude | "$HOME"/.claude/* \
           | "$HOME"/.config/sops | "$HOME"/.config/sops/* \
           | "$HOME"/.config/scoite | "$HOME"/.config/scoite/* \
@@ -627,21 +625,13 @@ let
       collect_credentials() {
         local dir=$STATE_ROOT/$1
 
-        # Cloud LLM keys: hand-maintained ~/.config/scoite/agent.env plus, if
-        # the host's omp auth-broker has been logged in, a pointer at it
-        # (`omp auth-broker login anthropic`) so the guest gets a live,
-        # auto-refreshed credential rather than a copy that goes stale.
+        # Cloud LLM keys: the hand-maintained ~/.config/scoite/agent.env,
+        # exported into every guest shell.
         AGENT_ENV=$dir/agent.env
         (umask 077; : > "$AGENT_ENV")
         chmod 600 "$AGENT_ENV"
         if [ -f "$HOME/.config/scoite/agent.env" ]; then
           cat "$HOME/.config/scoite/agent.env" >> "$AGENT_ENV"
-        fi
-        if [ -f "$HOME/.omp/auth-broker.token" ]; then
-          {
-            echo "OMP_AUTH_BROKER_URL=http://10.0.2.2:8765"
-            echo "OMP_AUTH_BROKER_TOKEN=$(cat "$HOME/.omp/auth-broker.token")"
-          } >> "$AGENT_ENV"
         fi
         if [ ! -s "$AGENT_ENV" ]; then rm -f "$AGENT_ENV"; AGENT_ENV=""; fi
 
@@ -688,45 +678,6 @@ let
           chmod 600 "$SSH_CONF"
         fi
 
-        # The *configuration* half of df's omp: config*.yml plus the trees
-        # omp discovers agents/skills/rules/prompts from. An **allow-list**,
-        # never a deny-list — ~/.omp/agent also holds agent.db and models.db
-        # (session history, model catalogue), sessions/, logs/, and the broker
-        # token lives one directory up; a deny-list would ship whichever of
-        # those omp adds next.
-        #
-        # Staged into a directory the guest 9p-mounts read-only, not a tar
-        # handed over as a systemd credential (changed 2026-08-26): systemd
-        # refuses any credential over 1 MiB and df's skills-vendor tree took
-        # the tar to 1.3 MiB, at which point the whole omp config silently
-        # stopped arriving. A directory has no ceiling, and because the share
-        # is live, `scoite creds` only has to re-run the guest-side copy.
-        #
-        # models.yml is deliberately NOT staged: the guest's own copy points
-        # omp's `local` provider at the SLIRP gateway and is generated from
-        # modules/den/aspects/services/_llm-models.nix.
-        OMP_CONF_DIR=$dir/omp-conf.d
-        local ompsrc=$HOME/.omp/agent
-        rm -rf "$OMP_CONF_DIR"
-        # Always present, even when empty: it is a qemu `-fsdev` path, and a
-        # missing source directory fails the launch rather than the copy.
-        mkdir -p "$OMP_CONF_DIR"
-        chmod 700 "$OMP_CONF_DIR"
-        if [ -d "$ompsrc" ]; then
-          local item
-          for item in agents skills skills-vendor rules prompts extensions hooks themes; do
-            if [ -e "$ompsrc/$item" ]; then cp -a "$ompsrc/$item" "$OMP_CONF_DIR/"; fi
-          done
-          # Globbed against $ompsrc explicitly. A glob in a `for` list is
-          # expanded relative to the *current* directory, which is wherever
-          # `scoite` happened to be run from — it would silently match nothing
-          # useful, or the wrong thing.
-          local f
-          for f in "$ompsrc"/config.yml "$ompsrc"/config.*.yml "$ompsrc"/*.md; do
-            if [ -e "$f" ]; then cp -a "$f" "$OMP_CONF_DIR/"; fi
-          done
-        fi
-
         # Where the guest should bind each /mnt/host/<slot> share: "<slot>
         # <guest path>" lines. Only the guest-side halves — the host paths are
         # virtiofsd's --shared-dir (see boot) and the guest has no use for
@@ -767,7 +718,7 @@ let
           "$HOME_DISK" "$EFFECTIVE_PORTS" "$SSH_PORT" "$ADDR" "$WORKSPACE" \
           "$(mac_for "$name")" \
           "''${AGENT_ENV:-}" "''${GITCONFIG:-}" "''${CLAUDE_CREDS:-}" \
-          "''${SSH_CONF:-}" "''${OMP_CONF_DIR:-}" "''${BINDS:-}" \
+          "''${SSH_CONF:-}" "''${BINDS:-}" \
           | sha256sum | cut -d' ' -f1)
 
         if [ "$fresh" -eq 0 ] && [ -L "$dir/runner" ] && [ -e "$dir/runner" ] \
@@ -792,7 +743,6 @@ let
         MICROVM_GITCONFIG="''${GITCONFIG:-}" \
         MICROVM_CLAUDE_CREDS="''${CLAUDE_CREDS:-}" \
         MICROVM_SSH_CONF="''${SSH_CONF:-}" \
-        MICROVM_OMP_CONF_DIR="''${OMP_CONF_DIR:-}" \
         MICROVM_BINDS_FILE="''${BINDS_FILE:-}" \
         MICROVM_INSTANCE_FILE="$INSTANCE_FILE" \
           nix build --impure --no-warn-dirty --out-link "$dir/runner" \
@@ -1154,15 +1104,12 @@ let
       }
 
       # --- live credential refresh -------------------------------------------
-      # /run/agent.env is written once, at boot, from a snapshot of the host's
-      # omp broker bearer token. Everything else on that path is already live —
-      # the broker re-reads its own store when df logs a provider back in, and
-      # a guest's omp queries the broker per request rather than caching a
-      # copy — so the boot snapshot is the one piece that can go stale: a
-      # sandbox launched before `omp auth-broker login`, or still running when
-      # the bearer token is rotated, has no way back to a working credential
-      # short of a stop/start. This re-stages agent.env and writes it into a
-      # running guest instead.
+      # A guest's host-identity files (agent.env, the ssh alias config, git
+      # identity) are written once, at boot, from a snapshot of the host's.
+      # Anything df changes on abhaile afterwards — a rotated API key, a new
+      # `Host` block — has no way into a running sandbox short of a
+      # stop/start. This re-stages them and writes them into a running guest
+      # instead.
       #
       # `-o ForwardAgent=no` is load-bearing, not tidiness: the guest's login
       # shell re-points ~/.ssh/agent.sock at whatever connection it sees, and a
@@ -1187,7 +1134,7 @@ let
         is_running "$name" || return 0
         collect_credentials "$name"
 
-        # The broker URL + bearer token.
+        # Cloud LLM keys (~/.config/scoite/agent.env).
         push_file "$name" "''${AGENT_ENV:-}" \
           'cat > /run/agent.env.new && chown iosta:users /run/agent.env.new && chmod 600 /run/agent.env.new && mv /run/agent.env.new /run/agent.env'
 
@@ -1203,20 +1150,12 @@ let
         # gitconfig.local, itself a sops secret).
         push_file "$name" "''${GITCONFIG:-}" \
           'cat > /run/gitconfig.local && scoite-install-gitconfig /run/gitconfig.local; rm -f /run/gitconfig.local'
-
-        # df's omp settings/agents/skills/rules. Nothing to stream: they live
-        # on the 9p share, which the guest already sees updated the moment
-        # collect_credentials re-staged them above — only the copy into
-        # ~/.omp/agent has to be re-run.
-        ssh -o ForwardAgent=no -o BatchMode=yes -o ConnectTimeout=5 \
-          -o StrictHostKeyChecking=accept-new "$(prefixed "$name")" -- \
-          'sudo -n scoite-install-omp-conf /run/scoite-omp' >/dev/null 2>&1 || true
       }
 
       # Only new shells see a refreshed /run/agent.env (fish exports it at
-      # shell start), which is enough for what it's for: `omp` reads the broker
-      # token when it starts, so the next command picks it up. A pane that was
-      # already open keeps the stale value.
+      # shell start), which is enough for what it's for: an agent reads its
+      # credentials when it starts, so the next command picks them up. A pane
+      # that was already open keeps the stale values.
       cmd_creds() {
         local name rc=0
         if [ "''${1:-}" = "--all" ]; then
@@ -1675,12 +1614,6 @@ let
 
           if lan_port_taken "$lport"; then
             die "LAN port $lport is already forwarded to another sandbox - pick another with --lan-port <n>"
-          fi
-
-          # 6767 is the paseo daemon, which ships with no password
-          # (authRequired: false) — anyone who reaches it drives the agent.
-          if [ "$gport" = 6767 ]; then
-            echo "scoite: WARNING: paseo has no password by default - set one (paseo daemon set-password) before trusting this" >&2
           fi
 
           lan_add "$EXPOSE_NAME" "$gport" "$lport"

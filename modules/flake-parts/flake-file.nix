@@ -73,7 +73,7 @@
 
       # nix-ai-tools deliberately does NOT follow nixpkgs-unstable, and is
       # declared in modules/den/aspects/apps/ai-tools.nix rather than here:
-      # numtide build+push claude-code/omp to cache.numtide.com against their
+      # numtide build+push claude-code/pi to cache.numtide.com against their
       # own locked nixpkgs, so overriding the follows changes derivation
       # hashes and turns both into local rebuilds. (A stale `follows` line
       # lived here until 2026-08-22 and made `nix flake check`'s

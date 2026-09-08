@@ -2,6 +2,9 @@
 
 I will be outlining my goals relating to running sandboxed containers for LLM Agents.
 
+> **Historical note (2026-09-08):** written while df used **omp** and **paseo**. Both were dropped from the repo on
+> 2026-09-08 in favour of `pi` + `herdr`; where this file names them, read the goal, not the tool.
+
 - My host machine is `abhaile` with the main user `df`
 - Guest machines are microvms with naming pattern `scoite-X`, all with the minimal user `iosta`.
 

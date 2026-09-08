@@ -46,16 +46,12 @@
         };
 
         # Keep running sandboxes' credentials current (2026-08-23). A guest's
-        # /run/agent.env — the omp auth-broker URL + bearer token it needs to
-        # reach the host's credential store — is written once, at its own boot.
-        # Everything downstream of it is live (the broker re-reads its store
-        # when df logs a provider back in, and a guest's omp queries the broker
-        # per request), so that boot snapshot is the single stale link: a
-        # sandbox launched before `omp auth-broker login`, or still running
-        # when the bearer token is rotated, could only be fixed by a
-        # stop/start. `scoite creds --all` re-pushes it into every *running*
-        # sandbox; `scoite ssh` does the same on attach, so this timer is
-        # really for the headless ones nobody attaches to.
+        # host-identity files — /run/agent.env (cloud LLM keys), the ssh alias
+        # config, the git identity — are each written once, at its own boot, so
+        # anything df rotates or adds on abhaile afterwards could only reach a
+        # running sandbox via a stop/start. `scoite creds --all` re-pushes them
+        # into every *running* sandbox; `scoite ssh` does the same on attach,
+        # so this timer is really for the headless ones nobody attaches to.
         #
         # No-ops (silently, exit 0) when nothing is running.
         systemd.user.services.scoite-creds = {

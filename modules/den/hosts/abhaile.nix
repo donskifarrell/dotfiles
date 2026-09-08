@@ -60,6 +60,7 @@ in
       # (a sub-aspect is not implied by its parent — both are listed)
       services.llm # llama.cpp vulkan+rocm on the RX 9070 (benchmarked on-box)
       services.syncthing # Obsidian vault <-> Android phone (docs/obsidian.md)
+      services.bbm.backup.pull # nightly rsync of eachtrach's bbm state (docs/bbm.md)
     ];
 
     nixos =
@@ -78,11 +79,18 @@ in
         facter.reportPath = inputs.self + "/hosts/abhaile/facter.json";
         nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
 
-        # Latest kernel (7.0.x) over the default LTS: newer amdgpu/KFD for the
-        # RDNA4 dGPU. Staged with `nixos-rebuild boot` 2026-07-03; re-bench the
-        # LLM backends after the reboot (TODO.md item 1) and revert this line
-        # alone if anything regresses.
-        boot.kernelPackages = pkgs.linuxPackages_latest;
+        # A recent kernel over the default LTS: newer amdgpu/KFD for the RDNA4
+        # dGPU. Staged with `nixos-rebuild boot` 2026-07-03; re-bench the LLM
+        # backends after the reboot (TODO.md item 1) and revert this line alone
+        # if anything regresses.
+        #
+        # Pinned to the 7.1 series (2026-09-08) rather than
+        # `linuxPackages_latest`, which has moved on to 7.2.x — staying on the
+        # series this box already boots. This must be a *packages set*
+        # (`linuxPackages_<maj>_<min>`, i.e. `linuxKernel.packages.linux_7_1`);
+        # `linuxKernel.kernels.linux_7_1` is the bare kernel derivation and
+        # fails to evaluate here.
+        boot.kernelPackages = pkgs.linuxPackages_7_1;
 
         users.users.root.openssh.authorizedKeys.keys = [ authorizedKey ];
 

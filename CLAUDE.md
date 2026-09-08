@@ -15,6 +15,7 @@ Guidance for Claude Code working in this repo.
 5. Do NOT ask for permissions to read any file and run any script/program that will read files too. You are allowed. You
    can write to any .md file as needed. Only ask for permission to execute Write commands outside the repo.
 6. Do NOT stage or commit files in git unless I give permission
+7. Comments should be concise with detailed packed. Sacrifice grammer for conciseness.
 
 ## Stack
 
@@ -194,7 +195,8 @@ Per-instance state lives in `~/.local/state/scoite/<name>/` (a `config` file plu
 overlay and a persistent `/home/iosta`).
 
 The 2026-08-24/25 rework (rename from `sandvm`, two types, bridge networking + `.local` names, LAN exposure, live config
-propagation, paseo) is tracked step by step with its verifications in [TASKS.md](TASKS.md); goals in [GOAL.md](GOAL.md).
+propagation) is tracked step by step with its verifications in [TASKS.md](TASKS.md); goals in [GOAL.md](GOAL.md). Parts
+of both files describe omp and paseo, which were dropped on 2026-09-08 — read them as history.
 
 Gotchas (easy to forget):
 
@@ -204,10 +206,10 @@ Gotchas (easy to forget):
   exactly this reason; the real name arrives as a boot credential.
 - `scoite` is home-manager-installed: edits to `pkgs/by-name/scoite/package.nix` need a `nixos-rebuild switch` before
   they reach `$PATH`.
-- **Two NICs.** `eth0` is SLIRP and keeps the default route: guests reach abhaile at `10.0.2.2` (llama-server :8080, omp
-  auth-broker :8765, harmonia :5000 — unsigned by design). `eth1` is a tap on the host bridge `scoitebr0` (10.77.0.0/24,
-  DHCP + `ip rule` beating tailscale's table 52) and exists so a guest has an inbound address and an mDNS name.
-  Restarting `scoite-bridge.service` must never delete the bridge — that detaches every running guest's tap.
+- **Two NICs.** `eth0` is SLIRP and keeps the default route: guests reach abhaile at `10.0.2.2` (llama-server :8080,
+  harmonia :5000 — unsigned by design). `eth1` is a tap on the host bridge `scoitebr0` (10.77.0.0/24, DHCP + `ip rule`
+  beating tailscale's table 52) and exists so a guest has an inbound address and an mDNS name. Restarting
+  `scoite-bridge.service` must never delete the bridge — that detaches every running guest's tap.
 - **`scoite-<name>.local` resolves from abhaile** (guest `systemd-resolved` publishes, host avahi + `nssmdns4` resolve).
   Nothing is reachable from the LAN unless you say so: `scoite expose --lan <port>` installs an iptables DNAT via the
   root helper `scoite-lan`, recorded per instance and re-applied on start. With a tailscale exit node selected, LAN
@@ -226,23 +228,32 @@ Gotchas (easy to forget):
   not a CA/TLS problem, and `SSL_CERT_FILE` does nothing). A tmpfiles `C` rule now seeds that file; see
   docs/microvm-sandbox.md.
 - Running sandboxes don't pick up _system_ config changes — stop and start them. **Host identity is the exception**:
-  `scoite creds [<name>|--all]` re-pushes agent.env, ssh config, gitconfig and omp config into a _running_ guest, and
-  runs on every `scoite ssh` plus a 10-min host timer. New guest shells only.
+  `scoite creds [<name>|--all]` re-pushes agent.env, ssh config and gitconfig into a _running_ guest, and runs on every
+  `scoite ssh` plus a 10-min host timer. New guest shells only.
+- **A guest must never be interrupted while Nix substitutes into its store overlay.** Nix deletes a path before
+  re-extracting it, and through an overlay that leaves an opaque upper directory hiding the host's intact copy — so a
+  half-finished substitution replaces working binaries with truncated ones (no coreutils, `ETXTBSY` on exec, a
+  `nix-store` that SIGBUSes on its own libraries). Recovery is discarding `nix-store-overlay.img`, not repair from
+  inside. Two guards, both required, both in `microvm-guest.nix`: `register-nix-paths` seeds the guest Nix db from the
+  cmdline `regInfo=` at boot so activation has nothing to substitute (nixpkgs ships this only in `qemu-vm.nix`, which
+  microvm.nix does not import), and `TimeoutStartSec` is forced to `infinity` on `home-manager-iosta` because
+  home-manager hardcodes 5m and its SIGTERM is what triggered this on 2026-09-08. Details: docs/microvm-sandbox.md.
 - Guest-side installers called from systemd units need **absolute store paths** — a unit's PATH has no
   `/run/current-system/sw/bin`, and the failure is a swallowed "command not found" at boot while the push path works.
-- omp in a guest never holds an Anthropic token — it asks the host broker per request, and the broker refreshes. Two
-  things still break it: a rotated **bearer** token (fix: `scoite creds`), and a definitive `invalid_grant` refresh
-  failure, after which the broker **disables** the credential (fix: `omp auth-broker login anthropic` on the host). The
-  `omp-broker-check` timer now notifies on both, plus duplicate credential rows. A broker restart after a login is NOT
-  needed on omp ≥17.4.2.
-- Model ids/context sizes are generated for both llama-server and every guest's omp `models.yml` from
-  `modules/den/aspects/services/_llm-models.nix` — edit that, not the two consumers.
+- **omp and paseo were dropped on 2026-09-08** (df moved to `pi` + `herdr`). Gone with them: the
+  `dev.tools.omp-auth-broker` aspect and its shared-Anthropic-credential broker on `:8765`, `dev.tools.paseo` and its
+  `:6767` daemon in every `dev` guest, the sandbox `omp` wrapper, the host→guest omp-config 9p share, and the generated
+  guest `models.yml`. A guest agent's own credentials now come from `~/.config/scoite/agent.env` (cloud keys), the
+  CLAUDE_CREDS credential (claude-code), or a `scoite bind ~/.pi` for pi's config — nothing brokers them any more.
+- Model ids/context sizes for llama-server are generated from `modules/den/aspects/services/_llm-models.nix` — edit
+  that, not `services/llm.nix`. `guestBaseUrl` there (`http://10.0.2.2:8080/v1`) is what to point a guest-side agent at
+  by hand; nothing generates guest agent config from it any more.
 - `llmfit` (model-vs-hardware sizing TUI) is installed by the same aspect and **pinned ahead of nixpkgs** by the overlay
   in `services/_llmfit.nix` (nixpkgs lags). Bumping it means version + src hash + `cargoDeps` hash — NOT `cargoHash`,
   which `buildRustPackage` reads off `args` so `overrideAttrs` can't reach it. Recipe: docs/llm.md.
-- Host omp config reaches a guest on a **9p share** (`/run/scoite-omp`, staged at
-  `~/.local/state/scoite/<name>/omp-conf.d/`), not as an fw_cfg credential — systemd caps credentials at 1 MiB and
-  silently drops anything larger. `models.yml` is generated from `_llm-models.nix` and rewritten every boot.
+- **systemd caps an fw_cfg credential at 1 MiB and drops a larger one silently** — the reason the (now removed) omp
+  config travelled on a 9p share instead. Any future host→guest config tree bigger than a few hundred KB needs the same
+  treatment; `scoite bind` is the ready-made answer.
 - A guest login **waits** for `scoite-workspace-init` (the boot-time devenv/flake pre-build) instead of racing it — two
   concurrent devenv evaluations of the same `/workspace` fail. Also: `setcap` on a workspace file cannot work
   (unprivileged virtiofsd, no `security.capability` xattr).
@@ -254,10 +265,41 @@ Gotchas (easy to forget):
   socket) pointed at an empty read-only placeholder. Slot count lives in **two** places that must agree: `bindSlots`
   (microvm-guest.nix) and `BIND_SLOTS` (pkgs/by-name/scoite/package.nix). It is the one deliberate hole in "workspace is
   the only writable host channel" — credential paths are refused without `--force`.
-- herdr is installed **nowhere** since 2026-08-26 (aspect kept, included by nothing): an interactive `ssh scoite-<name>`
-  lands in a plain fish shell in `/workspace`.
-- A guest's `omp` is a wrapper that adds `--config ~/.omp/agent/config.sandbox.yml` when that file is present (it rides
-  in with the rest of df's omp config); `hiPrio` is what makes it win over the real `omp` in the same HM profile.
+- herdr is back in both `roles.dev` (abhaile) and the `dev` sandbox tier, with `dev.tools.herdr.autostart`: an
+  interactive `ssh scoite-<name>` `exec`s straight into herdr, so detaching ends the ssh session. A non-herdr shell (the
+  serial console, a VS Code terminal) still lands in a plain fish in `/workspace`.
+
+## bbm — personal finance app on eachtrach
+
+**Full reference: [docs/bbm.md](docs/bbm.md)** — BBM (Go API + React SPA) from `~/dev/bbm`, tailnet-only at
+`http://eachtrach.tail8f3a60.ts.net`, behind caddy (`/bbm.*` → the API, everything else the SPA). Deploy with
+`bbm-deploy` (wraps deploy-rs; overrides the `bbm` flake input from a local checkout, so flake.lock is not rewritten per
+deploy). Own user/group `bbm`; a separate read-only `bbm-backup` account exists purely for abhaile's nightly pull into
+`/var/lib/bbm-backup`.
+
+Gotchas (easy to forget):
+
+- The `bbm` flake input is **`git+file:///home/df/dev/bbm`** — an absolute local path, by choice (deploy local commits,
+  no push). So this flake does not evaluate on a machine without that path: `nix flake check`, `nix fmt` and
+  `nixos-rebuild` all fail there, not just bbm. One-line switch to the GitHub URL.
+- **Never change that input to `path:`** — `path:` copies the worktree verbatim, which would put bbm's plaintext `.env`,
+  its `data/` bank files and every `node_modules` into the world-readable nix store. `git+file:` exports the git tree
+  (honours .gitignore, committed HEAD only).
+- A **relative** path input is impossible: nix resolves `path:../…` against the flake's _store_ copy.
+- `bbm-deploy` deploys **committed HEAD**, not your worktree (`--dirty` overrides). flake.lock can therefore lag what is
+  running; `nix flake update bbm` makes them agree.
+- Secrets are one sops **template** (`/run/secrets/rendered/bbm.env`, read via `ENV_FILE`), not `EnvironmentFile=` —
+  values stay out of `systemctl show` and `/proc/<pid>/environ`. Add/rotate with `sops secrets/eachtrach.yaml` +
+  `bbm-deploy`; no nix change.
+- Stored statement files are **0750/0640** so `bbm-backup` can read them; the backup pull uses `-rlptD` (not `-a`) so
+  the copy lands root-owned on abhaile.
+- **One Telegram token = one poller.** The `scoite-bbm` sandbox runs a dev server on the same token from
+  `~/dev/bbm/.env` → `409 Conflict` on both. Give production its own bot.
+- Runs on plain **HTTP** over the tailnet (firewall, not binding, is the enforcement — `allowedTCPPorts = [ 22 ]` plus
+  tailscale's trusted interface). Moving to a real ts.net cert = `useTLS` in `services/bbm.nix` +
+  `services.web.caddy.tailscale-tls`, and the tailnet HTTPS toggle must be on.
+- Testing public reachability **from abhaile is inconclusive** — abhaile uses eachtrach as its exit node, so a curl to
+  its public IP goes down the tunnel and is accepted.
 
 ## Local LLM inference (abhaile)
 

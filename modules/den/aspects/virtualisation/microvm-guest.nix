@@ -84,8 +84,8 @@ let
   # the whole point by copying the file into the store at eval time.) The CLI
   # only sets each var when the corresponding host file exists.
   credentialEnv = {
-    # ~/.config/scoite/agent.env + the omp auth-broker token: KEY=value lines
-    # exported into every guest shell.
+    # ~/.config/scoite/agent.env: KEY=value lines (cloud LLM keys and the
+    # like) exported into every guest shell.
     AGENT_ENV = builtins.getEnv "MICROVM_AGENT_ENV";
     # df's ~/.config/git/gitconfig.local (a sops secret on the host):
     # user.name/user.email, no key material.
@@ -109,19 +109,6 @@ let
     # Absent when the instance has no binds (see bindSlots above).
     BINDS = builtins.getEnv "MICROVM_BINDS_FILE";
   };
-
-  # The *configuration* half of df's ~/.omp/agent, staged per instance by the
-  # CLI (config*.yml and the agents/skills/rules/prompt trees — never the
-  # sqlite stores, sessions, logs or the broker token).
-  #
-  # A 9p share, NOT a fw_cfg credential like the others (changed 2026-08-26):
-  # systemd refuses to import a credential larger than 1 MiB, and df's
-  # skills-vendor tree alone took the tar to 1.3 MiB — at which point the
-  # credential vanished *silently*, the installer found nothing, and every new
-  # sandbox came up with an empty ~/.omp. A share has no such ceiling, and it
-  # is live: re-staging on the host is visible in the guest immediately, so
-  # `scoite creds` only has to re-run the copy.
-  ompConfDir = builtins.getEnv "MICROVM_OMP_CONF_DIR";
 
   # `scoite bind`: extra host folders, passed through as virtiofs exactly the
   # way /workspace is (real host uid/gid, so a host dir owned by df is
@@ -154,44 +141,8 @@ let
 in
 {
   den.aspects.virtualization.microvm-guest.nixos =
-    { pkgs, ... }:
+    { config, pkgs, ... }:
     let
-      omp = inputs.nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.omp;
-
-      # abhaile's llama-server (services.llm, 127.0.0.1:8080) is reachable from
-      # a guest at qemu's SLIRP gateway, so pre-declare it as omp's `local`
-      # provider. Model ids and context windows are GENERATED from
-      # ../services/_llm-models.nix — the same file llama-server's router
-      # presets come from — because the two used to be kept in step by hand and
-      # a mismatch is invisible until a request hangs.
-      #
-      # The list is built as its own string and interpolated whole, rather than
-      # `${...}` inside the indented block: Nix strips the *common* indentation
-      # of a `''` string, and an interpolation sitting at a shallower indent
-      # than its surroundings drags every generated line to column 0. That is
-      # exactly what happened between 2026-08-25 and 2026-08-26 — the file's
-      # list items lost their indentation and omp refused it with a yaml parse
-      # error. Any change here: re-read the built file, do not eyeball the Nix.
-      ompModels =
-        let
-          llm = import ../services/_llm-models.nix;
-          usable = lib.filter (m: m.omp) llm.models;
-          entries = lib.concatMapStringsSep "\n" (m: ''
-            ${"      "}- id: ${m.id}
-            ${"        "}name: ${m.name}
-            ${"        "}contextWindow: ${toString m.ctx}
-            ${"        "}maxTokens: ${toString m.maxTokens}'') usable;
-        in
-        pkgs.writeText "omp-models.yml" ''
-          providers:
-            local:
-              baseUrl: ${llm.guestBaseUrl}
-              auth: none
-              api: openai-completions
-              models:
-          ${entries}
-        '';
-
       # Host-identity installers. Each is used twice — from the boot unit that
       # reads the fw_cfg credential, and from `scoite creds`, which re-pushes
       # the same file into an already-running guest (TASKS.md S13/S14) — so
@@ -232,52 +183,6 @@ in
           chmod 0755 /home/iosta/.ssh/config.d
           chmod 0644 /home/iosta/.ssh/config.d/* || true
           chmod 0644 /home/iosta/.ssh/*.pub || true
-        '';
-      };
-
-      installOmpConf = pkgs.writeShellApplication {
-        name = "scoite-install-omp-conf";
-        runtimeInputs = [
-          pkgs.coreutils
-          pkgs.findutils
-        ];
-        text = ''
-          src=''${1:-/run/scoite-omp}
-
-          install -d -m 0755 -o iosta -g users /home/iosta/.omp
-          install -d -m 0755 -o iosta -g users /home/iosta/.omp/agent
-
-          # `local` provider, generated from
-          # modules/den/aspects/services/_llm-models.nix — the same file
-          # llama-server's router presets come from. Written on **every** run,
-          # not seeded once: it is derived config, a stale or truncated copy
-          # makes omp fail with a yaml parse error, and the previous
-          # copy-if-absent tmpfiles rule meant a guest kept whatever it first
-          # got, bad file included.
-          install -m 0644 -o iosta -g users ${ompModels} \
-            /home/iosta/.omp/agent/models.yml
-
-          if [ -d "$src" ]; then
-            # -T so the *contents* land in agent/, not a nested directory;
-            # --no-preserve=mode because the source is a 9p share of a
-            # host-staged tree.
-            cp -a --no-preserve=mode -T "$src" /home/iosta/.omp/agent
-            chown -R iosta:users /home/iosta/.omp
-            echo "scoite: installed omp config ($(find "$src" -type f | wc -l) files from $src)"
-          else
-            echo "scoite: no omp config staged at $src - guest keeps models.yml only" >&2
-          fi
-
-          # Straight to the prompt, no onboarding (df, 2026-08-26). omp runs
-          # its wizard when `startup.setupWizard` is true, and separately when
-          # the stored setupVersion is behind CURRENT_SETUP_VERSION (2 in
-          # omp 17.4.2) — set both, in the guest's copy only, using omp's own
-          # writer so the yaml stays valid. The *real* omp, not the sandbox
-          # wrapper: `--config` overlays must not be what gets written.
-          runuser -u iosta -- env HOME=/home/iosta \
-            ${omp}/bin/omp config set startup.setupWizard false >/dev/null 2>&1 || true
-          runuser -u iosta -- env HOME=/home/iosta \
-            ${omp}/bin/omp config set setupVersion 2 >/dev/null 2>&1 || true
         '';
       };
 
@@ -394,7 +299,7 @@ in
         #   eth0  qemu SLIRP. Keeps the *default route* and with it every
         #         outbound path a sandbox has ever had, including abhaile's
         #         loopback services at the SLIRP gateway 10.0.2.2
-        #         (llama-server :8080, omp auth-broker :8765, harmonia :5000).
+        #         (llama-server :8080, harmonia :5000).
         #         Its inbound side is still only what the CLI forwards.
         #   eth1  a tap on the host bridge `scoitebr0`
         #         (virtualisation/microvm-host.nix), attached by qemu's setuid
@@ -466,11 +371,6 @@ in
             mountPoint = "/etc/scoite-hostkey";
           }
         ]
-        ++ lib.optional (ompConfDir != "") {
-          tag = "ompconf";
-          source = ompConfDir;
-          mountPoint = "/run/scoite-omp";
-        }
         ++ map (i: {
           tag = "bind${toString i}";
           proto = "virtiofs";
@@ -529,6 +429,66 @@ in
         connect-timeout = lib.mkForce 3;
         fallback = true;
       };
+
+      # Register the host's store paths in the *guest's* Nix database at boot.
+      #
+      # Mounting the host store read-only (above) makes every path abhaile has
+      # readable in the guest, but tells the guest's Nix nothing: none of those
+      # ~2700 paths are `valid` in its own SQLite db. So the first thing that
+      # asks Nix to realise the system closure — home-manager activation, every
+      # boot after this flake's nixpkgs moves — re-substitutes the whole
+      # profile it could already read, from harmonia, for no gain.
+      #
+      # That is not merely slow, it is *destructive*: to substitute a path Nix
+      # deletes the existing one and re-extracts it, and deleting a lower-layer
+      # path through an overlay leaves an opaque upper directory that hides the
+      # intact original. Interrupt that mid-write — home-manager's own
+      # TimeoutStartSec=5m SIGTERMing activation is enough — and the running
+      # system's binaries are replaced by truncated copies that shadow the good
+      # ones. Observed 2026-09-08 on scoite-bbm: no coreutils, ETXTBSY on
+      # exec, `systemctl` unable to find libsystemd-shared, and a `nix-store`
+      # too damaged to repair itself (SIGBUS, demand-paging past EOF of its own
+      # truncated libraries).
+      #
+      # qemu's cmdline already carries `regInfo=` (microvm.nix sets it, and the
+      # closure-info it points at does include the home-manager generation) —
+      # what was missing is the consumer. This is NixOS's own
+      # `register-nix-paths` from nixos/modules/virtualisation/qemu-vm.nix,
+      # which microvm.nix does not import. It must run before anything touches
+      # Nix, hence DefaultDependencies=false and ordering ahead of
+      # sysinit.target; `nix-store --load-db` writes the db directly, so it
+      # does not need (and must not wait for) nix-daemon.
+      systemd.services.register-nix-paths = {
+        unitConfig.DefaultDependencies = false;
+        wantedBy = [ "sysinit.target" ];
+        before = [
+          "sysinit.target"
+          "shutdown.target"
+          "nix-daemon.socket"
+          "nix-daemon.service"
+        ];
+        after = [ "local-fs.target" ];
+        conflicts = [ "shutdown.target" ];
+        restartIfChanged = false;
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+        };
+        # No regInfo= (a boot that isn't microvm's) is a no-op, not a failure.
+        script = ''
+          if [[ "$(cat /proc/cmdline)" =~ regInfo=([^ ]*) ]]; then
+            ${lib.getExe' config.nix.package.out "nix-store"} --load-db < "''${BASH_REMATCH[1]}"
+          fi
+        '';
+      };
+
+      # Belt and braces on top of register-nix-paths. home-manager's NixOS
+      # module hardcodes TimeoutStartSec=5m (hm/nixos/default.nix), and a
+      # SIGTERM part-way through activation does not merely fail the unit — it
+      # corrupts the store overlay, as above. Anything the guest still has to
+      # fetch for itself (a tier's closure on a genuinely cold first boot) is
+      # allowed to take as long as it takes rather than wreck the sandbox.
+      systemd.services.home-manager-iosta.serviceConfig.TimeoutStartSec = lib.mkForce "infinity";
 
       # `core.network.openssh` (via roles.default) already enables sshd with
       # publickey-only auth, no root password login, agent forwarding on.
@@ -728,25 +688,6 @@ in
       # Without it, commits in the guest fail with "Author identity unknown".
       # Name/email only — the includeIf org targets it references stay absent
       # and git silently skips missing includes.
-      systemd.services.scoite-omp-conf = {
-        wantedBy = [ "multi-user.target" ];
-        # The config arrives on a 9p share now, not as a credential, so this
-        # waits for the mount rather than importing anything.
-        after = [
-          "scoite-home-perms.service"
-          "run-scoite\\x2domp.mount"
-        ];
-        unitConfig.RequiresMountsFor = "/run/scoite-omp";
-        serviceConfig = {
-          Type = "oneshot";
-          RemainAfterExit = true;
-        };
-        path = [ pkgs.util-linux ]; # runuser
-        script = ''
-          ${lib.getExe installOmpConf} /run/scoite-omp
-        '';
-      };
-
       systemd.services.scoite-gitconfig = {
         wantedBy = [ "multi-user.target" ];
         after = [ "scoite-home-perms.service" ];
@@ -772,7 +713,6 @@ in
       # Also on PATH: `scoite creds` runs them through a login shell.
       environment.systemPackages = [
         installSshConf
-        installOmpConf
         installGitconfig
       ];
 
@@ -959,10 +899,7 @@ in
         Host *
       '';
 
-      # The omp config directory itself; its *contents* (models.yml and
-      # whatever the host staged) are installed by scoite-omp-conf.service.
-      #
-      # Plus iosta's own known_hosts (2026-08-28). The pin above only reaches
+      # iosta's own known_hosts (2026-08-28). The pin above only reaches
       # /etc/ssh/ssh_known_hosts, which the ssh *CLI* reads — libgit2 doesn't:
       # it checks ~/.ssh/known_hosts and nothing else. That matters because
       # df's gitconfig (pushed in by `scoite creds`) carries
@@ -976,8 +913,6 @@ in
       # `C` copies only when the destination is absent, so a host iosta
       # accepts later still gets appended and survives the next boot.
       systemd.tmpfiles.rules = [
-        "d /home/iosta/.omp 0755 iosta users - -"
-        "d /home/iosta/.omp/agent 0755 iosta users - -"
         "d /home/iosta/.ssh 0700 iosta users - -"
         "C /home/iosta/.ssh/known_hosts 0600 iosta users - ${pkgs.writeText "scoite-known-hosts" "github.com ${githubHostKey}\n"}"
       ];

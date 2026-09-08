@@ -4,15 +4,15 @@
 
 `scoite` boots throwaway NixOS microVMs (microvm.nix, qemu) for coding agents to work in. A sandbox's _only_ writable
 channel back to the host filesystem is one folder, mounted at `/workspace`. It exists so an agent harness (claude-code,
-or oh-my-pi packaged as `omp`) can run against a real project with a real toolchain without being able to write — or
-even see — anything outside that one folder, even if the agent or the LLM behind it goes rogue.
+`pi`, whatever comes next) can run against a real project with a real toolchain without being able to write — or even
+see — anything outside that one folder, even if the agent or the LLM behind it goes rogue.
 
 Sandboxes come in two **types**, so the closure you pay for matches the work:
 
-| `--type`  | what it is                                                                                                                            | closure |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| `minimal` | shell, git, agent harness, internet. No dev toolchain at all.                                                                         | ~3.7 G  |
-| `dev`     | + python, node, headless chromium, compilers/nix-ld, the full TUI shell + git stack, devenv/direnv and the paseo daemon. The default. | ~10.7 G |
+| `--type`  | what it is                                                                                                                 | closure |
+| --------- | -------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `minimal` | shell, git, agent harness, internet. No dev toolchain at all.                                                              | ~3.7 G  |
+| `dev`     | + python, node, headless chromium, compilers/nix-ld, the full TUI shell + git stack, devenv/direnv and herdr. The default. | ~10.7 G |
 
 Each type is one Den host (`modules/den/hosts/scoite.nix`) built from one role tier (`modules/den/roles/sandbox.nix`);
 `dev` includes `minimal`. (Until 2026-08-24 there were four tiers — `minimal`/`generic`/`devenv`/`workstation`; the
@@ -136,6 +136,9 @@ The per-launch env-var contract (read with `builtins.getEnv` in `virtualization.
 The guest's `/` stays ephemeral tmpfs, discarded on stop. `scoite rm` deletes the whole directory — which also drops the
 GC root, so the guest closure becomes collectable again.
 
+Instances that predate 2026-09-08 also hold an `omp-conf.d/` staged by the removed omp-config share, and a `~/.omp` in
+their `home.img`. Both are inert — delete them by hand if you want the space back.
+
 Files:
 
 - `modules/den/aspects/virtualisation/microvm-host.nix` — host-side: the persistent SSH host key at
@@ -159,9 +162,9 @@ Files:
   tiers (see "`xdg-open` for a machine with nothing to open with").
 - `modules/den/aspects/dev/vscode.nix` — not scoite-specific but load-bearing: Remote-SSH extension +
   `remote.SSH.configFile` pointing at `~/.ssh/config`.
-- `modules/den/aspects/dev/tools/herdr.nix` — herdr (herdr.dev, from `nix-ai-tools`). **Included by nothing since
-  2026-08-26** (df's call): interactive `ssh scoite-<name>` now drops straight into fish in `/workspace`. The aspect is
-  kept so re-enabling it is one `includes` line.
+- `modules/den/aspects/dev/tools/herdr.nix` — herdr (herdr.dev, from `nix-ai-tools`), the terminal multiplexer for agent
+  sessions. In `roles.dev` on abhaile and in the `dev` tier (with `dev.tools.herdr.autostart`, which `exec`s an
+  interactive `ssh scoite-<name>` straight into it). Dropped 2026-08-26, back 2026-09-08 when df moved to pi + herdr.
 
 Named `scoite`, not `devbox`: nixpkgs already has an unrelated package literally called `devbox` (Jetify's tool). Using
 that name for `pkgs.devbox` in home-manager would have silently resolved to the wrong package — there's no overlay
@@ -170,7 +173,7 @@ must be referenced via `inputs.self.packages.${system}.<name>`, not `pkgs.<name>
 
 ## Sharing with the host: not rebuilding what abhaile already has
 
-Three separate mechanisms, because "don't rebuild" has three separate failure modes:
+Four separate mechanisms, because "don't rebuild" has four separate failure modes:
 
 1. **The host's `/nix/store` is mounted read-only** at `/nix/.ro-store` and overlaid, so every store path abhaile has is
    already _present_ in the guest at zero copy cost. This is the standard microvm.nix pattern and predates the rework.
@@ -189,6 +192,35 @@ Three separate mechanisms, because "don't rebuild" has three separate failure mo
    the runner script — and `scoite` skips even that when nothing moved, keying `runner.key` on the flake's contents
    (HEAD + unstaged diff + untracked files) and every value that reaches the qemu command line. Measured on a warm
    store: **~11 s when something changed, ~2.6 s when nothing did.** `--fresh` forces a rebuild.
+4. **The guest's Nix database is seeded from `regInfo` at boot** (`systemd.services.register-nix-paths` in
+   `microvm-guest.nix`). Mechanism 1 makes the host's paths _readable_, but leaves them **invalid** in the guest's own
+   SQLite db — so the first thing that asks Nix to realise the system closure re-substitutes ~2700 paths it can already
+   read. See "Why a half-finished substitution breaks the guest" below for why that is destructive rather than merely
+   slow. qemu's cmdline already carried `regInfo=` (microvm.nix sets it, and its closure-info does include the
+   home-manager generation); the consumer was missing, because it lives in nixpkgs'
+   `nixos/modules/virtualisation/qemu-vm.nix`, which microvm.nix does not import. Added 2026-09-08.
+
+### Why a half-finished substitution breaks the guest
+
+Worth understanding before touching any of the above, because the failure does not look like a Nix problem.
+
+To substitute a path, Nix **deletes** the existing one and re-extracts it. Deleting a lower-layer path through an
+overlay leaves an _opaque_ upper directory that hides the intact original completely — so while the copy is in flight,
+the merged `/nix/store` shows a partial path instead of the host's good one. Interrupt it and that state is permanent.
+
+The interrupt that actually happened (2026-09-08, scoite-bbm, after a `nix flake update` moved the whole closure): the
+home-manager NixOS module hardcodes `TimeoutStartSec=5m`, activation needed longer than that to re-substitute the
+profile, and systemd SIGTERMed it at exactly 5m00s. The result was 212 truncated store paths shadowing working ones — no
+`coreutils` on `PATH` (fish erroring on `dirname`/`mkdir`/`uname`), `ETXTBSY` on `exec` of anything mid-write,
+`systemctl` unable to load `libsystemd-shared-261.so`, and a `nix-store` too damaged to repair anything (SIGBUS, from
+demand-paging past EOF of its own truncated libraries). A guest in that state cannot fix itself; the store overlay has
+to be discarded (`scoite stop`, delete `nix-store-overlay.img`, `scoite start` — the runner re-creates and `mkfs.ext4`s
+a missing volume) or the instance recreated.
+
+Both halves are now closed: mechanism 4 means activation has nothing to substitute in the first place, and
+`TimeoutStartSec` is forced to `infinity` for `home-manager-iosta` so that whatever a genuinely cold boot does still
+have to fetch cannot be killed part-way. Keep both — the timeout override alone would have turned this into a slow boot,
+and mechanism 4 alone still leaves any other long-running activation able to reproduce it.
 
 ## Disks: sparse ceilings that grow
 
@@ -250,11 +282,11 @@ mount options still read `rw` while writes fail with `EROFS`.
 
 **This is the one deliberate hole in the boundary above.** Whatever is bound is writable by an agent inside the guest,
 with none of the containment `/workspace` gets from being the only channel. The CLI refuses host paths that hold host
-credentials or system state (`~/.ssh`, `~/.gnupg`, `~/.omp`, `~/.claude`, `~/.config/sops`, `~/.config/scoite`, the
-scoite state root, `$HOME` itself, `/`, `/nix`, `/etc`, `/run`, …) unless `--force` says otherwise, and refuses guest
-destinations owned by the guest system (`/nix`, `/etc`, `/run`, `/workspace`, `/mnt/host`, `/home/iosta` itself) with no
-override. It also refuses a host path that contains or sits inside this sandbox's own workspace: two virtiofsd over one
-tree both cache metadata (`cache=auto`) and would serve each other stale results.
+credentials or system state (`~/.ssh`, `~/.gnupg`, `~/.claude`, `~/.config/sops`, `~/.config/scoite`, the scoite state
+root, `$HOME` itself, `/`, `/nix`, `/etc`, `/run`, …) unless `--force` says otherwise, and refuses guest destinations
+owned by the guest system (`/nix`, `/etc`, `/run`, `/workspace`, `/mnt/host`, `/home/iosta` itself) with no override. It
+also refuses a host path that contains or sits inside this sandbox's own workspace: two virtiofsd over one tree both
+cache metadata (`cache=auto`) and would serve each other stale results.
 
 **How it keeps one closure per tier.** A share's `mountPoint` lands in `system.build.toplevel`; its `source` does not
 (`nixos-modules/microvm/mounts.nix` renders only tag/proto/mountPoint into `fileSystems`). So the guest declares a
@@ -465,12 +497,11 @@ edited as if local, integrated terminals landing in the guest as iosta. Four pie
     to the declared state (the accumulated exact entries are redundant with the wildcard anyway). Side benefit: ad-hoc
     UI settings tweaks stop erroring too — they now last until the next switch.
 
-Terminals inside a VS Code remote window are plain fish, as is every other guest shell (there is no multiplexer since
-2026-08-26; historically the herdr autostart was gated on `SSH_TTY`, which VS Code's exec-channel sessions don't set —
-deliberate, same as the qemu console). They get `/run/agent.env` exports like any other fish session, and the forwarded
-ssh-agent via the stable `~/.ssh/agent.sock` symlink whenever some agent-forwarding ssh session is (or has been)
-connected — VS Code's own connection uses `~/.ssh/config` now, so it forwards the agent itself per the `Host scoite-*`
-block.
+Terminals inside a VS Code remote window are plain fish, not herdr: the autostart is gated on `SSH_TTY`, which VS Code's
+exec-channel sessions don't set — deliberate, same as the qemu console. They get `/run/agent.env` exports like any other
+fish session, and the forwarded ssh-agent via the stable `~/.ssh/agent.sock` symlink whenever some agent-forwarding ssh
+session is (or has been) connected — VS Code's own connection uses `~/.ssh/config` now, so it forwards the agent itself
+per the `Host scoite-*` block.
 
 Rollout gotchas: the host side (extension + setting) needs a `nixos-rebuild switch`; the guest side is rebuilt fresh on
 every `scoite` launch, so an **already-running** sandbox must be stopped and relaunched to pick it up. First connect per
@@ -494,11 +525,10 @@ A guest has **two** NICs, and the split is the whole design (2026-08-25):
 | `eth0` | qemu SLIRP (`type = "user"`)                      | the **default route** — all egress, plus abhaile's loopback services at the gateway `10.0.2.2` |
 | `eth1` | a tap on the host bridge `scoitebr0` (10.77.0/24) | a real address the host can reach **inbound**, and the guest's mDNS `<name>.local` identity    |
 
-SLIRP was there first and keeps everything that ever worked working: llama-server on `10.0.2.2:8080`, the omp
-auth-broker on `:8765`, harmonia on `:5000`, and the internet. The bridge NIC takes an address from a dnsmasq of its own
-and **nothing else** — `UseRoutes/UseDNS/UseNTP/UseHostname = false` — so it cannot race SLIRP for egress. It exists
-because a forwarded port is not an identity: mDNS names (below) and LAN exposure both need the guest to be a real host
-on a real network.
+SLIRP was there first and keeps everything that ever worked working: llama-server on `10.0.2.2:8080`, harmonia on
+`:5000`, and the internet. The bridge NIC takes an address from a dnsmasq of its own and **nothing else** —
+`UseRoutes/UseDNS/UseNTP/UseHostname = false` — so it cannot race SLIRP for egress. It exists because a forwarded port
+is not an identity: mDNS names (below) and LAN exposure both need the guest to be a real host on a real network.
 
 Host side (`virtualisation/microvm-host.nix`): `scoite-bridge.service` creates the bridge with plain iproute2 (abhaile's
 networking is NetworkManager's, and this bridge wants to be invisible to it), `dnsmasq-scoite.service` serves DHCP only
@@ -525,8 +555,8 @@ entry sets `host.address` to it, which buys three things at once:
 - **Guest ports map 1:1.** A dev server on `:5173` in the guest is `http://127.<a>.<b>.1:5173` on the host — no
   renumbering to remember. SSH is therefore a fixed `2222` on every instance rather than a hashed per-instance port.
 - **No collisions.** A guest's `:8080` is `127.<a>.<b>.1:8080`, which does not touch abhaile's llama-server on
-  `127.0.0.1:8080` (nor harmonia `:5000`, nor the omp broker `:8765`). `free_addr` deliberately avoids `127.0.x.y` for
-  exactly this reason, and two sandboxes never share an address (it checks the other instances' configs and bumps).
+  `127.0.0.1:8080` (nor harmonia `:5000`). `free_addr` deliberately avoids `127.0.x.y` for exactly this reason, and two
+  sandboxes never share an address (it checks the other instances' configs and bumps).
 - **It is actually host-only.** `microvm.forwardPorts` defaults `host.address` to `""`, which qemu renders as _bind all
   interfaces_ — before 2026-08-22 every sandbox's forwarded ports, ssh included, were offered to the LAN, contradicting
   the design intent stated above. Loopback is not routable off-box.
@@ -599,7 +629,6 @@ sandbox, to the rest of the network, and `scoite unexpose --lan <port>` closes i
 - Exposures are recorded per instance (`LAN_PORTS` in its config), shown in `scoite list`'s `LAN` column, removed on
   `stop`/`rm` and re-applied automatically after the guest boots on `start`. A LAN port already claimed by another
   sandbox is refused — pick another with `--lan-port`.
-- Exposing `:6767` warns: the paseo daemon ships with no password (`authRequired: false`).
 
 **If a LAN client cannot reach abhaile at all**, check tailscale before anything else: with an exit node selected and
 `ExitNodeAllowLANAccess: false`, _every_ reply to a LAN address goes down the tunnel and inbound connections stall.
@@ -616,29 +645,26 @@ configures with `free-page-reporting=on` (`microvm.balloon = true` in `microvm-g
 
 ## Host identity in the guest, kept current
 
-Four host files reach a guest as qemu `fw_cfg` systemd credentials — read at VM start, never copied into the
-world-readable `/nix/store` — and **all four are also re-pushed into a _running_ guest** by `scoite creds` (which
+Three host files reach a guest as qemu `fw_cfg` systemd credentials — read at VM start, never copied into the
+world-readable `/nix/store` — and **all three are also re-pushed into a _running_ guest** by `scoite creds` (which
 `scoite ssh` runs on every attach, plus a 10-minute host timer):
 
-| credential        | from                                                            | installed by                  | what it gives the guest                       |
-| ----------------- | --------------------------------------------------------------- | ----------------------------- | --------------------------------------------- |
-| `AGENT_ENV`       | `~/.config/scoite/agent.env` + the broker token                 | fish exports `/run/agent.env` | cloud LLM access via the host's auth-broker   |
-| `SSH_CONF`        | `~/.ssh/sshconfig.local` + the **public** keys it names         | `scoite-install-ssh-conf`     | per-account git remotes (`<acct>.github.com`) |
-| `GITCONFIG_LOCAL` | `~/.config/git/gitconfig.local`                                 | `scoite-install-gitconfig`    | git identity                                  |
-| _9p share_        | `~/.omp/agent/{config*.yml,*.md,agents,skills,skills-vendor,…}` | `scoite-install-omp-conf`     | df's omp settings, agents, skills and rules   |
+| credential        | from                                                    | installed by                  | what it gives the guest                       |
+| ----------------- | ------------------------------------------------------- | ----------------------------- | --------------------------------------------- |
+| `AGENT_ENV`       | `~/.config/scoite/agent.env`                            | fish exports `/run/agent.env` | cloud LLM API keys                            |
+| `SSH_CONF`        | `~/.ssh/sshconfig.local` + the **public** keys it names | `scoite-install-ssh-conf`     | per-account git remotes (`<acct>.github.com`) |
+| `GITCONFIG_LOCAL` | `~/.config/git/gitconfig.local`                         | `scoite-install-gitconfig`    | git identity                                  |
 
-The omp config is the odd one out: it rides a **9p share**, not a credential. systemd refuses any credential larger than
-**1 MiB**, and df's `skills-vendor` tree took the tar to 1.3 MiB — at which point qemu still passed it, systemd dropped
-it, and every new sandbox came up with an empty `~/.omp` and no error anywhere (2026-08-26). The CLI now stages the tree
-into `~/.local/state/scoite/<name>/omp-conf.d/`, the guest mounts it read-only at `/run/scoite-omp` and copies it into
-`~/.omp/agent`. No ceiling, and the share is live, so `scoite creds` only re-runs the copy.
+A fourth channel existed until 2026-09-08: df's `~/.omp/agent` config tree, staged into
+`~/.local/state/scoite/<name>/omp-conf.d/` and 9p-mounted at `/run/scoite-omp`. It went with omp itself. **The reason it
+was a share and not a credential is still worth keeping**: systemd refuses any credential larger than **1 MiB**, and the
+`skills-vendor` tree took the tar to 1.3 MiB — at which point qemu still passed it, systemd dropped it, and every new
+sandbox came up with an empty config and no error anywhere (2026-08-26). Anything host→guest of that size wants a share
+or a `scoite bind`, not a credential. If pi's config ever needs to ride in, `scoite bind ~/.pi` is the ready-made answer
+— live in both directions, no staging, no ceiling.
 
-It is staged from an **allow-list**, never a deny-list: `~/.omp/agent` also holds `agent.db` (session history),
-`models.db`, `sessions/` and `logs/`, and the broker token lives one directory up. `models.yml` is excluded too — the
-guest's copy points omp's `local` provider at the SLIRP gateway and is generated from
-`modules/den/aspects/services/_llm-models.nix`, the same file llama-server's router presets come from (they used to be
-hand-synced, and a mismatch is invisible until a request hangs). Globs in the staging list are expanded against
-`~/.omp/agent` explicitly — a bare `*.md` in a shell `for` list matches the _current directory_ instead.
+Also worth keeping from that episode: stage from an **allow-list**, never a deny-list. `~/.omp/agent` held session
+databases, logs and a broker token next to the config; a deny-list ships whichever of those the tool adds next.
 
 The installers are commands, not inline unit scripts, precisely because they run twice — at boot and on every push. The
 units invoke them by **absolute store path**: a systemd unit's PATH does not include `/run/current-system/sw/bin`, and
@@ -648,103 +674,50 @@ calling them by name failed at boot with "command not found" while the login-she
 
 Two lanes, both wired in `microvm-guest.nix`:
 
-**Local (llama-server, zero config):** qemu's usermode gateway (`10.0.2.2` from the guest) forwards to the host's
-loopback interface, so abhaile's llama-server on `127.0.0.1:8080` (`modules/den/aspects/services/llm.nix`) is reachable
-from inside every scoite guest at `http://10.0.2.2:8080/v1` with **no change** to llm.nix's bind address. The guest
-seeds `~/.omp/agent/models.yml` at boot (tmpfiles `C` — copy-if-absent, so omp can rewrite it; note that since the home
-persists, a rewritten one now survives a restart rather than resetting) declaring this as omp's `local` provider — keep
-the model ids/context sizes in sync with llm.nix's router presets. Inside a guest: `omp --model local/qwen3.6-35b-a3b`
-(or `/model` in-session). Verified end-to-end 2026-07-13 (omp print-mode round trip through the sandbox to the GPU and
-back).
+**Local (llama-server):** qemu's usermode gateway (`10.0.2.2` from the guest) forwards to the host's loopback interface,
+so abhaile's llama-server on `127.0.0.1:8080` (`modules/den/aspects/services/llm.nix`) is reachable from inside every
+scoite guest at `http://10.0.2.2:8080/v1` with **no change** to llm.nix's bind address. It is an OpenAI-compatible
+endpoint with no auth, so pointing an agent at it is one provider entry in that agent's own config; the base URL is
+`guestBaseUrl` in `modules/den/aspects/services/_llm-models.nix`, alongside the model ids and context sizes
+llama-server's router presets are generated from. Keep whatever you declare guest-side in step with that file — a
+context window larger than the server's is invisible until a request hangs.
 
-Only qwen is declared, deliberately: **omp's own harness overhead (system prompt + tool definitions) measured ~17.1k
-tokens** (omp's `~/.omp/logs`: "Pre-prompt context maintenance … contextTokens: 17120"), which overflows llama-3.1-8b's
-16k server-side `ctx-size` — every request 400s before generation starts. llama-server still serves the 8B fine to
-smaller-context clients (curl, scripts); making it omp-usable means raising its `ctx-size` in llm.nix, which is a
-VRAM/benchmarking decision for that aspect, not this one.
+Until 2026-09-08 the guest generated an omp `models.yml` from exactly that data at every boot. Nothing does now; a guest
+agent's provider config is the agent's own business (`scoite bind ~/.pi`, or a file in `/workspace`).
 
-**Cloud, two ways.** Both land in the guest the same way: `scoite` merges them into one temp file per launch
+**Cloud:** put `KEY=value` lines (e.g. `OPENAI_API_KEY=…`, `ANTHROPIC_API_KEY=…`) in `~/.config/scoite/agent.env` on the
+host (0600; create it yourself — nothing manages it). `scoite` copies it into a per-launch temp file
 (`~/.local/state/scoite/<name>/agent.env`, 0600), passes the _path_ to the guest build, and `microvm.credentialFiles`
 turns it into a qemu `fw_cfg` systemd credential whose contents are read at VM start — **key material never enters the
 world-readable `/nix/store`** on either side (the whole design constraint; a Nix path _literal_ instead of a string
-would silently defeat it by copying the file to the store at eval time). In the guest, a oneshot installs the merged
-file at `/run/agent.env` (iosta, 0600, tmpfs — gone on stop) and fish exports its lines into every session. No lines at
-all → no credential → local provider only.
+would silently defeat it by copying the file to the store at eval time). In the guest, a oneshot installs the file at
+`/run/agent.env` (iosta, 0600, tmpfs — gone on stop) and fish exports its lines into every session. No lines at all → no
+credential → local provider only.
 
-- **Plain API keys**: put `KEY=value` lines (e.g. `OPENAI_API_KEY=…`) in `~/.config/scoite/agent.env` on the host (0600;
-  create it yourself — nothing manages it). Billed per-token against that provider's API.
-- **Anthropic via your Pro/Max subscription, not API billing**: `dev.tools.omp-auth-broker` runs `omp auth-broker serve`
-  as a persistent `systemd --user` service on the host — a credential store + HTTP endpoint (`127.0.0.1:8765`) that
-  other omp instances pull fresh credentials from instead of storing their own copy. One-time setup, on the host:
-  `omp auth-broker login anthropic`. `scoite` auto-detects the resulting `~/.omp/auth-broker.token` and adds
-  `OMP_AUTH_BROKER_URL=http://10.0.2.2:8765` + `OMP_AUTH_BROKER_TOKEN=<token>` to every launch's merged agent.env — the
-  guest never stores the Anthropic OAuth token itself, it asks the broker each time, so **the broker's own background
-  refresher (60s cadence, refreshes anything expiring within 5min) is what keeps a sandbox's session alive**, not
-  anything guest-side. That is the fix for "the sandbox that could refresh the token is gone by the time it expires."
-  Model ids need no guest-side declaration (unlike the custom `local` llama-server provider) — Anthropic is a
-  first-class omp provider; once the broker resolves a credential, `--model anthropic/<id>` just works.
+claude-code is the exception that needs no key: df's live OAuth credential (`~/.claude/.credentials.json`) rides in as
+the `CLAUDE_CREDS` credential, refreshed on every launch, so a sandbox never runs `claude login` of its own.
 
-  **`systemctl --user restart omp-auth-broker` after a login is no longer required** (it was, on the omp of 2026-07-13,
-  and this doc said so). Re-verified 2026-08-23 against omp 17.4.2 with a throwaway broker on a spare port: writing a
-  credential into the store from a separate process bumped the live server's snapshot `generation` (1 → 2) with no
-  restart, and clients saw it immediately. The broker re-reads its own store.
+**Keeping a running guest current.** `/run/agent.env` is written once, at the guest's boot, so a key rotated on the host
+afterwards leaves a running sandbox holding a dead one. **`scoite creds [<name>|--all]`** re-stages agent.env (and the
+ssh/git identity files) and writes them into a _running_ guest over ssh; `scoite ssh` does it silently on every attach,
+and a host-side `systemd --user` timer (`scoite-creds`, 10 min, defined in `dev.tools.scoite`) covers headless sandboxes
+nobody attaches to. Only _new_ shells in the guest see the refreshed value — fish exports agent.env at shell start —
+which is enough, since an agent reads its credentials at process start. The push always runs with `-o ForwardAgent=no`:
+the guest's login shell re-points `~/.ssh/agent.sock` at whatever connection it sees, and a scripted connection's
+forwarded socket dies with that connection, so a forwarding push would leave long-lived guest sessions holding a dead
+socket. Verified: after a push, the guest's `agent.sock` still points at the previous, live socket.
 
-  **What can still go stale — and what fixes it (2026-08-23):**
-  1. _The guest's copy of the bearer token._ `/run/agent.env` is written once, at the guest's boot. A sandbox launched
-     before you ever ran `omp auth-broker login`, or still running when the bearer token is rotated
-     (`omp auth-broker token --regenerate`), holds a token that no longer works and had no way back short of a
-     stop/start. **`scoite creds [<name>|--all]`** re-stages agent.env and writes it into a _running_ guest over ssh;
-     `scoite ssh` does it silently on every attach, and a host-side `systemd --user` timer (`scoite-creds`, 10 min,
-     defined in `dev.tools.scoite`) covers headless sandboxes nobody attaches to. Only _new_ shells in the guest see the
-     refreshed value — fish exports agent.env at shell start — which is enough, since `omp` reads it at process start.
-     The push always runs with `-o ForwardAgent=no`: the guest's login shell re-points `~/.ssh/agent.sock` at whatever
-     connection it sees, and a scripted connection's forwarded socket dies with that connection, so a forwarding push
-     would leave long-lived guest sessions holding a dead socket. Verified: after a push, the guest's `agent.sock` still
-     points at the previous, live socket.
-  2. _The broker's Anthropic OAuth grant itself._ If a refresh comes back `invalid_grant` ("Refresh token not found or
-     invalid" — Anthropic rotates the refresh token on every use, so a second holder of the same grant invalidates
-     yours), the broker gives up and **disables the credential**, and every guest loses omp at once. Seen on abhaile
-     2026-08-23 09:03. Since 2026-08-25 a `systemd --user` timer, **`omp-broker-check`** (in
-     `dev.tools.omp-auth-broker`), polls for exactly this every 15 minutes — disabled credentials, duplicate rows for
-     one provider, and an unreachable broker — raises a critical desktop notification (`notify-send`) and fails the
-     unit. To check by hand:
+**Dropped 2026-09-08: the omp auth-broker.** `dev.tools.omp-auth-broker` ran `omp auth-broker serve` on the host
+(`127.0.0.1:8765`) as a shared credential store, so every guest could use df's Anthropic Pro subscription without
+holding the OAuth token itself — the broker's own refresher kept sessions alive past the point where the sandbox that
+could have refreshed the token was gone. It went with omp. Two things it taught, if the pattern ever comes back:
 
-     ```bash
-     T=$(cat ~/.omp/auth-broker.token)
-     curl -s -H "Authorization: Bearer $T" http://127.0.0.1:8765/v1/credentials/disabled   # [] when healthy
-     curl -s -H "Authorization: Bearer $T" http://127.0.0.1:8765/v1/snapshot                # live creds + expiry
-     journalctl --user -u omp-auth-broker | grep 'credential disabled'
-     ```
-
-     Or just run `omp-broker-check`, which prints the same verdict. The fix is a fresh `omp auth-broker login anthropic`
-     on the host; running guests pick it up on their next request. Also check the snapshot for **duplicate anthropic
-     rows** — abhaile had a stale one alongside the live one, and the refresher kept retrying (and finally disabling)
-     the dead one every 60s for hours.
-
-- The broker's bearer token is a skeleton key to **every** credential it holds, to anything on the loopback path — which
-  in practice means any scoite guest you launch. A rogue agent can't escape the filesystem sandbox through this, but it
-  _can_ spend down your Pro subscription's rate limits/quota. Same trust tier as the local-llama-server reachability
-  above, just: mind what you `--auto-approve` in a sandbox with a real subscription behind it.
-
-## The paseo daemon (2026-08-25)
-
-Every `dev` guest runs **paseo** (getpaseo/paseo), a self-hosted daemon that drives coding agents behind a web/mobile
-UI, on `:6767` — forwarded by default, so `http://<forward-addr>:6767` and `http://<name>.local:6767` both reach it. The
-point is that the agent it drives runs _in the sandbox_.
-
-- Packaged from **upstream's own flake** (`nix/package.nix` + `nix/module.nix`), not nix-ai-tools, which packages only
-  the Electron app `paseo-desktop` (that one runs on abhaile, and brings up a daemon of its own on `127.0.0.1:6767` — no
-  conflict, since guests are forwarded to `127.x.y.1`).
-- `dev.tools.paseo` carries a small `overrideAttrs` for [PR 3250](https://github.com/getpaseo/paseo/pull/3250) (open as
-  of 2026-08-25): the install phase traces the daemon's runtime closure statically and misses `node-pty`'s `prebuilds/`,
-  so **every terminal pane fails to start** in a Nix-built daemon. Drop the override once it merges.
-- Runs as `iosta` (so `PASEO_HOME` is on the persistent home volume and spawned agents inherit iosta's PATH), binds
-  `0.0.0.0` (the forwards are the ACL), accepts `.local` Host headers (it has DNS-rebinding protection), and has
-  `relay.enable = false` — upstream's default dials `app.paseo.sh` so the mobile app can reach the daemon from anywhere,
-  which is exactly the outbound channel a sandbox should not have.
-- Voice is off (`features.{dictation,voiceMode}.enabled = false`): both default to a `local` speech provider and the
-  daemon then background-downloads parakeet + kokoro (hundreds of MB) into _every_ sandbox's home volume, for a feature
-  a headless guest cannot use.
+- Anthropic rotates the refresh token on every use, so **two holders of one grant invalidate each other** — a duplicate
+  stale credential row will keep retrying until the provider disables the whole credential. Watch for duplicate rows,
+  not just failures.
+- A broker bearer token is a skeleton key to every credential it holds, reachable from anything on the loopback path —
+  in practice, every sandbox. A rogue agent can't escape the filesystem sandbox through it, but it can spend down a
+  subscription's quota. Mind what you auto-approve in a sandbox with a real subscription behind it.
 
 ## UI validation: headless Chromium (2026-08-21)
 
@@ -761,7 +734,7 @@ guest, because agents reach for different ones:
   so those tools find a browser that runs instead of downloading one that can't (a browser fetched by
   `npx playwright install` is dynamically linked against paths NixOS doesn't have). Verified to reach non-interactive
   `ssh <guest> <cmd>` sessions, not just interactive logins.
-- **`playwright-mcp`** — the MCP server, so claude-code/omp can drive the browser as a tool rather than by shelling out.
+- **`playwright-mcp`** — the MCP server, so claude-code/pi can drive the browser as a tool rather than by shelling out.
   Not registered anywhere by default; per project it's
   `claude mcp add playwright -- playwright-mcp --headless --isolated`.
 
@@ -833,21 +806,21 @@ Two details it exists for, both of which a naive `echo "$1"` gets wrong:
   help either — libgit2 never reads it. Hence the seeding rule above. Note that the ssh **CLI** was unaffected
   throughout, so `ssh -T git@github.com` succeeding is no evidence that a `nix` fetch will.
 - (Historical, fixed 2026-07-13: when the guest ran df's full HM identity via `roles.dev`, it also inherited the
-  `scoite` binary itself and a spare `omp auth-broker serve` per boot. The iosta/`roles.sandbox.*` guest identity
-  includes neither.)
+  `scoite` binary itself and a spare host-side auth broker per boot. The iosta/`roles.sandbox.*` guest identity includes
+  neither — a guest tier is a deliberate slice, not df's profile.)
 - **An interactive login waits for `scoite-workspace-init`** rather than racing it. The boot unit is already evaluating
   the project's devenv/flake, and direnv in the login shell would start a _second_ evaluation of the same project
   against the same shared `/workspace/.devenv`. Two concurrent devenv bootstraps do not survive that: seen 2026-08-26 on
   `scoite new --ssh` into a large monorepo, where the pre-build took four minutes, the login raced it, and devenv failed
   with `Failed to get shell attribute` inside a nixpkgs-bootstrap trace that says nothing about the real cause. The wait
   is bounded at 20 minutes so a wedged pre-build cannot make the sandbox unreachable.
-- **`models.yml` is generated and rewritten on every boot**, from `modules/den/aspects/services/_llm-models.nix`. It
-  used to be seeded with a tmpfiles `C` (copy-if-absent) rule, which meant a guest kept whatever it first received —
-  including, briefly, a version whose list items had lost their indentation (a Nix `''` string strips the _common_
-  indent, and the interpolated list sat shallower than its surroundings) that omp rejected with a yaml parse error. When
-  changing that generator, read the **built** file; do not eyeball the Nix.
-- **The setup wizard is skipped in guests**: the installer sets `startup.setupWizard = false` and `setupVersion = 2`
-  (omp 17.4.2's `CURRENT_SETUP_VERSION`) in the guest's own `config.yml`, via `omp config set` so the YAML stays valid.
+- **(Historical, moot since omp was dropped on 2026-09-08.)** The guest used to generate an agent `models.yml` from
+  `modules/den/aspects/services/_llm-models.nix` on every boot. Two lessons survive it. It was first seeded with a
+  tmpfiles `C` (copy-if-absent) rule, so a guest kept whatever it first received — including, briefly, a version whose
+  list items had lost their indentation (a Nix `''` string strips the _common_ indent, and the interpolated list sat
+  shallower than its surroundings) that the agent rejected with a yaml parse error: **derived config must be rewritten
+  every boot, not seeded once**, and when changing a generator, read the **built** file rather than eyeballing the Nix.
+  The other: a first-run wizard has to be disabled through the tool's own config writer, not by hand-editing YAML.
 - **`scoite` is not in the devshell** (removed 2026-08-26). It used to be, and it shadowed the home-manager copy for
   anyone standing in `~/.dotfiles`, pinned to whatever store path direnv last evaluated — so `sc` meant different things
   in different directories and "verified" fixes could be running hours-old code.
@@ -883,13 +856,13 @@ Two details it exists for, both of which a naive `echo "$1"` gets wrong:
   plain fish shell, usable for debugging when ssh itself is broken.
 - `scoite list`'s NAME column shows the full `scoite-<name>` identity, which is also the SSH alias, the unit name and
   the mDNS name. Subcommands accept either spelling (`mono` or `scoite-mono`).
-- **(Historical, moot since herdr was dropped on 2026-08-26.)** herdr decided where a pane started, not your shell: its
-  `terminal.new_cwd` policy defaults to `$HOME` when a pane has no source workspace, whatever the launching shell's cwd
-  was, and it persisted that session in `~/.config/herdr/session.json` on the guest's home volume. If herdr is ever
-  re-enabled, set `[terminal] new_cwd = "/workspace"` and remember the stale-session trap.
-- `paseo-desktop` (and any electron app) launched from an agent/CLI session inherits `ELECTRON_RUN_AS_NODE=1` when the
-  agent itself runs inside electron, and fails with "Electron failed to install correctly".
-  `env -u ELECTRON_RUN_AS_NODE` fixes it; nothing is wrong with the package.
+- **herdr decides where a pane starts, not your shell.** Its `terminal.new_cwd` policy defaults to `$HOME` when a pane
+  has no source workspace, whatever the launching shell's cwd was, and it persists that session in
+  `~/.config/herdr/session.json` on the guest's home volume — which survives stop/start, so a stale session can outlive
+  the config change meant to fix it. Set `[terminal] new_cwd = "/workspace"` if panes keep landing in `/home/iosta`.
+- Any **electron** app launched from an agent/CLI session inherits `ELECTRON_RUN_AS_NODE=1` when the agent itself runs
+  inside electron, and fails with "Electron failed to install correctly". `env -u ELECTRON_RUN_AS_NODE` fixes it;
+  nothing is wrong with the package.
 - State dirs created before the 2026-08-22 rework have no `config` file and list as type `legacy`; they are not
   startable (the volume layout and guest hosts changed underneath them). `scoite rm <name>` each of them.
 - The old `name_for` piped `basename` through `tr -c 'a-zA-Z0-9' '-'`, which turned the trailing newline into a second

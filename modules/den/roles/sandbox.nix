@@ -5,9 +5,9 @@
 #   minimal  shell + git + the agent harness, with internet access and nothing
 #            else — for "run this thing somewhere it can't touch my machine".
 #   dev      (default) the working sandbox: python, node, headless chromium,
-#            compilers/nix-ld, the full TUI shell + git stack, devenv/direnv,
-#            and the paseo daemon on :6767. The guest's nix store
-#            overlay and home are both persistent, so `nix profile install` /
+#            compilers/nix-ld, the full TUI shell + git stack, devenv/direnv
+#            and herdr. The guest's nix store overlay and home are both
+#            persistent, so `nix profile install` /
 #            `npm i -g` / `pip install --user` survive stop→start, and a project
 #            that declares its own toolchain in devenv.nix/flake.nix has it
 #            pre-built at boot (scoite-workspace-init in
@@ -20,7 +20,7 @@
 #
 # One tier per Den host in modules/den/hosts/scoite.nix; the CLI's `--type`
 # picks which. See docs/microvm-sandbox.md.
-{ den, inputs, ... }:
+{ den, ... }:
 {
   # --- minimal ---------------------------------------------------------
   # roles.default already carries `shell` + shell.bundles.base, so this is
@@ -34,37 +34,6 @@
       dev.git
       apps.ai-tools
     ];
-
-    # `omp` in a sandbox means `omp --config ~/.omp/agent/config.sandbox.yml`
-    # (df, 2026-08-26): that overlay is the near-zero-approval command policy
-    # that only makes sense when the VM itself is the containment boundary.
-    # The file is df's, copied in from the host with the rest of the omp
-    # config (the `OMP_CONF` credential — see pkgs/by-name/scoite).
-    #
-    # A wrapper rather than a shell alias, because the callers that matter are
-    # not interactive shells: the paseo daemon spawning an agent, a systemd
-    # unit, `scoite ssh <name> -- omp -p '…'`. `hiPrio` is what lets it win
-    # the `bin/omp` collision against apps.ai-tools' real omp in the same
-    # home-manager profile; the guard keeps a guest whose host has no such
-    # overlay working exactly as before.
-    homeManager =
-      { pkgs, lib, ... }:
-      let
-        realOmp = inputs.nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.omp;
-      in
-      {
-        home.packages = [
-          (lib.hiPrio (
-            pkgs.writeShellScriptBin "omp" ''
-              cfg="$HOME/.omp/agent/config.sandbox.yml"
-              if [ -f "$cfg" ]; then
-                exec ${realOmp}/bin/omp --config "$cfg" "$@"
-              fi
-              exec ${realOmp}/bin/omp "$@"
-            ''
-          ))
-        ];
-      };
   };
 
   # --- dev -------------------------------------------------------------
@@ -85,7 +54,6 @@
       dev.tools.headless-browser
       dev.tools.herdr
       dev.tools.herdr.autostart
-      dev.tools.paseo
       dev.tools.trippy
 
       shell.atuin

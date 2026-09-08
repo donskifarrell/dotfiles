@@ -14,8 +14,8 @@
 # host-managed bridge `scoitebr0` (10.77.0.0/24, DHCP from a dnsmasq of its
 # own). Their first NIC stays qemu SLIRP, which keeps being the default route
 # and the path to abhaile's loopback services at 10.0.2.2 (llama-server :8080,
-# the omp auth-broker :8765, harmonia :5000). The bridge exists so a guest has
-# a real address the host can reach *inbound* without a qemu forward — which
+# harmonia :5000). The bridge exists so a guest has a real address the host
+# can reach *inbound* without a qemu forward — which
 # is what makes `scoite-<name>.local` (mDNS, S9) and LAN exposure (S11)
 # possible at all.
 {

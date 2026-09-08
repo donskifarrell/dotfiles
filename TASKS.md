@@ -2,7 +2,12 @@
 
 Project tracker for the goals in [GOAL.md](GOAL.md): rename `sandvm` → **`scoite`** (alias `sc`), cut the guest tiers to
 **two** (`minimal`, `dev`), give every sandbox a real **DNS name** and **LAN-reachable services**, and make host
-credentials/config (omp auth, SSH keys, omp config, nix store) **propagate live** into running guests.
+credentials/config (agent auth, SSH keys, agent config, nix store) **propagate live** into running guests.
+
+> **Historical note (2026-09-08):** this file was written while df used **omp** and **paseo**; both were removed from
+> the repo that day (df moved to `pi` + `herdr`), taking with them the omp auth-broker, the omp-config share and the
+> paseo daemon on `:6767`. Steps that mention them are recorded as they were done — read them as history, not as a
+> description of the current config. What is current: CLAUDE.md and [docs/microvm-sandbox.md](docs/microvm-sandbox.md).
 
 Rules of engagement (df, 2026-08-24):
 

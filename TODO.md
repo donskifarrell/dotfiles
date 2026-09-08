@@ -7,6 +7,9 @@ history/context lives in MIGRATION-STATUS.md; day-to-day conventions in CLAUDE.m
 Items 7.5, 7.6 and 13.0–13.4 below are superseded by its steps — work them there, sequentially, each with its
 verification, not from this file. Names below are pre-rename (`sandvm`), kept as written.
 
+**omp and paseo were removed from the repo on 2026-09-08** (df moved to `pi` + `herdr`). Items 7 and 13 below, and much
+of TASKS.md/GOAL.md, describe them as if live — read those as history. Nothing still open depends on either.
+
 ## Open
 
 ### 1. Re-benchmark LLM backends after each `nix flake update`
@@ -26,17 +29,28 @@ running since 2025-10-26 and is the live tailscale exit node; wiping it was neve
 the `## eachtrach` section of CLAUDE.md. What that closed: the host + role + aspects, per-host secrets, deploy-rs
 transport, and the exit-node advertisement.
 
-What is still open is only the _hosted apps_ half of the original item:
+What is still open is only part of the _hosted apps_ half:
 
-- Custom apps as **native NixOS services** (not containers), some internet-exposed and some tailnet-only, behind one
-  Caddy. Rewrite the orphaned short-specific `services.web.caddy` aspect for eachtrach (item 12 tracks the orphan).
-  `services.tailscale.permitCertUid = "caddy"` gets real certs for `ts.net` names; normal ACME for public ones.
+**Done 2026-09-05** — the first app landed. `services.web.caddy` was rewritten as a vhost-less base aspect (closing item
+12's orphan) and **bbm** ships on it as a native NixOS service, tailnet-only: see [docs/bbm.md](docs/bbm.md) and the
+`## bbm` section of CLAUDE.md. That also settled the firewall question — nothing needed re-opening, because
+`services.tailscale` already sets `trustedInterfaces = [ "tailscale0" ]`, so a port is tailnet-reachable without
+appearing in `allowedTCPPorts` (which is still `[ 22 ]`, i.e. public exposure unchanged).
+
+Still open:
+
+- **An internet-exposed app** (bbm deliberately is not one). That is the case that actually needs
+  `allowedTCPPorts = [ 80 443 ]` and normal ACME — and that is the change to think hardest about, since it is the first
+  thing to open a port on a public VPS.
+- **Real ts.net certificates.** `services.web.caddy.tailscale-tls` exists (sets
+  `services.tailscale.permitCertUid = "caddy"`) but is included by nothing: bbm runs on plain HTTP for now. Enabling it
+  needs the tailnet admin console's DNS → HTTPS Certificates toggle ON first — as of 2026-09-05
+  `tailscale status --json | jq .CertDomains` is `null`, i.e. off. Forced sooner if GoCardless refuses bbm's `http://`
+  redirect URI.
 - The clan-era caddy site was **dropped** by the adoption: it served `/srv/www/site/donalfarrell.com`, but
   `test.donalfarrell.com` had no DNS record any more and the apex points at GitHub Pages. `/srv/www` is still on the box
   (unserved), as is the removed `gh_deployer` SFTP user's home. Decide whether any of it is worth restoring before
   garbage-collecting it.
-- Ports 80/443 are closed again (the firewall is now 22/tcp + 41641/udp only) — re-open them in the caddy aspect when
-  something actually listens.
 
 Notes for whoever picks this up:
 
@@ -169,13 +183,41 @@ migration finished. Securely delete it (`shred -u` the files / `rm -rf` at minim
 `MIGRATION-STATUS.md` + the rest of `.migration-staging/` (migration is complete; anything still-relevant is already in
 CLAUDE.md/TODO.md).
 
+### 11.5 bbm follow-ups (deployed 2026-09-05)
+
+Reference: [docs/bbm.md](docs/bbm.md). The deploy, the tailnet-only ingress and the backup pair are done and verified.
+Open:
+
+1. **Telegram token collision.** eachtrach and the `scoite-bbm` sandbox's dev server poll the SAME bot token (the one in
+   `~/dev/bbm/.env`, now also in sops), so both get `409 Conflict: terminated by other getUpdates request` and neither
+   is reliable. Fix: a second bot from @BotFather for production, put it in `sops secrets/eachtrach.yaml`
+   (`bbm/telegram_bot_token`), `bbm-deploy`. Until then treat the prod bot as not working.
+2. **Confirm the app is unreachable from the public internet** from an actual off-tailnet host. The ruleset says it is
+   (`ts-input` accepts only tailscale0 + udp/41641; `nixos-fw` then allows only 22/41641/icmp/established), but the
+   obvious test from abhaile is inconclusive: abhaile uses eachtrach as its exit node, so a curl to the public IP goes
+   down the tunnel and is accepted. Use a phone off wifi/tailscale, or any VPS.
+3. **Restore drill.** Never rehearsed. Take a `daily.*` from `/var/lib/bbm-backup`, restore into a scratch dir, point a
+   local bbm at it, confirm the ledger and `data/` come back. Procedure in docs/bbm.md.
+4. **First real feed connect.** GoCardless has not been exercised on this host. Watch for it rejecting the `http://`
+   redirect URI (`http://eachtrach.tail8f3a60.ts.net/feeds/connect/complete?ref=…`); if it does, that forces the
+   ts.net-certificate work in item 2.
+5. **Two pre-existing bbm test failures**, unrelated to deployment and present on `main` before this work — worth fixing
+   in the app repo, not here. `internal/db` `TestMigrationsDownWithLinkedFeedAndConsent`: migration 22 drops
+   `transactions_all`, then 19's down step tries to drop it again — the rollback path is broken, the forward path is
+   fine. `internal/telegram` `TestUnlinkedChatIsNotAnswered`: flaky, fails 3/3 in a package run but passes under `-run`.
+   (`internal/gocardless` also times out on a loopback httptest server locally.)
+6. **flake.lock vs what is deployed.** `bbm-deploy` overrides the input rather than updating the lock, so the lock can
+   lag. `nix flake update bbm` when you want them to agree; `bbm-deploy --pinned` deploys the lock instead.
+
 ### 12. Decide wire-or-delete for the orphaned aspects
 
 Aspects defined but included by no host/role/user (inert, several carry stale legacy references): `services.web.caddy`
-(still "short"-specific — rewrite for eachtrach, see item 2), `services.paperless`, `services.cosmic`,
-`virtualisation.vm-login`, `gaming.steam`, `gaming.alvr`, `apps.yt-dlp`, `apps.zathura`. steam/alvr staying orphaned is
-**intentional for now** (df 2026-07-14: will game on abhaile eventually, not yet — re-add a gaming include and the
-`steam-config-nix` input then). The rest: delete or wire when their host materialises.
+**resolved 2026-09-05** — rewritten as a vhost-less base aspect and included by eachtrach (its dead `short.*` vhost was
+deleted, not ported); its `tailscale-tls` sub-aspect is intentionally orphaned until something needs a cert. Remaining:
+`services.paperless`, `services.cosmic`, `virtualisation.vm-login`, `gaming.steam`, `gaming.alvr`, `apps.yt-dlp`,
+`apps.zathura`. steam/alvr staying orphaned is **intentional for now** (df 2026-07-14: will game on abhaile eventually,
+not yet — re-add a gaming include and the `steam-config-nix` input then). The rest: delete or wire when their host
+materialises.
 
 ### 13. sandvm follow-ups
 
@@ -281,6 +323,24 @@ tarball → `nix hash convert --to sri`), then `cargoDeps.hash` from a fake-hash
 overridable — `buildRustPackage` reads it off `args`, not `finalAttrs`.
 
 ## Done
+
+- 2026-09-08 — **omp and paseo dropped** (df moved to `pi` + `herdr`). Removed: the `dev.tools.omp-auth-broker` aspect
+  (the host's `omp auth-broker serve` user service on `127.0.0.1:8765`, plus the `omp-broker-check` timer that closed
+  item 13.3), the `dev.tools.paseo` aspect and the `paseo` flake input (so the `:6767` daemon is gone from every `dev`
+  guest, along with `6767` from the CLI's default forwarded ports and its no-password warning on `scoite expose --lan`),
+  `omp` + `paseo-desktop` from `apps.ai-tools`, the `roles.sandbox.minimal` `omp` wrapper (the
+  `--config ~/.omp/agent/config.sandbox.yml` overlay), the host→guest omp-config 9p share end to end
+  (`OMP_CONF_DIR`/`MICROVM_OMP_CONF_DIR`, `/run/scoite-omp`, `scoite-omp-conf.service`, `scoite-install-omp-conf`, the
+  `~/.omp` tmpfiles rules and the `push_credentials` re-push), the broker token half of `agent.env`, the generated guest
+  `models.yml`, and the now-dead `omp` flag in `_llm-models.nix`. `apps.ai-tools` keeps `claude-code` + `pi`; `herdr` is
+  back in `roles.dev` and the `dev` sandbox tier (both with `dev.tools.herdr.autostart` for the guest). Verified:
+  `nixos-rebuild`-equivalent toplevel builds for abhaile and eachtrach, plus both `scoite-guest-{minimal,dev}` runners.
+  What survives as documented lessons in docs/microvm-sandbox.md: the 1 MiB fw_cfg credential ceiling (why that config
+  travelled on a share), stage-from-an-allow-list, rewrite derived guest config every boot rather than seeding it once,
+  and the Anthropic refresh-token rotation trap. **Left alone deliberately**: `agent-loops.md` is df's own harness
+  design notes and is written against omp throughout — rewriting it for pi is a separate call. Existing sandboxes keep a
+  stale `~/.local/state/scoite/<name>/omp-conf.d/` and a `~/.omp` in their home volume until removed by hand; both are
+  inert.
 
 - 2026-09-04 — **eachtrach adopted into Den in place** (closed the host half of item 2; migration Phase 6, by a
   different route than planned). The machine was never reprovisioned: it had been running since 2025-10-26 off a

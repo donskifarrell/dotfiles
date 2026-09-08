@@ -86,6 +86,11 @@
             help = "Build or activate a host with nh (auto os/darwin/home; --switch, --on user@host)";
           }
           {
+            package = config.packages.bbm-deploy;
+            name = "bbm-deploy";
+            help = "Build bbm from a local checkout and deploy it to eachtrach";
+          }
+          {
             package = config.packages.den-tree;
             name = "den-tree";
             help = "Print the Den aspect tree applied to each host and user";
