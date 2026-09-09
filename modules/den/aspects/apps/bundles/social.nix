@@ -5,6 +5,7 @@
       {
         home.packages = [
           pkgs.slack
+          pkgs.telegram-desktop
         ];
 
         programs.element-desktop.enable = true;
