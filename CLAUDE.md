@@ -291,8 +291,19 @@ Gotchas (easy to forget):
 - Secrets are one sops **template** (`/run/secrets/rendered/bbm.env`, read via `ENV_FILE`), not `EnvironmentFile=` —
   values stay out of `systemctl show` and `/proc/<pid>/environ`. Add/rotate with `sops secrets/eachtrach.yaml` +
   `bbm-deploy`; no nix change.
+- **Env layering: base (`ENV_FILE`) → `.env.$ENV` overlay → exported vars, later wins.** The overlay is looked up in
+  `dirname(ENV_FILE)`, so `.env.prod` is a _second_ sops template rendered beside `bbm.env` (0444, no secrets) — it is
+  rendered, not copied, because `~/dev/bbm/.env.prod` is gitignored and holds a bot token. `ENV` must be exactly `prod`;
+  `production` finds no overlay and says nothing. Never set a key in both the unit's `Environment=` and the overlay —
+  exported wins, so the overlay line is dead. `bbm-deploy` warns on keys in `~/dev/bbm/.env.prod` that
+  `services/bbm.nix` never mentions.
 - Stored statement files are **0750/0640** so `bbm-backup` can read them; the backup pull uses `-rlptD` (not `-a`) so
   the copy lands root-owned on abhaile.
+- **Chart sidecar** `bbm-charts.service` (loopback `:8091`, DynamicUser) renders the Telegram weekly chart from the
+  SPA's own Recharts component via jsdom + resvg. Built by `~/dev/bbm/nix/charts.nix` (`pnpm deploy` needs
+  `--config.inject-workspace-packages=true` to work offline). Optional by design — down means text-only reports, never a
+  failed deploy. Never give it `MemoryDenyWriteExecute`: V8's JIT needs W then X.
+- **`APP_LOG_LEVEL` is inert** — documented in `.env.example`, read by no Go code. The app has no log levels.
 - **One Telegram token = one poller.** The `scoite-bbm` sandbox runs a dev server on the same token from
   `~/dev/bbm/.env` → `409 Conflict` on both. Give production its own bot.
 - Runs on plain **HTTP** over the tailnet (firewall, not binding, is the enforcement — `allowedTCPPorts = [ 22 ]` plus

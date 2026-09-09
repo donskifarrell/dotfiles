@@ -8,6 +8,8 @@
 #   bbm-web     static SPA assets, built with no baked-in API URL so the bundle
 #               talks to whatever origin served it. caddy serves both from one
 #               origin, which is why there is no CORS to configure.
+#   bbm-charts  Node sidecar that draws the Telegram weekly report's chart,
+#               loopback-only and never reached from outside this host.
 #
 # SOURCE PIN. The input is a local checkout, by deliberate choice (df,
 # 2026-09-05): it deploys local commits with no push to GitHub first.
@@ -48,6 +50,12 @@
       # Loopback only: caddy is the sole ingress, and this port must never be
       # the thing the firewall is protecting.
       apiPort = 8080;
+
+      # The sidecar's listener. Loopback only, like apiPort, and for a stronger
+      # reason: it renders whatever SVG it is handed, so its only caller must
+      # be bbm on this host. caddy never proxies it.
+      chartPort = 8091;
+
       stateDir = "/var/lib/bbm";
 
       # Flip to true (and add `services.web.caddy.tailscale-tls` to the host)
@@ -101,15 +109,46 @@
             inherit key;
           });
 
+      # LAYER 1 (base). ENV_FILE names this file, and bbm resolves the overlay
+      # as `dirname(ENV_FILE)/.env.$ENV` — which is why the overlay below is
+      # rendered into the same /run/secrets/rendered directory rather than
+      # anywhere more obvious.
       sops.templates."bbm.env" = {
         owner = "bbm";
         group = "bbm";
         mode = "0400";
+        restartUnits = [ "bbm.service" ];
         content = ''
           GOCARDLESS_SECRET_ID=${config.sops.placeholder."bbm/gocardless_secret_id"}
           GOCARDLESS_SECRET_KEY=${config.sops.placeholder."bbm/gocardless_secret_key"}
           JWT_SECRET_KEY=${config.sops.placeholder."bbm/jwt_secret_key"}
           TELEGRAM_BOT_TOKEN=${config.sops.placeholder."bbm/telegram_bot_token"}
+        '';
+      };
+
+      # LAYER 2 (overlay), selected by ENV=prod below. The counterpart of
+      # ~/dev/bbm/.env.prod, rendered here instead of copied: that file is
+      # .gitignore'd, so it is absent from the `git+file:` export this host
+      # builds from, and copying it out of band would put a deploy's config
+      # outside the closure (a from-scratch provision or a rollback would not
+      # carry it) — and its bot token outside sops.
+      #
+      # Holds no secrets, hence 0444: `cat` it on the box the same way
+      # `systemctl cat bbm` shows the rest. Secrets belong in layer 1.
+      #
+      # WHAT GOES HERE: prod-only *app* settings. NOT anything the unit
+      # exports below — an exported variable beats both files, so a key in
+      # both places is a silently dead line here. Notably WEB_BASE_URL is
+      # host-derived (`origin`) and stays exported.
+      #
+      # CHART_RENDER_URL points at the bbm-charts unit below. Left unset it
+      # would mean text-only Telegram reports (internal/telegram/bot.go).
+      sops.templates.".env.prod" = {
+        mode = "0444";
+        restartUnits = [ "bbm.service" ];
+        content = ''
+          APP_LOG_LEVEL=debug
+          CHART_RENDER_URL=http://127.0.0.1:${toString chartPort}
         '';
       };
 
@@ -123,13 +162,17 @@
         ];
         wants = [ "network-online.target" ];
 
-        # Non-secret configuration only. An exported variable beats the env
-        # file, which is what makes this split work: secrets in the 0400 file,
-        # everything else visible in `systemctl cat bbm`.
+        # Non-secret, host-derived configuration only. An exported variable
+        # beats both env files, which is what makes the split work: secrets in
+        # the 0400 base, prod app config in the 0444 overlay, and the values
+        # this NixOS host decides visible in `systemctl cat bbm`.
+        #
+        # ENV must be exactly "prod": bbm builds the overlay filename from it
+        # (`.env.$ENV`), so the old "production" looked for a `.env.production`
+        # that has never existed and silently applied no overlay at all.
         environment = {
-          ENV = "production";
+          ENV = "prod";
           ENV_FILE = envFile;
-          APP_LOG_LEVEL = "info";
 
           SERVER_HOST = "127.0.0.1";
           SERVER_PORT = toString apiPort;
@@ -167,6 +210,77 @@
           DevicePolicy = "closed";
           LockPersonality = true;
           MemoryDenyWriteExecute = true;
+          NoNewPrivileges = true;
+          PrivateDevices = true;
+          PrivateTmp = true;
+          ProtectClock = true;
+          ProtectControlGroups = true;
+          ProtectHome = true;
+          ProtectHostname = true;
+          ProtectKernelLogs = true;
+          ProtectKernelModules = true;
+          ProtectKernelTunables = true;
+          ProtectProc = "invisible";
+          ProtectSystem = "strict";
+          RestrictAddressFamilies = [
+            "AF_INET"
+            "AF_INET6"
+            "AF_UNIX"
+          ];
+          RestrictNamespaces = true;
+          RestrictRealtime = true;
+          RestrictSUIDSGID = true;
+          SystemCallArchitectures = "native";
+          SystemCallFilter = [
+            "@system-service"
+            "~@privileged"
+            "~@resources"
+          ];
+        };
+      };
+
+      # --- chart sidecar --------------------------------------------------
+      # Draws the weekly report's chart: POST /weekly {points,currency} -> PNG.
+      # Separate from bbm.service because it is a separate runtime (Node, and
+      # a jsdom + resvg render) with a completely different risk profile, and
+      # because bbm treats it as optional — internal/telegram/reports.go calls
+      # the chart "a bonus", logs a failure and sends the report as text. So
+      # this unit being down, or absent, costs a picture and nothing else.
+      #
+      # DynamicUser: it holds no state and reads nothing on disk outside its
+      # own store path. Nothing to own, so no account to keep.
+      systemd.services.bbm-charts = {
+        description = "BBM chart renderer (Telegram weekly report)";
+        wantedBy = [ "multi-user.target" ];
+
+        environment = {
+          CHART_RENDER_HOST = "127.0.0.1";
+          CHART_RENDER_PORT = toString chartPort;
+        };
+
+        serviceConfig = {
+          Type = "exec";
+          ExecStart = lib.getExe packages.bbm-charts;
+          DynamicUser = true;
+          Restart = "on-failure";
+          RestartSec = "5s";
+
+          # Same hardening as bbm, with two deliberate differences.
+          #
+          # NO MemoryDenyWriteExecute: this is V8, and a JIT needs to map pages
+          # writable and then executable. Setting it kills node at startup.
+          #
+          # IPAddressDeny, which bbm cannot have (it calls GoCardless and
+          # Telegram): the renderer takes JSON from bbm over loopback and
+          # answers with a PNG. It has no reason to reach the network, and an
+          # SVG rasteriser handed hostile input is exactly the component you
+          # want unable to.
+          IPAddressDeny = "any";
+          IPAddressAllow = "localhost";
+
+          CapabilityBoundingSet = [ "" ];
+          DevicePolicy = "closed";
+          LockPersonality = true;
           NoNewPrivileges = true;
           PrivateDevices = true;
           PrivateTmp = true;

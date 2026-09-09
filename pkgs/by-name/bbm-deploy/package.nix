@@ -16,6 +16,7 @@
   nix,
   deploy-rs,
   coreutils,
+  gnugrep,
 }:
 writeShellApplication {
   name = "bbm-deploy";
@@ -25,6 +26,7 @@ writeShellApplication {
     nix
     deploy-rs
     coreutils
+    gnugrep
   ];
   text = ''
     host="eachtrach"
@@ -97,6 +99,34 @@ writeShellApplication {
       src="$(cd "$src" && pwd)" || die "cannot resolve --src"
       [ -f "$src/flake.nix" ] || die "$src has no flake.nix (is it a bbm checkout?)"
       grep -q '^module bbm/v2$' "$src/go.mod" 2>/dev/null || die "$src is not a bbm checkout"
+
+      # The prod overlay is NOT carried by the build. bbm layers .env then
+      # .env.$ENV, and eachtrach runs ENV=prod against a .env.prod that
+      # services/bbm.nix renders from sops — because $src/.env.prod is
+      # .gitignore'd (so the git+file: export cannot see it) and holds a bot
+      # token that must not leave sops for the world-readable store.
+      #
+      # The cost of that split is drift: a key added to $src/.env.prod reaches
+      # local runs and nothing else. Warn rather than fail — a key can be
+      # local-only on purpose, and this must never block a deploy.
+      overlay="$src/.env.prod"
+      aspect="$repo/modules/den/aspects/services/bbm.nix"
+      if [ -f "$overlay" ] && [ -f "$aspect" ]; then
+        missing=()
+        while read -r key; do
+          [ -n "$key" ] || continue
+          # Case-insensitive: the aspect names secrets by their sops key
+          # (bbm/telegram_bot_token), non-secrets by the variable itself. A
+          # match in a comment counts as considered-and-decided.
+          grep -qi -- "$key" "$aspect" || missing+=("$key")
+        done < <(grep -oE '^[[:space:]]*(export[[:space:]]+)?[A-Z_][A-Z0-9_]*=' "$overlay" |
+                   grep -oE '[A-Z_][A-Z0-9_]*' || true)
+        if [ "''${#missing[@]}" -gt 0 ]; then
+          echo "bbm-deploy: WARNING $overlay sets keys the deployed config never mentions:" >&2
+          printf '  %s\n' "''${missing[@]}" >&2
+          echo "  Add them to sops.templates.\".env.prod\" in $aspect (or to sops, if secret)." >&2
+        fi
+      fi
 
       if [ -n "$(git -C "$src" status --porcelain)" ]; then
         # A dirty tree deploys files that exist on this machine and nowhere
