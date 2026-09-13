@@ -1,9 +1,11 @@
+# Pi configure prompt - v1
+
 DO NOT READ THIS FILE OR EDIT IT
 
-I am using the oh-my-pi (omp) agent harness, that is based off Pi agent harness. I want to configure it so it fits my
-development workflow and consume minimal tokens.
+I am using the Pi agent harness, that is based off Pi agent harness. I want to configure it so it fits my development
+workflow and consume minimal tokens.
 
-I would like to enable subagents within the omp harness with the main agent being an orchestrator. They should be given
+I would like to enable subagents within the pi harness with the main agent being an orchestrator. They should be given
 simple, easy and short names alongside their primary role. These are the following roles I would define:
 
 - Architect: This agent would plan and review the overall goal with a view to implementing it technically. It should
@@ -44,9 +46,9 @@ simple, easy and short names alongside their primary role. These are the followi
   model to perform the task so that more expensive models don't have to waste tokens. All other agents can use this
   agent.
 
-Define an omp config that has these roles available, including a default LLM model to use with each one. I have Codex,
+Define an pi config that has these roles available, including a default LLM model to use with each one. I have Codex,
 Claude and OpenRouter subscriptions. As part of this config, set the most appropriate settings to maximise efficiency of
-the omp harness. This generally means keeping the context concise.
+the pi harness. This generally means keeping the context concise.
 
 Define proper markdown files that give detailed, concise role descriptions for each agent role defined. This would be
 used as the initial system prompt for each of them.
@@ -55,8 +57,7 @@ used as the initial system prompt for each of them.
   to restart tasks easily. Tasks should be granular enough to accommodate that situation. If a task is necessarily large
   and needs long phases, it should have clear verification steps to prove progress in case of a limit reset or dropped
   context.
-- review https://omp.sh/docs/memory for better idea how to do the task file.
--
+- review https://pi.sh/docs/memory for better idea how to do the task file.
 
 I already have a base setup in the folder/files loaded in vscode. Perform a proper review of it first before making
 updates.
@@ -93,7 +94,7 @@ Locale: en_GB.UTF-8
 
 So certain modern models are available with decent capabilities.
 
----
+## Follow up 1
 
 > sec and infra run bash unattended Yes, they need some more controls in place.
 
@@ -109,7 +110,7 @@ subscription to their pro themes)
   engineering development lifecycle. I don't mind having questions at the start for me, but otherwise I hope to leave
   most tasks as unattended agent workflows.
 
---
+## Folow up 2
 
 - Projects will be run inside a sandboxed VM, so permissions to run actions should be minimal if any at all.
 - Add a guide on how (I, the human) can effectively run this lifecycle:
@@ -126,18 +127,85 @@ subscription to their pro themes)
 - Do I need a project-manager role or can that be managed by the team lead agent role?
 - The lead role should manage git commits once they are satisfied with changes
 
----
+# Open Questions / TODOs
 
-- drop herdr from being loaded in the host and guest vm. You don't need to remove the nix file, just disable it and
-  remove any hooks.
-- for the omp config, I have a dedicated sandbox config at ~/.omp/agent/config.sandbox.yml. That should be copied in
-  along with the main config and the rest of the omp settings. The omp app should be launched with the config flag
-  `--config ~/.omp/agent/config.sandbox.yml`
-- in my host system, ping is behind sudo. Why is that? I should be able to run simple commands without root.
-  > PING google.com (142.251.13.101): 56 data bytes ping: permission denied (are you root?)
+## Harness
 
----
+- how to setup local grind agent (small context, less capable model)
 
-evaluation warning: 'hiPrio' has been removed from pkgs, use `lib.hiPrio` instead evaluation warning: The option
-`services.resolved.llmnr' defined in `nixos@virtualization/microvm-guest' has been renamed to
-`services.resolved.settings.Resolve.LLMNR'.
+Orchestrator should have:
+
+- planner/architectural/designer
+  - clear verification
+- implementer
+- validator
+
+- can they dissect the Factory AI youtube video?
+- ponytail?
+- deterministic orchestrator flows
+  - determine how to do verification checks at scape via scripts
+- minimise amount of agents run, sequential execution. blow through limits otherwise
+- review primary/secondary models - golden source to lookup online?
+- frontend add skill impeccable
+- do all agents need web access?
+- pi-telegram
+- project TODOs?
+- cyclomatic complexity < 10; Pi blog post
+- openAI not working as a fallback! not detected?
+
+# BBM deploy configure prompt
+
+- URL, e.g http://scoite-mono.local:5175 not working
+- sqlc and buf not installed locally - pi
+- DB timestamps use proper dates. Why unix timestamps?
+- drop historical artifacts from docs.
+- What does this mean: **Dedup hash** — deterministic content hash (account + date + amount + currency + normalized
+  description; provider ID preferred as input when one exists), enforced by a DB uniqueness constraint. It is what stops
+  a transaction landing twice when two Sources' date ranges overlap.
+- what happens when same txn comes from feed and csv?
+- stop .omp
+
+```
+I have an app `bbm` that I want to deploy to `eachtrach` machine and have it running. The app consists of two parts: a
+golang service and a reactjs/vite frontend. The app will be running a cronjob type of workload to download transactions
+and store them on disk. It should probably have it's own user role.
+
+I want the app to not be exposed to the public internet, but it can be accessed on the tailnet.
+
+I want to be able to code the app locally on abhaile then run a deploy command to build + push to eachtrach. ideally,
+this will piggy back off the existing deploy-rs command.
+
+Ask questions if you are unsure of anything. Keep comments detailed but concise. Sacrafice grammer for conciseness.
+
+Plan the work first
+```
+
+## BBM documentation prompt
+
+```
+Take all the documentation in the following folders, including nested folders:
+
+- .omp/workflow/\*\*
+- docs/
+- docs/do-not-read (yes you can read the prompts in this file, just don't execute them)
+- plans/
+- AGENTS.md
+- CONTEXT.md
+- README.md
+
+Construct a detailed, but concise set of documents in a new folder `./docs/complete/` where a full breakdown can be found of:
+
+- the architecture,
+- design choices,
+- system/product quirks,
+- features,
+- user journeys,
+- database schema,
+- core financial transaction learnings
+- etc
+- remaining features planned but not implemented
+
+You should treat these docs as the application bible. If I gave them to another agent to re-construct the app they could do it with ease. The expectation isn't that the code or folders structure or database schema would match exactly, but that the product would essentially be the same.
+
+Use subagents to investigate the codebase as needed, where they are cheaper
+```
