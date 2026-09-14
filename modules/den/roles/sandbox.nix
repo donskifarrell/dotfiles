@@ -55,6 +55,7 @@
       dev.tools.herdr
       dev.tools.herdr.autostart
       dev.tools.trippy
+      services.bbm-dev-guest
 
       shell.atuin
       shell.bat

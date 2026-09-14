@@ -81,7 +81,7 @@ reason both files are rendered into `/run/secrets/rendered`.
 | --------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------- |
 | base (`ENV_FILE`)                 | `/run/secrets/rendered/bbm.env`, 0400 bbm | secrets only                                                               |
 | overlay (`.env.$ENV`, `ENV=prod`) | `/run/secrets/rendered/.env.prod`, 0444   | prod-only **app** config. No secrets, hence world-readable and inspectable |
-| exported                          | `Environment=` in the unit                | what this NixOS host derives: ports, state paths, `WEB_BASE_URL`, `ENV`    |
+| exported                          | `Environment=` in the unit                | host-derived ports, state paths, `WEB_BASE_URL`, `ENV`, and observability log level |
 
 The overlay is the counterpart of `~/dev/bbm/.env.prod`, **rendered rather than copied**. That file is `.gitignore`'d,
 so the `git+file:` export the host builds from cannot see it, and copying it out of band would put a deploy's config
@@ -90,7 +90,8 @@ outside the closure (a from-scratch provision or a rollback would not carry it) 
 The cost is drift, so `bbm-deploy` warns when `$src/.env.prod` sets a key that `services/bbm.nix` never mentions. It is
 a warning, not an error: a key can be local-only on purpose.
 
-Currently the overlay holds `APP_LOG_LEVEL=debug` and `CHART_RENDER_URL=http://127.0.0.1:8091`.
+Currently the overlay holds `CHART_RENDER_URL=http://127.0.0.1:8091`. `APP_LOG_LEVEL` is exported by the imported
+observability module from `services.bbm.observability.logLevel`, which defaults to `info` and wins over file layers.
 
 ## Chart sidecar (`bbm-charts.service`)
 
@@ -132,6 +133,36 @@ tailscale0 and is accepted. A real external check needs an off-tailnet vantage p
 Caddy binds 0.0.0.0 on purpose: binding the tailnet address would make caddy's startup depend on tailscaled, turning a
 transient hiccup into a failed activation, for nothing the firewall does not already give.
 
+## Observability (prepared, not activated)
+
+`services.bbm-monitoring-host` on abhaile runs Prometheus (15 s / 30 d), Grafana, Tempo and Loki. Grafana, Prometheus,
+abhaile's node exporter, Tempo's query API (`:3200`), Loki's API (`:3100`), and their distinct gRPC listeners
+(`127.0.0.1:9095` and `127.0.0.1:9096`) bind localhost. Tempo OTLP/HTTP (`:4318`) is reachable through trusted
+`tailscale0`; Caddy's `:3101` ingress proxies only the exact Loki push path to loopback `:3100` and returns 404 for all
+other paths. Prometheus scrapes prod `eachtrach.tail8f3a60.ts.net:{9464,9100}`, dev
+`scoite-bbm.local:{9464,9100}`, and local `localhost:9100`. Grafana provisions the BBM dashboard directory from the
+pinned BBM input (Grafana ignores its non-JSON files), with Prometheus/Tempo/Loki datasource UIDs and log-to-trace
+correlation; alert rules and Telegram are intentionally not provisioned.
+
+Eachtrach imports BBM's `bbm-observability` module: metrics/node exporter are restricted by its tailnet firewall, traces
+go to Tempo and journald goes to Loki through Caddy's push-only `http://abhaile.tail8f3a60.ts.net:3101/loki/api/v1/push`.
+The shared `scoite-dev` closure keeps its base firewall disabled so qemu
+dynamic forwarded ports work; abhaile reaches node exporter and app metrics over the private `eth1` bridge.
+`scoite-bbm.local` is its stable mDNS target. LAN reach still requires explicit `scoite expose`. SLIRP lets that guest
+push to abhaile at `10.0.2.2` without a host firewall opening.
+
+For a manually started `scoite-bbm` dev server, set:
+
+```bash
+METRICS_ADDR=0.0.0.0:9464 \
+OTEL_EXPORTER_OTLP_ENDPOINT=http://10.0.2.2:4318 \
+OTEL_RESOURCE_ATTRIBUTES=deployment.environment=dev,service.version=dev \
+<start-bbm-command>
+```
+
+Dev stdout stays terminal-only; it is not shipped to Loki. Roll out stack first, then restart `scoite-bbm` and deploy
+eachtrach, smoke-test metrics/logs/traces, and only then add Grafana alerting/Telegram.
+
 ## Backups
 
 - **eachtrach** `bbm-snapshot.timer` 03:00 → `sqlite3 ".backup"` to `/var/lib/bbm/backup/sqlite.db`.
@@ -151,9 +182,8 @@ Restore: stop `bbm`, copy `daily.<date>/backup/sqlite.db` → `/var/lib/bbm/sqli
 - **`ENV` must be exactly `prod`, not `production`.** The overlay filename is built from it (`.env.$ENV`), so the
   original `ENV = "production"` looked for a `.env.production` that has never existed and applied no overlay at all —
   silently, because a missing overlay is legal (`readEnv` returns an empty map for a file that is not there).
-- **`APP_LOG_LEVEL` is read by nothing.** `.env.example` documents `debug | info | warn | error`, but no Go code reads
-  the key — the app logs with plain `log.Printf` and has no level machinery at all. It is set to `debug` in the overlay
-  because that is the intent; it will do nothing until the app grows a logger.
+- **`APP_LOG_LEVEL` comes from `services.bbm.observability.logLevel`.** The imported observability module exports it,
+  so its default `info` wins over the base and overlay file layers.
 - **The sidecar must NOT get `MemoryDenyWriteExecute`.** `bbm.service` sets it; copying that line to `bbm-charts` kills
   node at startup, because V8's JIT maps pages writable and then executable. `bbm-charts` gets `IPAddressDeny=any`
   instead, which `bbm` cannot have (it calls GoCardless and Telegram).

@@ -67,10 +67,11 @@
             # Underscore-prefixed files/dirs are ignored by the module auto-import system
             "**/_*/**"
             "**/_*"
+            "*.md"
           ];
 
           # statix.options = [ "explain" ];
-          mdformat.options = [ "--number" ];
+          # mdformat.options = [ "--number" ];
           shellcheck.options = [
             "--shell=bash"
             "--check-sourced"

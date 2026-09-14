@@ -7,11 +7,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1788623364,
-        "narHash": "sha256-uXqQR+yDczRYiy1nfQulk0bGUnX/4f9JgwAVc2O6O5k=",
+        "lastModified": 1789317282,
+        "narHash": "sha256-G5wuDjiNCM+DI8zN92IPvGjaNISHgcYGZxcKyudRess=",
         "ref": "refs/heads/main",
-        "rev": "c6c57ff19e7e0ccd452e3fb92522aac53226d3a5",
-        "revCount": 60,
+        "rev": "a5c69a1a8983b2fe2564c05e3007e03f83859b97",
+        "revCount": 85,
         "type": "git",
         "url": "file:///home/df/dev/bbm"
       },

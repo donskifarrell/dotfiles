@@ -78,6 +78,20 @@
       envFile = config.sops.templates."bbm.env".path;
     in
     {
+      imports = [ inputs.bbm.nixosModules.bbm-observability ];
+
+      services.bbm.observability = {
+        enable = true;
+        environment = "prod";
+        version = packages.bbm-server.version;
+        metricsAddr = "0.0.0.0:9464";
+        otlpEndpoint = "http://abhaile.tail8f3a60.ts.net:4318";
+        loki = {
+          enable = true;
+          url = "http://abhaile.tail8f3a60.ts.net:3101/loki/api/v1/push";
+        };
+      };
+
       # --- identity -------------------------------------------------------
       # Its own user and group: nothing else on the box may read the ledger or
       # the stored bank statements, and bbm may not read anything else.
@@ -147,7 +161,6 @@
         mode = "0444";
         restartUnits = [ "bbm.service" ];
         content = ''
-          APP_LOG_LEVEL=debug
           CHART_RENDER_URL=http://127.0.0.1:${toString chartPort}
         '';
       };
@@ -332,5 +345,204 @@
           file_server
         }
       '';
+    };
+
+  # Monitoring lives on abhaile, not on every host that uses the bbm aspect.
+  den.aspects.services.bbm-monitoring-host.nixos =
+    { pkgs, ... }:
+    {
+      services.prometheus = {
+        enable = true;
+        listenAddress = "127.0.0.1";
+        globalConfig.scrape_interval = "15s";
+        retentionTime = "30d";
+        scrapeConfigs = [
+          {
+            job_name = "bbm";
+            static_configs = [
+              {
+                targets = [ "eachtrach.tail8f3a60.ts.net:9464" ];
+                labels.env = "prod";
+              }
+              {
+                targets = [ "scoite-bbm.local:9464" ];
+                labels.env = "dev";
+              }
+            ];
+          }
+          {
+            job_name = "node";
+            static_configs = [
+              {
+                targets = [ "eachtrach.tail8f3a60.ts.net:9100" ];
+                labels.env = "prod";
+              }
+              {
+                targets = [ "scoite-bbm.local:9100" ];
+                labels.env = "dev";
+              }
+              {
+                targets = [ "localhost:9100" ];
+                labels.env = "host";
+              }
+            ];
+          }
+        ];
+      };
+
+      services.prometheus.exporters.node = {
+        enable = true;
+        listenAddress = "127.0.0.1";
+        enabledCollectors = [ "systemd" ];
+      };
+
+      services.grafana = {
+        enable = true;
+        settings = {
+          server.http_addr = "127.0.0.1";
+          # Generated once in Grafana's persistent data directory; never enters
+          # the store and is retained across activations.
+          security.secret_key = "$__file{/var/lib/grafana/secret_key}";
+        };
+        provision = {
+          datasources.settings = {
+            apiVersion = 1;
+            datasources = [
+              {
+                name = "Prometheus";
+                type = "prometheus";
+                uid = "prometheus";
+                url = "http://localhost:9090";
+                isDefault = true;
+              }
+              {
+                name = "Tempo";
+                type = "tempo";
+                uid = "tempo";
+                url = "http://localhost:3200";
+                jsonData.tracesToLogsV2 = {
+                  datasourceUid = "loki";
+                  filterByTraceID = true;
+                };
+              }
+              {
+                name = "Loki";
+                type = "loki";
+                uid = "loki";
+                url = "http://localhost:3100";
+                jsonData.derivedFields = [
+                  {
+                    datasourceUid = "tempo";
+                    matcherRegex = "\"trace_id\":\"(\\w+)\"";
+                    name = "TraceID";
+                    url = "\${__value.raw}";
+                  }
+                ];
+              }
+            ];
+          };
+          dashboards.settings = {
+            apiVersion = 1;
+            providers = [
+              {
+                name = "bbm";
+                options.path = inputs.bbm + "/docs/observability";
+              }
+            ];
+          };
+        };
+      };
+
+      systemd.services.grafana.preStart = ''
+        if [ ! -s /var/lib/grafana/secret_key ]; then
+          umask 077
+          ${pkgs.openssl}/bin/openssl rand -hex 32 > /var/lib/grafana/secret_key
+        fi
+      '';
+
+      services.tempo = {
+        enable = true;
+        settings = {
+          stream_over_http_enabled = true;
+          server = {
+            http_listen_address = "127.0.0.1";
+            http_listen_port = 3200;
+            grpc_listen_address = "127.0.0.1";
+            grpc_listen_port = 9095;
+          };
+          distributor.receivers.otlp.protocols.http.endpoint = "0.0.0.0:4318";
+          storage.trace = {
+            backend = "local";
+            wal.path = "/var/lib/tempo/wal";
+            local.path = "/var/lib/tempo/blocks";
+          };
+          usage_report.reporting_enabled = false;
+        };
+      };
+
+      services.loki = {
+        enable = true;
+        configuration = {
+          auth_enabled = false;
+          server = {
+            http_listen_address = "127.0.0.1";
+            http_listen_port = 3100;
+            grpc_listen_address = "127.0.0.1";
+            grpc_listen_port = 9096;
+          };
+          common = {
+            path_prefix = "/var/lib/loki";
+            storage.filesystem = {
+              chunks_directory = "/var/lib/loki/chunks";
+              rules_directory = "/var/lib/loki/rules";
+            };
+            replication_factor = 1;
+            ring.kvstore.store = "inmemory";
+          };
+          schema_config.configs = [
+            {
+              from = "2024-01-01";
+              store = "tsdb";
+              object_store = "filesystem";
+              schema = "v13";
+              index = {
+                prefix = "index_";
+                period = "24h";
+              };
+            }
+          ];
+          limits_config.retention_period = "30d";
+          compactor = {
+            working_directory = "/var/lib/loki/compactor";
+            retention_enabled = true;
+            delete_request_store = "filesystem";
+          };
+        };
+      };
+
+      services.caddy = {
+        enable = true;
+        virtualHosts."http://:3101".extraConfig = ''
+          handle /loki/api/v1/push {
+            reverse_proxy 127.0.0.1:3100
+          }
+
+          handle {
+            respond 404
+          }
+        '';
+      };
+    };
+
+  # The base microVM firewall remains disabled so qemu dynamic forwards work.
+  # Abhaile reaches this node exporter over the private eth1 bridge.
+  den.aspects.services.bbm-dev-guest.nixos =
+    { ... }:
+    {
+      services.prometheus.exporters.node = {
+        enable = true;
+        enabledCollectors = [ "systemd" ];
+        openFirewall = false;
+      };
     };
 }

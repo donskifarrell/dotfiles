@@ -61,6 +61,7 @@ in
       services.llm # llama.cpp vulkan+rocm on the RX 9070 (benchmarked on-box)
       services.syncthing # Obsidian vault <-> Android phone (docs/obsidian.md)
       services.bbm.backup.pull # nightly rsync of eachtrach's bbm state (docs/bbm.md)
+      services.bbm-monitoring-host
     ];
 
     nixos =

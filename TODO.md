@@ -208,6 +208,11 @@ Open:
    (`internal/gocardless` also times out on a loopback httptest server locally.)
 6. **flake.lock vs what is deployed.** `bbm-deploy` overrides the input rather than updating the lock, so the lock can
    lag. `nix flake update bbm` when you want them to agree; `bbm-deploy --pinned` deploys the lock instead.
+7. **Observability rollout: alerts and smoke test.** After activating the prepared stack in
+   `modules/den/aspects/services/bbm.nix`, verify the metrics, Loki and Tempo queries in
+   `/home/df/dev/bbm/docs/observability.md` §8 from abhaile (including `scoite-bbm.local` while running). Then provision
+   Grafana alert rules/Telegram from that hand-off's §3.3 only after both prod and dev signals are healthy; keep the
+   token in sops, never Nix.
 
 ### 12. Decide wire-or-delete for the orphaned aspects
 
