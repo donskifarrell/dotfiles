@@ -8,6 +8,7 @@
           pkgs.imagemagick
           pkgs.krita
           pkgs.maestral-gui
+          pkgs.pinta
           pkgs.vlc
         ];
 

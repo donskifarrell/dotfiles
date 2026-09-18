@@ -156,6 +156,9 @@ Gotchas (easy to forget):
 - **No `networking.nat`.** tailscaled does its own exit-node SNAT (`ts-postrouting` … `-j MASQUERADE`, NetfilterMode=2);
   `useRoutingFeatures = "both"` supplies the forwarding sysctls. Adding networking.nat would be a second, conflicting
   NAT — and the uplink is `enp1s0`, not the `eth0` the old dead code guessed.
+- If eachtrach stays reachable and advertises the exit node but client internet stalls after a deploy, verify the
+  forwarding sysctls and `ts-forward`/`ts-postrouting`, then restart `tailscaled` on eachtrach and reselect it on the
+  client. This cleared the 2026-09-14 incident; verify table 52's default route and the public egress IP.
 - **`facter.detected.dhcp.enable` must be forced back on** (`hosts/eachtrach.nix`). The shared `hardware.facter` aspect
   turns it off for abhaile's sake (NetworkManager drives that host); eachtrach gets its address from exactly that
   module, so without the `mkForce` the box comes up with **no default route**. Hetzner hands out a /32 whose gateway is
