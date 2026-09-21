@@ -78,7 +78,10 @@
       envFile = config.sops.templates."bbm.env".path;
     in
     {
-      imports = [ inputs.bbm.nixosModules.bbm-observability ];
+      imports = [
+        inputs.bbm.nixosModules.bbm-observability
+        inputs.bbm.nixosModules.bbm-operator
+      ];
 
       services.bbm.observability = {
         enable = true;
@@ -90,6 +93,13 @@
           enable = true;
           url = "http://abhaile.tail8f3a60.ts.net:3101/loki/api/v1/push";
         };
+      };
+
+      services.bbm.operator = {
+        enable = true;
+        package = packages.bbm-server;
+        user = "bbm"; # must match the bbm unit's real User=
+        sqlitePath = "/var/lib/bbm/sqlite.db"; # must match that unit's SQLITE_PATH
       };
 
       # --- identity -------------------------------------------------------

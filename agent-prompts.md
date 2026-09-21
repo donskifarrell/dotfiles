@@ -154,10 +154,10 @@ Orchestrator should have:
 - openAI not working as a fallback! not detected?
 - split PI sessions/agents into panes via herdr api
 - avoid docs other than a guide to where code lives and a glossary of domain terms. Code is the source of truth
-  3 agent setup.
-  Main agent for actual work, dynamic loading of skills?
-  Adversary agent for review
-  Cheap scout agent
+- 3 agent setup.
+  - Main agent for actual work, dynamic loading of skills?
+  - Adversary agent for review
+  - Cheap scout agent
 
 # BBM deploy configure prompt
 
