@@ -1,4 +1,4 @@
-# DO-NOT-EDIT. This file was auto-generated using github:vic/flake-file.
+# DO-NOT-EDIT. This file was auto-generated using github:denful/flake-file.
 # Use `nix run .#write-flake` to regenerate it.
 {
   description = "Aonix\n";
@@ -25,7 +25,7 @@
 
   inputs = {
     bbm = {
-      url = "git+file:///home/df/dev/bbm";
+      url = "git+ssh://git@github.com/donskifarrell/bbm";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     den.url = "github:denful/den";
@@ -33,6 +33,7 @@
       url = "github:serokell/deploy-rs";
       inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
+    devenv.url = "github:cachix/devenv/v2.3.1";
     devshell = {
       url = "github:numtide/devshell";
       inputs.nixpkgs.follows = "nixpkgs-unstable";

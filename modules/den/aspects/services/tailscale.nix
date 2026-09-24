@@ -66,6 +66,34 @@
             ++ (lib.optional allowLanWithExitNode "--exit-node-allow-lan-access");
         };
 
+        # tailscaled-autoconnect's START TIMEOUT, not its ordering.
+        #
+        # nixpkgs gives this unit `after/wants = tailscaled.service`, Type=notify
+        # and no explicit timeout, so it inherits systemd's 90s default. Its
+        # script polls `tailscale status` every 0.5s and notifies READY the
+        # moment the backend reports `Running`.
+        #
+        # On 2026-09-24 a large nixpkgs jump restarted NetworkManager and
+        # tailscaled in the same activation. tailscaled came back at 12:00:31
+        # with no DNS ("no DNS fallback candidates remain for
+        # controlplane.tailscale.com"), got its netmap at 12:02:05 and went
+        # Running — but systemd had already killed autoconnect at 12:02:02.
+        # It lost by THREE SECONDS. switch-to-configuration then exits 4, and
+        # nh treats that as a failed activation and stops before committing the
+        # generation or writing a bootloader entry, which is how a fully working
+        # switch turned into a machine that would reboot into the old one.
+        #
+        # `network-online.target` is deliberately NOT the fix. It is a passive
+        # target already reached at boot; restarting NetworkManager mid-switch
+        # does not re-enter it, so ordering after it would have delayed nothing
+        # here. The window itself is the problem, so widen the window.
+        #
+        # Not "make the failure non-fatal" either: a node that genuinely cannot
+        # reach the tailnet should still fail loudly. 5min keeps that signal
+        # while covering a control-plane round trip on a link that is still
+        # settling.
+        systemd.services.tailscaled-autoconnect.serviceConfig.TimeoutStartSec = "5min";
+
         networking.firewall = {
           checkReversePath = "loose";
           trustedInterfaces = [ "tailscale0" ];

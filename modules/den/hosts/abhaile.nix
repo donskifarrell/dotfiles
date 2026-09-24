@@ -85,13 +85,22 @@ in
         # backends after the reboot (TODO.md item 1) and revert this line alone
         # if anything regresses.
         #
-        # Pinned to the 7.1 series (2026-09-08) rather than
-        # `linuxPackages_latest`, which has moved on to 7.2.x — staying on the
-        # series this box already boots. This must be a *packages set*
-        # (`linuxPackages_<maj>_<min>`, i.e. `linuxKernel.packages.linux_7_1`);
-        # `linuxKernel.kernels.linux_7_1` is the bare kernel derivation and
-        # fails to evaluate here.
-        boot.kernelPackages = pkgs.linuxPackages_7_1;
+        # Was pinned to the 7.1 series (2026-09-08) to avoid following
+        # `linuxPackages_latest` onto 7.2.x. Forced onto 7.2 on 2026-09-24:
+        # 7.1 reached EOL upstream and nixpkgs REMOVED it ("linux 7.1 was
+        # removed because it has reached its end of life upstream"), so the
+        # pin no longer evaluates. 7.0 and 7.1 are both gone; 7.2.5 is the
+        # only remaining series above the 6.18 LTS, and currently equals
+        # `linuxPackages_latest` — the named pin still matters, so that the
+        # box does not silently follow `latest` onto 7.3 later.
+        #
+        # This box boots 7.1.12 today, so this is a real kernel jump across a
+        # series: the amdgpu/KFD re-bench above applies again after reboot.
+        #
+        # This must be a *packages set* (`linuxPackages_<maj>_<min>`, i.e.
+        # `linuxKernel.packages.linux_7_2`); `linuxKernel.kernels.linux_7_2`
+        # is the bare kernel derivation and fails to evaluate here.
+        boot.kernelPackages = pkgs.linuxPackages_7_2;
 
         users.users.root.openssh.authorizedKeys.keys = [ authorizedKey ];
 

@@ -11,29 +11,42 @@
 #   bbm-charts  Node sidecar that draws the Telegram weekly report's chart,
 #               loopback-only and never reached from outside this host.
 #
-# SOURCE PIN. The input is a local checkout, by deliberate choice (df,
-# 2026-09-05): it deploys local commits with no push to GitHub first.
+# SOURCE PIN. The input is the GitHub remote. It was a local checkout
+# (/home/df/dev/bbm) from 2026-09-05 until 2026-09-24, so that deploys could
+# carry local commits with no push first — reverted because the cost was
+# invisible and repo-wide: nix cannot lock a dirty git tree, and it then
+# declines to write flake.lock AT ALL, so every `nix flake update` in this repo
+# silently no-opped for 11 days whenever that checkout had uncommitted work.
+# nix-flake-update now refuses to run in that situation rather than relying on
+# nobody leaving bbm dirty.
 #
-# Two consequences, both load-bearing:
-#   - This flake does not evaluate on a machine without /home/df/dev/bbm.
-#     `nix flake check`, `nix fmt` and `nixos-rebuild` all resolve every input,
-#     so on such a machine they fail here, not just for bbm. Switching to the
-#     remote is a one-line change: `git+ssh://git@github.com/donskifarrell/bbm`.
-#   - `git+file:` (not `path:`) is REQUIRED. It exports the git tree, so it
-#     honours .gitignore and deploys committed HEAD only. `path:` copies the
-#     working directory verbatim — which would put bbm's plaintext .env, its
-#     bank data under data/, and every node_modules into the world-readable nix
-#     store. Do not "simplify" this to path:.
+# Deploying un-pushed work did NOT depend on the pin: `bbm-deploy` passes
+# `--override-input bbm <checkout>` on every invocation, so it still builds
+# from a local working copy (and still refuses a dirty one without --dirty).
+# What the remote changes is the default — a plain `nixos-rebuild`/`nh os
+# switch` of eachtrach now builds bbm's pushed HEAD, and this flake evaluates
+# on a machine that has no /home/df/dev/bbm at all.
 #
-# A relative path cannot express any of this: nix resolves `path:../…` against
-# the flake's STORE copy, so anything outside the flake directory is
-# unreachable ("access to absolute path '/nix/store/…' is forbidden in pure
-# evaluation mode"). `bbm-deploy` therefore overrides the input per-invocation
-# instead, which is also what lets it deploy from a different checkout.
+# `git+ssh:` (not `path:`) is REQUIRED. It exports the git tree, so it honours
+# .gitignore — which is what keeps bbm's plaintext .env, its bank data under
+# data/, and every node_modules out of the world-readable nix store. Do not
+# "simplify" it to path:.
+#
+# Caveat, verified 2026-09-24 on this box's lazy-trees nix: `git+file:` at a
+# DIRTY local checkout exports the live worktree, not committed HEAD (the
+# .gitignore filtering still applies). So the flakeref form alone does not
+# stop uncommitted work shipping — bbm-deploy's `git status --porcelain`
+# check is what does, and it is the thing to keep.
+#
+# A relative path cannot express a local checkout anyway: nix resolves
+# `path:../…` against the flake's STORE copy, so anything outside the flake
+# directory is unreachable ("access to absolute path '/nix/store/…' is
+# forbidden in pure evaluation mode"). Overriding per-invocation is what makes
+# bbm-deploy work, and is also what lets it deploy from a checkout elsewhere.
 { inputs, ... }:
 {
   flake-file.inputs.bbm = {
-    url = "git+file:///home/df/dev/bbm";
+    url = "git+ssh://git@github.com/donskifarrell/bbm";
     inputs.nixpkgs.follows = "nixpkgs";
   };
 
