@@ -19,6 +19,20 @@
       {
         nixpkgs.overlays = [ inputs.nix-vscode-extensions.overlays.default ];
 
+        # claudeCode.claudeProcessWrapper is spawned as `<wrapper> <the
+        # extension's own bundled native binary> <real args>` — it is meant to
+        # be an FHS runner (steam-run-ish), since that binary is a
+        # generic-linux ELF no NixOS host without nix-ld can exec. Dropping
+        # argv[1] and exec'ing the nix-managed claude keeps one flake-tracked
+        # CLI (apps.ai-tools -> inputs.nix-ai-tools, so `nix flake update`
+        # moves it) instead of the marketplace blob. Pointing the setting
+        # straight at `claude` fed that path in as a prompt and the session
+        # came up logged out.
+        home.file.".local/bin/claude-code-vscode".source = pkgs.writeShellScript "claude-code-vscode" ''
+          shift
+          exec /etc/profiles/per-user/${config.home.username}/bin/claude "$@"
+        '';
+
         xdg.desktopEntries.code = {
           name = "Visual Studio Code";
           genericName = "Code Editor";
@@ -80,10 +94,14 @@
         # declared state below. builtins.fromJSON validates at eval time.
         home.activation.vscodeUserSettings =
           let
+            # Linked into $HOME rather than referenced by store path: the
+            # settings generator is a __structuredAttrs derivation, which
+            # refuses values carrying string context.
+            claudeWrapper = "${config.home.homeDirectory}/.local/bin/claude-code-vscode";
             settingsFile = (pkgs.formats.json { }).generate "vscode-settings.json" (
               builtins.fromJSON ''
                 {
-                  "claudeCode.claudeProcessWrapper": "/etc/profiles/per-user/${config.home.username}/bin/claude",
+                  "claudeCode.claudeProcessWrapper": "${claudeWrapper}",
                   "claudeCode.preferredLocation": "panel",
                   "[dockerfile]": {
                     "editor.defaultFormatter": "ms-azuretools.vscode-docker"

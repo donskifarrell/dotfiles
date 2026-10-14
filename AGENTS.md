@@ -362,4 +362,14 @@ until this aspect is present. `roles.sandbox.dev` installs the same set on its o
 
 - treefmt: `nix flake check` runs a strict nixfmt; if `nix fmt` leaves `_:\n{}` expanded, hand-collapse to `_: {}` (what
   the check wants) and re-run `nix fmt`.
+- **VSCode claude-code extension**: it ships its own generic-linux `resources/native-binary/claude`, unrunnable here (no
+  nix-ld on abhaile — `/lib64/ld-linux-x86-64.so.2` is nixpkgs' stub-ld). `claudeCode.claudeProcessWrapper` is spawned as
+  `<wrapper> <that binary> <real args>`, i.e. it is an FHS-runner hook, **not** a "use this claude" setting — pointing it
+  at the nix `claude` fed the binary path in as a prompt and the panel came up logged out with the auth code rejected.
+  `dev/vscode.nix` installs `~/.local/bin/claude-code-vscode` (`shift; exec …/bin/claude "$@"`) and points the setting
+  there, so the flake-tracked CLI (`apps.ai-tools` → `inputs.nix-ai-tools`, moves on `nix flake update`) runs instead.
+  Also: claude's native self-installer leaves `~/.local/bin/claude` → `~/.local/share/claude/versions/<v>`, which shadows
+  the nix wrapper in PATH and dies with the stub-ld message — delete both.
+- `pkgs.formats.json.generate` is `__structuredAttrs`, so its value may not carry string context: no store paths in the
+  generated VSCode settings.json. Link a script into `$HOME` and reference that path instead.
 - Keep `nix flake update` as its own commit so it can be reverted independently.
