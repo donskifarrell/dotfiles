@@ -327,6 +327,15 @@ the CLAUDE.md LLM gotcha). Otherwise bump the pin instead: version, src hash (`n
 tarball → `nix hash convert --to sri`), then `cargoDeps.hash` from a fake-hash build. `cargoHash` itself is NOT
 overridable — `buildRustPackage` reads it off `args`, not `finalAttrs`.
 
+### 19. Collie on the phone: manual enable steps (added 2026-10-14)
+
+Code is in: `dev.tools.collie` (guest package + `~/.collie/config.toml`), guest linger, `scoite expose --tailnet`. Still
+manual, in order, all in [docs/collie.md](docs/collie.md): enable tailnet HTTPS in the admin console →
+`nixos-rebuild switch` → stop/start `scoite-bbm` → `scoite expose bbm --tailnet 8787` → guest `.env` + `collie start` +
+`collie pair` → phone pair/install → voice via Settings → Voice. Not yet verified: HTTPS `tailscale serve` on a non-443
+port, microphone/Whistle on the phone, collie surviving herdr detach with linger. Optional later: Web Push
+(`collie push-keys`).
+
 ## Done
 
 - 2026-09-08 — **omp and paseo dropped** (df moved to `pi` + `herdr`). Removed: the `dev.tools.omp-auth-broker` aspect

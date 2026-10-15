@@ -47,6 +47,7 @@
         gnomeExtensions.just-perfection
         gnomeExtensions.pop-shell
         gnomeExtensions.vitals
+        wl-clipboard # wl-copy/wl-paste: CLI clipboard for TUIs (herdr copy-on-select)
       ];
     };
 }

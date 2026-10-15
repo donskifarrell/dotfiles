@@ -49,6 +49,7 @@
       dev.lang.nix
       dev.lang.go
 
+      dev.tools.collie
       dev.tools.devenv
       dev.tools.direnv
       dev.tools.headless-browser
@@ -96,6 +97,10 @@
           pkgs.pkg-config
         ];
         nix.settings.trusted-users = [ "iosta" ];
+        # User units (collie's bridge) must outlive the ssh session: herdr
+        # autostart execs, so detaching ends it, and without linger the user
+        # manager then stops them.
+        users.users.iosta.linger = true;
       };
   };
 }

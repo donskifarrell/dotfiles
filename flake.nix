@@ -28,6 +28,10 @@
       url = "git+ssh://git@github.com/donskifarrell/bbm";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    collie = {
+      url = "github:AltanS/collie";
+      flake = false;
+    };
     den.url = "github:denful/den";
     deploy-rs = {
       url = "github:serokell/deploy-rs";

@@ -272,6 +272,25 @@ Gotchas (easy to forget):
   interactive `ssh scoite-<name>` `exec`s straight into herdr, so detaching ends the ssh session. A non-herdr shell (the
   serial console, a VS Code terminal) still lands in a plain fish in `/workspace`.
 
+## Collie — herdr on the phone, from a sandbox
+
+**Full reference: [docs/collie.md](docs/collie.md)** (setup guide incl. phone + voice). `dev.tools.collie` puts the
+`collie` binary (flake input `collie`, `flake = false`, upstream's `packaging/nix/collie.nix` on our nixpkgs) and a
+machine `~/.collie/config.toml` in every `dev` guest; it stays inert until `collie start` in that guest. The front door
+is abhaile's own `tailscale serve`, opened per sandbox with `scoite expose <name> --tailnet <port>`. The guest never
+joins the tailnet.
+
+Gotchas (easy to forget):
+
+- The guest bridge binds **`10.0.2.15`** (SLIRP, `allow_non_loopback_bind`). On loopback, qemu's hostfwd could not
+  reach it. On the `scoitebr0` address, other guests could.
+- `COLLIE_PUBLIC_HOSTS` must equal `abhaile.tail8f3a60.ts.net:<tailnet port>` exactly, port included. It is
+  per-guest, in `~/.config/collie/.env`, never in the shared closure. `COLLIE_TRUSTED_USER` is ignored under
+  `skip_serve`, so pairing is the gate.
+- Guests set `users.users.iosta.linger = true`. Without it, detaching herdr ends the ssh session, and the user manager
+  then stops collie.
+- Tailnet HTTPS certs must be on (admin console). `scoite expose --tailnet` refuses otherwise.
+
 ## bbm — personal finance app on eachtrach
 
 **Full reference: [docs/bbm.md](docs/bbm.md)** — BBM (Go API + React SPA) from `~/dev/bbm`, tailnet-only at

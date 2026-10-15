@@ -104,6 +104,22 @@
         "type": "github"
       }
     },
+    "collie": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1792010613,
+        "narHash": "sha256-Ol1QmL5Z/n95Vtjj2uLFMyb7C1K8S5s73fITX53gQD0=",
+        "owner": "AltanS",
+        "repo": "collie",
+        "rev": "8629ecb4fdb82d82164d1adc4335c07b7a9b0faa",
+        "type": "github"
+      },
+      "original": {
+        "owner": "AltanS",
+        "repo": "collie",
+        "type": "github"
+      }
+    },
     "crate2nix": {
       "flake": false,
       "locked": {
@@ -877,6 +893,7 @@
     "root": {
       "inputs": {
         "bbm": "bbm",
+        "collie": "collie",
         "den": "den",
         "deploy-rs": "deploy-rs",
         "devenv": "devenv",

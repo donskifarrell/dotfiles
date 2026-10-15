@@ -6,6 +6,7 @@
   gnugrep,
   gnutar,
   iproute2,
+  jq,
   nix,
   openssh,
   procps,
@@ -23,6 +24,7 @@ let
       gnugrep
       gnutar
       iproute2
+      jq
       nix
       openssh
       procps
@@ -111,7 +113,8 @@ let
         scoite resize [<name>] [opts]   grow a sandbox's disks
         scoite expose [<name>] <port>   forward a port into a running sandbox
         scoite expose --lan <port>      also reach it from the LAN (opt-in)
-        scoite unexpose [<name>] <port> stop forwarding one
+        scoite expose --tailnet <port>  also reach it over HTTPS on the tailnet (opt-in)
+        scoite unexpose [<name>] <port> stop forwarding one (--lan/--tailnet: that door only)
         scoite <path>                   shorthand: new-or-start for a folder
 
       Names:
@@ -539,7 +542,7 @@ let
       load_config() {
         local name=$1
         [ -f "$STATE_ROOT/$name/config" ] || die "no such sandbox: $name (try: scoite list)"
-        ADDR="" PORTS="" ID="" LAN_PORTS="" BINDS=""
+        ADDR="" PORTS="" ID="" LAN_PORTS="" TAILNET_PORTS="" BINDS=""
         # shellcheck disable=SC1090
         . "$STATE_ROOT/$name/config"
 
@@ -579,6 +582,7 @@ let
       HOME_DISK=$HOME_DISK
       PORTS=$PORTS
       LAN_PORTS=''${LAN_PORTS:-}
+      TAILNET_PORTS=''${TAILNET_PORTS:-}
       BINDS=''${BINDS:-}
       SSH_PORT=$SSH_PORT
       ADDR=$ADDR
@@ -1028,7 +1032,8 @@ let
           name=$(resolve_name "$arg")
           dir=$STATE_ROOT/$name
           [ -d "$dir" ] || { echo "no such sandbox: $name"; continue; }
-          ( load_config "$name" 2>/dev/null && lan_teardown ) || true
+          # rm frees ADDR for reuse, so a tailnet door must not outlive it.
+          ( load_config "$name" 2>/dev/null && lan_teardown && tailnet_teardown ) || true
           systemctl --user stop "$(unit_of "$name").service" 2>/dev/null || true
           # The runner out-link is a GC root; dropping the directory drops it,
           # so the guest closure becomes collectable again.
@@ -1393,9 +1398,9 @@ let
       }
 
       cmd_list() {
-        local fmt='%-24s %-8s %-8s %-26s %-13s %-13s %-9s %-6s %-7s %s\n'
+        local fmt='%-24s %-8s %-8s %-26s %-13s %-13s %-9s %-11s %-6s %-7s %s\n'
         # shellcheck disable=SC2059
-        printf "$fmt" NAME TYPE STATUS DNS IP FORWARD LAN BINDS ON-DISK WORKSPACE
+        printf "$fmt" NAME TYPE STATUS DNS IP FORWARD LAN TAILNET BINDS ON-DISK WORKSPACE
         shopt -s nullglob
         for dir in "$STATE_ROOT"/*/; do
           local name status used dns ip
@@ -1409,6 +1414,8 @@ let
           fi
           used=$(du -sh "$dir" 2>/dev/null | cut -f1)
           if [ -f "$dir/config" ]; then
+            # Outside the subshell: shellcheck flags a subshell-local write.
+            TAILNET_PORTS=""
             ( # subshell: don't leak one instance's config into the next
               # Reset first: a config written before `scoite bind` existed has
               # no BINDS line, and would otherwise show the previous row's.
@@ -1420,12 +1427,12 @@ let
               # shellcheck disable=SC2059
               printf "$fmt" \
                 "$name" "$TYPE" "$status" "$dns" "$ip" \
-                "''${ADDR:-(on next start)}" "''${LAN_PORTS:--}" "$nbinds" "$used" "$WORKSPACE"
+                "''${ADDR:-(on next start)}" "''${LAN_PORTS:--}" "''${TAILNET_PORTS:--}" "$nbinds" "$used" "$WORKSPACE"
             )
           else
             # A state dir from before the two-type rework — `scoite rm` it.
             # shellcheck disable=SC2059
-            printf "$fmt" "$name" "legacy" "$status" "-" "-" "-" "-" "-" "$used" "-"
+            printf "$fmt" "$name" "legacy" "$status" "-" "-" "-" "-" "-" "-" "$used" "-"
           fi
         done
       }
@@ -1508,12 +1515,14 @@ let
 
       # `expose 5173` (name from $PWD) as well as `expose <name> 5173`.
       expose_args() {
-        EXPOSE_LAN=0 EXPOSE_LAN_PORT=""
+        EXPOSE_LAN=0 EXPOSE_LAN_PORT="" EXPOSE_TAILNET=0 EXPOSE_TAILNET_PORT=""
         local rest=()
         while [ $# -gt 0 ]; do
           case "$1" in
             --lan) EXPOSE_LAN=1; shift ;;
             --lan-port) EXPOSE_LAN=1; EXPOSE_LAN_PORT=$2; shift 2 ;;
+            --tailnet) EXPOSE_TAILNET=1; shift ;;
+            --tailnet-port) EXPOSE_TAILNET=1; EXPOSE_TAILNET_PORT=$2; shift 2 ;;
             *) rest+=("$1"); shift ;;
           esac
         done
@@ -1549,24 +1558,26 @@ let
 
       lan_del() { sudo scoite-lan del "$1" >/dev/null 2>&1 || true; }
 
-      # LAN_PORTS in the instance config: "guest:lan,guest:lan,…".
-      lan_record() {
-        local gport=$1 lport=$2
-        case ",''${LAN_PORTS:-}," in
-          *",$gport:$lport,"*) ;;
-          *) LAN_PORTS=''${LAN_PORTS:+$LAN_PORTS,}$gport:$lport ;;
+      # LAN_PORTS / TAILNET_PORTS in the instance config: "guest:outer,…",
+      # edited by variable name: `map_add LAN_PORTS 5173 5173`.
+      map_add() {
+        local -n m=$1
+        case ",''${m:-}," in
+          *",$2:$3,"*) ;;
+          *) m=''${m:+$m,}$2:$3 ;;
         esac
       }
 
-      lan_forget() {
-        local gport=$1 out="" e
-        for e in $(printf '%s' "''${LAN_PORTS:-}" | tr ',' ' '); do
+      map_del() {
+        local -n m=$1
+        local out="" e
+        for e in $(printf '%s' "''${m:-}" | tr ',' ' '); do
           case "$e" in
-            "$gport":*) ;;
+            "$2":*) ;;
             *) out=''${out:+$out,}$e ;;
           esac
         done
-        LAN_PORTS=$out
+        m=$out
       }
 
       # Is this LAN port already claimed — by another sandbox, or by anything
@@ -1597,12 +1608,68 @@ let
         done
       }
 
+      # --- tailnet exposure ---------------------------------------------------
+      # HTTPS on abhaile's own tailnet name (tailscale's cert) -> the
+      # instance's loopback forward, via `tailscale serve`. The guest never
+      # joins the tailnet. Needs df as tailscale operator
+      # (`tailscale set --operator=df`) and HTTPS certificates on for the
+      # tailnet. tailscaled keeps serve config across reboots and ADDR is the
+      # instance's for life, so only unexpose/rm tear a door down; while the
+      # guest is stopped it answers 502. `tailscale` is the system one on
+      # purpose: the CLI must match the running daemon.
+      tailnet_host() {
+        local st
+        st=$(tailscale status --json 2>/dev/null) || die "tailscale is not running"
+        jq -e '(.CertDomains // []) | length > 0' >/dev/null <<<"$st" \
+          || die "tailnet HTTPS certificates are off - enable them at https://login.tailscale.com/admin/dns"
+        jq -r '.Self.DNSName | rtrimstr(".")' <<<"$st"
+      }
+
+      # What https:<port> on this node proxies to: empty = free, "?" = used by
+      # something that is not a plain web proxy.
+      tailnet_target() {
+        tailscale serve status --json 2>/dev/null | jq -r --arg h "$1" --arg p "$2" '
+          if ((.TCP // {}) | has($p)) then (.Web[$h + ":" + $p].Handlers["/"].Proxy // "?") else empty end'
+      }
+
+      tailnet_del() { tailscale serve --https="$1" off >/dev/null 2>&1 || true; }
+
+      tailnet_teardown() {
+        local e
+        for e in $(printf '%s' "''${TAILNET_PORTS:-}" | tr ',' ' '); do
+          tailnet_del "''${e##*:}"
+        done
+      }
+
       cmd_expose() {
         local port out dir
         expose_args "$@"
-        [ ''${#EXPOSE_PORTS[@]} -gt 0 ] || die "usage: scoite expose [<name>] [--lan [--lan-port <n>]] <port>..."
+        [ ''${#EXPOSE_PORTS[@]} -gt 0 ] || die "usage: scoite expose [<name>] [--lan [--lan-port <n>] | --tailnet [--tailnet-port <n>]] <port>..."
         load_config "$EXPOSE_NAME"
         dir=$STATE_ROOT/$EXPOSE_NAME
+
+        if [ "$EXPOSE_TAILNET" -eq 1 ]; then
+          [ "$EXPOSE_LAN" -eq 0 ] || die "--lan and --tailnet are separate exposures - run them one at a time"
+          [ ''${#EXPOSE_PORTS[@]} -eq 1 ] || die "--tailnet takes one port at a time"
+          local gport=''${EXPOSE_PORTS[0]} tport host cur
+          is_port "$gport" || die "not a port number: $gport"
+          tport=''${EXPOSE_TAILNET_PORT:-$gport}
+          is_port "$tport" || die "not a port number: $tport"
+          host=$(tailnet_host)
+          cur=$(tailnet_target "$host" "$tport")
+          if [ -n "$cur" ] && [ "$cur" != "http://$ADDR:$gport" ]; then
+            die "tailnet port $tport is already served ($cur) - pick another with --tailnet-port <n>"
+          fi
+
+          # serve proxies to the loopback forward, so make sure there is one.
+          cmd_expose "$EXPOSE_NAME" "$gport" >/dev/null
+          tailscale serve --bg --https="$tport" "http://$ADDR:$gport" >/dev/null \
+            || die "tailscale serve failed for :$tport (is df the tailscale operator?)"
+          map_add TAILNET_PORTS "$gport" "$tport"
+          save_config "$EXPOSE_NAME"
+          echo "  https://$host:$tport  (tailnet -> $EXPOSE_NAME:$gport)"
+          return 0
+        fi
 
         if [ "$EXPOSE_LAN" -eq 1 ]; then
           is_running "$EXPOSE_NAME" || die "'$EXPOSE_NAME' must be running to expose it to the LAN"
@@ -1617,7 +1684,7 @@ let
           fi
 
           lan_add "$EXPOSE_NAME" "$gport" "$lport"
-          lan_record "$gport" "$lport"
+          map_add LAN_PORTS "$gport" "$lport"
           save_config "$EXPOSE_NAME"
           echo "  http://$(hostname).local:$lport  (LAN -> $EXPOSE_NAME:$gport)"
           return 0
@@ -1658,9 +1725,27 @@ let
       cmd_unexpose() {
         local port out dir
         expose_args "$@"
-        [ ''${#EXPOSE_PORTS[@]} -gt 0 ] || die "usage: scoite unexpose [<name>] [--lan] <port>..."
+        [ ''${#EXPOSE_PORTS[@]} -gt 0 ] || die "usage: scoite unexpose [<name>] [--lan | --tailnet] <port>..."
         load_config "$EXPOSE_NAME"
         dir=$STATE_ROOT/$EXPOSE_NAME
+
+        if [ "$EXPOSE_TAILNET" -eq 1 ]; then
+          local gport e
+          for gport in "''${EXPOSE_PORTS[@]}"; do
+            is_port "$gport" || die "not a port number: $gport"
+            for e in $(printf '%s' "''${TAILNET_PORTS:-}" | tr ',' ' '); do
+              case "$e" in
+                "$gport":*)
+                  tailnet_del "''${e##*:}"
+                  echo "  closed tailnet :''${e##*:} -> $EXPOSE_NAME:$gport"
+                  ;;
+              esac
+            done
+            map_del TAILNET_PORTS "$gport"
+          done
+          save_config "$EXPOSE_NAME"
+          return 0
+        fi
 
         if [ "$EXPOSE_LAN" -eq 1 ]; then
           local gport e lport
@@ -1675,7 +1760,7 @@ let
                   ;;
               esac
             done
-            lan_forget "$gport"
+            map_del LAN_PORTS "$gport"
           done
           save_config "$EXPOSE_NAME"
           return 0

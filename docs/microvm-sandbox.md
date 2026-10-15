@@ -37,7 +37,8 @@ scoite list                     list every sandbox: type, state, DNS name, bridg
 scoite resize [<name>] [opts]   grow a sandbox's disks
 scoite expose [<name>] <port>   forward a port into a running sandbox (no restart)
 scoite expose --lan <port>      also reach that port from the LAN (opt-in, per port)
-scoite unexpose [<name>] [--lan] <port>   stop forwarding one
+scoite expose --tailnet [--tailnet-port <n>] <port>   also reach it over HTTPS on the tailnet (opt-in)
+scoite unexpose [<name>] [--lan|--tailnet] <port>   stop forwarding one
 scoite <path>                   shorthand: new-or-start for a folder
 ```
 
@@ -633,6 +634,23 @@ sandbox, to the rest of the network, and `scoite unexpose --lan <port>` closes i
 **If a LAN client cannot reach abhaile at all**, check tailscale before anything else: with an exit node selected and
 `ExitNodeAllowLANAccess: false`, _every_ reply to a LAN address goes down the tunnel and inbound connections stall.
 `services/tailscale.nix` now passes `--exit-node-allow-lan-access` (a no-op when no exit node is in use).
+
+## Exposing a service to the tailnet
+
+`scoite expose [<name>] --tailnet [--tailnet-port <n>] <port>` runs `tailscale serve --bg --https=<n>` on abhaile,
+proxying `https://abhaile.tail8f3a60.ts.net:<n>` (tailscale's cert; `<n>` defaults to `<port>`) to the instance's
+loopback forward `127.x.y.1:<port>`, which it adds first if needed. The guest never joins the tailnet and needs no
+auth key. Built for [Collie](collie.md), and fine for any guest web app you want on the phone.
+
+- Needs tailnet HTTPS certificates on (admin console → DNS) and df as tailscale operator — both runtime state, not
+  nix. The CLI refuses with a pointer when HTTPS is off.
+- Recorded as `TAILNET_PORTS` (`guest:tailnet`) and shown in `scoite list`. Serve config lives in tailscaled's state,
+  so unlike LAN forwards it is **not** torn down on stop or re-applied on start: it survives reboots, answers 502
+  while the guest is down, and goes away only on `scoite unexpose --tailnet` or `scoite rm` (rm because it frees
+  `ADDR` for reuse by a later sandbox).
+- A tailnet port already served to a different target is refused; pick another with `--tailnet-port`.
+- The guest sees requests with `Host: abhaile.tail8f3a60.ts.net:<n>` — apps with Host validation must allow exactly
+  that (Collie: `COLLIE_PUBLIC_HOSTS`).
 
 ## Memory: a ceiling, not a reservation
 
