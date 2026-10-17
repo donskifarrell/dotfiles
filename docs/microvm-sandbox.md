@@ -421,7 +421,9 @@ Three pieces, all small:
 - **Stable socket path in the guest** (`microvm-guest.nix` fish shellInit): sshd mints a fresh random agent socket per
   connection, so a long-lived session (a VS Code terminal, a multiplexer pane) would hold a dead `SSH_AUTH_SOCK` after
   an ssh drop + reattach. Every login re-points `~/.ssh/agent.sock` at its own live socket and sessions use the symlink
-  — verified: kill the ssh ControlMaster, reconnect, panes' agent works again without restarting anything.
+  — verified: kill the ssh ControlMaster, reconnect, panes' agent works again without restarting anything. A socket
+  that already resolves through `agent.sock` is not relinked: herdr gives its panes `herdr.sock.agent -> agent.sock`,
+  and relinking that made a symlink loop (`Too many levels of symbolic links`, every new pane agent-less; 2026-10-16).
 - **`github.com` in the guest's known*hosts — in \_two* files** (both from the one `githubHostKey` binding in
   `microvm-guest.nix`, GitHub's published ed25519 key). `programs.ssh.knownHosts` covers the ssh **CLI**, so a
   non-interactive agent's first `git fetch` can't stall on a host-key prompt (the ephemeral home would forget an

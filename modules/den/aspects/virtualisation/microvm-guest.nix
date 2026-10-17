@@ -868,8 +868,11 @@ in
         # Forwarded ssh-agent (dev.tools.scoite sets ForwardAgent for scoite-*
         # hosts): pin SSH_AUTH_SOCK to a stable path. sshd mints a fresh
         # random socket per connection, so long-lived guest sessions would
-        # otherwise hold a dead path after an ssh drop/reattach.
+        # otherwise hold a dead path after an ssh drop/reattach. Skip sockets
+        # that already resolve through agent.sock: herdr hands panes its own
+        # herdr.sock.agent -> agent.sock, and relinking that makes a loop.
         if set -q SSH_AUTH_SOCK; and test "$SSH_AUTH_SOCK" != "$HOME/.ssh/agent.sock"; and test -S "$SSH_AUTH_SOCK"
+          and test (realpath "$SSH_AUTH_SOCK") != (realpath "$HOME/.ssh/agent.sock" 2>/dev/null; or echo)
           mkdir -p "$HOME/.ssh"
           ln -sf "$SSH_AUTH_SOCK" "$HOME/.ssh/agent.sock"
         end

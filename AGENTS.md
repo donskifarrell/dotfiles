@@ -325,6 +325,8 @@ Gotchas (easy to forget):
   SPA's own Recharts component via jsdom + resvg. Built by `~/dev/bbm/nix/charts.nix` (`pnpm deploy` needs
   `--config.inject-workspace-packages=true` to work offline). Optional by design — down means text-only reports, never a
   failed deploy. Never give it `MemoryDenyWriteExecute`: V8's JIT needs W then X.
+- `bbm-deploy` also exists **inside `dev` sandboxes** as a relay to abhaile's (ssh `df@10.0.2.2` + forwarded agent);
+  works only while df is attached. Details: docs/bbm.md "Deploying".
 - **`APP_LOG_LEVEL` is inert** — documented in `.env.example`, read by no Go code. The app has no log levels.
 - **One Telegram token = one poller.** The `scoite-bbm` sandbox runs a dev server on the same token from
   `~/dev/bbm/.env` → `409 Conflict` on both. Give production its own bot.

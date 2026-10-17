@@ -44,6 +44,15 @@ bbm-deploy --src PATH      # a checkout somewhere else ($BBM_SRC also works)
 bbm-deploy --pinned        # deploy the rev in flake.lock instead of a working copy
 ```
 
+**From a `dev` sandbox** (e.g. `scoite-bbm`), `bbm-deploy [same flags]` is a relay (`services.bbm-dev-guest` in
+`services/bbm.nix`): it ssh's to `df@10.0.2.2` with the forwarded agent and runs abhaile's own
+`nix run ~/.dotfiles#bbm-deploy`, so the build and the push to eachtrach happen on abhaile. Hence: works only while you
+are attached via `ssh scoite-<name>` (no agent → clear error); `--local` with no path = abhaile's `~/dev/bbm` = that
+guest's `/workspace`, and any PATH is an abhaile path; args are limited to `[A-Za-z0-9_./=~-]` (they reach df's fish
+unquoted); it deploys with abhaile's `~/.dotfiles` worktree as-is. Needs a stop/start of the guest after the rebuild
+that added it. Security: no new capability — the forwarded agent already holds the key root@eachtrach and df@abhaile
+trust; this only makes it one command.
+
 `bbm-deploy` overrides the `bbm` flake input per-invocation, so **flake.lock is not rewritten on every deploy**. That
 means the lock can lag what is running — `--pinned` is what makes them agree; run `nix flake update bbm` when you want
 the lock to record the deployed rev.

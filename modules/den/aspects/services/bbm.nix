@@ -560,8 +560,41 @@
   # The base microVM firewall remains disabled so qemu dynamic forwards work.
   # Abhaile reaches this node exporter over the private eth1 bridge.
   den.aspects.services.bbm-dev-guest.nixos =
-    { ... }:
+    { pkgs, ... }:
+    let
+      # abhaile's sshd as seen from a guest (SLIRP gateway).
+      host = "10.0.2.2";
+    in
     {
+      # `bbm-deploy` in a guest relays to abhaile's own bbm-deploy, so the build
+      # runs on abhaile's warm store and deploy-rs pushes from there. Auth is the
+      # forwarded agent (df attached over `ssh scoite-*`), no key in the guest.
+      # `--local` without a path = abhaile's ~/dev/bbm, i.e. scoite-bbm's
+      # /workspace; any PATH given is an abhaile path, not a guest one.
+      programs.ssh.knownHosts.abhaile = {
+        hostNames = [ host ];
+        publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIISW7n05i04ujUtjywXbAgIVOUK6lCc6FFVtGSzoByJJ";
+      };
+      environment.systemPackages = [
+        (pkgs.writeShellApplication {
+          name = "bbm-deploy";
+          runtimeInputs = [ pkgs.openssh ];
+          text = ''
+            ssh-add -l >/dev/null 2>&1 ||
+              { echo "bbm-deploy: no forwarded ssh-agent; attach with 'ssh scoite-<name>' from abhaile" >&2; exit 1; }
+            # Args land in df's remote shell (fish) unquoted: flags and plain
+            # paths only.
+            for a in "$@"; do
+              [[ "$a" =~ ^[A-Za-z0-9_./=~-]+$ ]] || { echo "bbm-deploy: refusing argument: $a" >&2; exit 1; }
+            done
+            cmd="env -C /home/df/.dotfiles nix run .#bbm-deploy -- $*"
+            tty=()
+            [ -t 0 ] && tty=(-t) # so Ctrl-C reaches the remote deploy
+            exec ssh "''${tty[@]}" -o BatchMode=yes -o StrictHostKeyChecking=yes -o ForwardAgent=yes \
+              df@${host} "$cmd"
+          '';
+        })
+      ];
       services.prometheus.exporters.node = {
         enable = true;
         enabledCollectors = [ "systemd" ];
