@@ -50,6 +50,10 @@ in
       roles.dev
       roles.desktop
 
+      apps.gaming.steam
+      apps.gaming.alvr
+      services.quest-video # manual-start video folder for Wolvic on Quest
+
       # sops-nix secrets + consumers.
       secrets.sops # base decryption wiring (host ssh key -> age)
       secrets.abhaile # df/root password-hash secrets

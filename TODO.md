@@ -10,6 +10,12 @@ verification, not from this file. Names below are pre-rename (`sandvm`), kept as
 **omp and paseo were removed from the repo on 2026-09-08** (df moved to `pi` + `herdr`). Items 7 and 13 below, and much
 of TASKS.md/GOAL.md, describe them as if live — read those as history. Nothing still open depends on either.
 
+## Transmission installation verification
+
+| Priority | Item | Status | Acceptance / next action |
+| --- | --- | --- | --- |
+| P1 | Desktop Transmission + small legal torrent | Done: installed + activated; legal file verified | GTK 4.1.3; defaults ~/Downloads/transmission; peer-only Sintel subtitle reached completion and matches official content; test engine stopped, no daemon/RPC/router mapping. Extra forced-recheck state assertion not passed; see .pi/workflow/tasks/004-transmission.md and docs/torrents.md for evidence/limits. |
+
 ## Open
 
 ### 1. Re-benchmark LLM backends after each `nix flake update`
@@ -219,10 +225,17 @@ Open:
 Aspects defined but included by no host/role/user (inert, several carry stale legacy references): `services.web.caddy`
 **resolved 2026-09-05** — rewritten as a vhost-less base aspect and included by eachtrach (its dead `short.*` vhost was
 deleted, not ported); its `tailscale-tls` sub-aspect is intentionally orphaned until something needs a cert. Remaining:
-`services.paperless`, `services.cosmic`, `virtualisation.vm-login`, `gaming.steam`, `gaming.alvr`, `apps.yt-dlp`,
-`apps.zathura`. steam/alvr staying orphaned is **intentional for now** (df 2026-07-14: will game on abhaile eventually,
-not yet — re-add a gaming include and the `steam-config-nix` input then). The rest: delete or wire when their host
-materialises.
+`services.paperless`, `services.cosmic`, `virtualisation.vm-login`, `apps.yt-dlp`, `apps.zathura`. Delete or wire when
+their host materialises. **Steam/ALVR wired for Quest 3S on abhaile** (2026-10-17): native NixOS modules only, no
+`steam-config-nix` input needed. Setup and acceptance: [docs/vr.md](docs/vr.md).
+
+| Priority | Quest follow-up | Status | Handoff / acceptance |
+| -------- | --------------- | ------ | -------------------- |
+| P1 | Activate direct-video share | Prepared; user switch pending | Review/stage new quest-video module, rebuild abhaile per docs/quest-video.md; manual start only, share ~/Videos/VR without login on home LAN. |
+| P1 | Pair Quest 3S over Wi-Fi and USB | Needs headset | Match PC/APK versions, apply SteamVR launch option, authorize USB; pass both transport checks in docs/vr.md. |
+| P1 | Validate direct VR video playback | Needs activation + headset | Install/open Wolvic, stream a real 180/360/stereo file; pass projection/audio/seek and stop/network checks in docs/quest-video.md. |
+| P2 | Validate VR game + audio | Initial ALVR screen renders | Test a Linux-compatible game, both eyes/controllers/audio/mic and sustained stability; record settings in docs/vr.md. |
+| P3 | Looking Glass development setup | Deferred; not installed | Follow docs/vr.md prerequisite/design checklist; agree Windows VM and spare GPU plan before any install, VFIO or boot changes. |
 
 ### 13. sandvm follow-ups
 

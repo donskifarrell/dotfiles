@@ -335,6 +335,29 @@ Gotchas (easy to forget):
 - Testing public reachability **from abhaile is inconclusive** — abhaile uses eachtrach as its exit node, so a curl to
   its public IP goes down the tunnel and is accepted.
 
+## Transmission (abhaile)
+
+[docs/torrents.md](docs/torrents.md) — `pkgs.transmission_4-gtk` in the workstation media bundle; no daemon/autostart/
+web UI. Mutable `~/.config/transmission/settings.json` sets downloads to `~/Downloads/transmission` (including the
+configured optional incomplete subfolder), RPC and UPnP/NAT-PMP off. Configure these preferences on a fresh HOME;
+never make the whole settings file an immutable HM symlink. Close the app before edits. Public peers see the routed
+public IP; no VPN/kill switch configured. Downloads are not automatically shared by quest-video.
+
+## Quest 3S PC VR (abhaile)
+
+**Full reference: [docs/vr.md](docs/vr.md)** — host-only `apps.gaming.{steam,alvr}` includes, ALVR over Wi-Fi or USB,
+matching headset APK, SteamVR launch-option workaround and manual acceptance checks. `adb` already comes from
+`dev.apps`; systemd uaccess grants USB access to the active local session (no removed `programs.adb` / `adbusers`).
+Looking Glass development setup is documented/deferred, not installed; keep the RX 9070 on Linux, not VFIO.
+ALVR's mutable web server port is 18082 on df's profile: wildcard 8082 conflicts with scoite's per-guest loopback
+forwards (8080–8089); do not open the dashboard port in the firewall. Skip ALVR's in-app firewall setup (Nix owns the rules); SteamVR's pkexec/CAP_SYS_NICE setup warning has a NixOS
+bubblewrap limitation, not a reason to weaken permissions. Details and the vrmonitor launch workaround: docs/vr.md.
+
+**Direct VR video:** [docs/quest-video.md](docs/quest-video.md) — `services.quest-video` on abhaile, manual-start
+miniserve, `~/Videos/VR` only, no login/uploads/symlinks; Wolvic handles 180°/360°/stereo on Quest without ALVR.
+Prepared, not activated. Bound to current home Wi-Fi IPv4 `192.168.178.28:18083`, interface/subnet restricted; DHCP
+changes need an aspect edit/rebuild. Never open this share globally or put unrelated private files in its root.
+
 ## Local LLM inference (abhaile)
 
 **Full reference: [docs/llm.md](docs/llm.md)** — benchmark numbers + what they mean per use case, llama-server parameter
@@ -350,7 +373,8 @@ Gotchas (easy to forget):
 - `/dev/kfd` + `/dev/dri/renderD*` are 0666 → no video/render group plumbing needed, even for DynamicUser services.
 - ROCm ≥7.x has **native gfx1201** kernels (no `HSA_OVERRIDE_GFX_VERSION`); `llama-cpp-rocm` is binary-cached.
 - Re-benchmark after `nix flake update` (protocol in docs/llm.md; follow-ups in TODO.md).
-- Free VRAM before gaming: `systemctl restart llama-cpp` (router unloads until next request).
+- Inference is **manual-start only**: `sudo systemctl start llama-cpp` when needed, `sudo systemctl stop llama-cpp`
+  before gaming. Restart is not a gaming guard: the next API request can reload a model.
 
 ## nixpkgs wiring (single source since 2026-07-03)
 

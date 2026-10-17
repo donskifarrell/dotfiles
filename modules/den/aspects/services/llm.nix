@@ -11,7 +11,7 @@
 #
 # Serving shape: ONE llama-server in router mode — clients pick a model via
 # the OpenAI `model` field, models load on demand, at most one resident
-# (models-max), so VRAM is bounded and idle after `systemctl restart`.
+# (models-max), so VRAM is bounded. Manual-start only; stop before gaming.
 # Per-model placement (GPU layers / MoE experts on CPU) is left to
 # llama-server's `--fit` auto-tuning: measured within noise of hand-tuned
 # -ncmoe (tg ~51 t/s on Qwen3.6-35B Q4_K_M with 32k q8 KV) and it re-tunes
@@ -83,6 +83,9 @@
         # nixpkgs.overlays = [ (import ./_llmfit.nix) ];
 
         systemd.tmpfiles.rules = [ "d ${modelsDir} 0755 df users -" ];
+
+        # Keep inference opt-in so requests cannot reclaim VRAM during gaming.
+        systemd.services.llama-cpp.wantedBy = lib.mkForce [ ];
 
         # OpenAI-compatible API on 127.0.0.1:8080 (/v1/chat/completions,
         # /v1/models). `settings` is freeform → llama-server CLI flags.

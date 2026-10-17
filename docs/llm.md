@@ -8,6 +8,8 @@ the reasoning, and the parameter/model research so decisions can be re-derived w
 
 - **Runtime**: llama.cpp `llama-server`, **Vulkan (RADV) backend** — won on-box benchmarks (below).
 - **Endpoint**: OpenAI-compatible API on `127.0.0.1:8080` (`/v1/chat/completions`, `/v1/models`).
+- **Manual-start only**: `sudo systemctl start llama-cpp`; `sudo systemctl stop llama-cpp` when finished. The unit stays
+  installed but is not wanted by a boot target. Clients (including sandbox guests) cannot use inference until started.
 - Both llama.cpp backends installed side by side as `llama-{server,bench,cli}-vulkan` / `-rocm` — A/B test
   per-invocation, no rebuild.
 - Models in `/var/lib/llm/models` (df-owned; NOT `$HOME` — the service is DynamicUser + ProtectHome).
@@ -170,8 +172,9 @@ Sources: [Qwen3.6-35B-A3B blog](https://qwen.ai/blog?id=qwen3.6-35b-a3b),
   `-rocm`/`ROCm0`); update the table above and flip `services.llama-cpp.package` in `llm.nix` if the verdict changes.
 - **Add a model to the router**: drop the GGUF in `/var/lib/llm/models`, add a section to the preset in `llm.nix`,
   rebuild. Clients select it via the `model` field; `--models-max 1` swaps on demand.
-- **Free the VRAM** (e.g. before gaming): `systemctl restart llama-cpp` (unloads models until next request) or
-  `systemctl stop llama-cpp`.
+- **Free the VRAM** (e.g. before [Quest PC VR](vr.md)): `sudo systemctl stop llama-cpp`. Do not use `restart` for
+  gaming: it leaves the API running and the next request can load a model again. Resume explicitly with
+  `sudo systemctl start llama-cpp`.
 
 - **Pick a model for this hardware**: `llmfit system` (what it detects), `llmfit list`, `llmfit recommend`,
   `llmfit --json <cmd>` for scripted/agent use. It only scores and suggests — actually serving a model still means the

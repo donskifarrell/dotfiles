@@ -9,6 +9,7 @@
           pkgs.krita
           pkgs.maestral-gui
           pkgs.pinta
+          pkgs.transmission_4-gtk
           pkgs.vlc
         ];
 
