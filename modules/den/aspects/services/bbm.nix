@@ -10,6 +10,9 @@
 #               origin, which is why there is no CORS to configure.
 #   bbm-charts  Node sidecar that draws the Telegram weekly report's chart,
 #               loopback-only and never reached from outside this host.
+#   bbm-agent   Node sidecar running every LLM conversation (web chat, Telegram,
+#               scheduled analyses) on pi-durable. Loopback-only; bbm-server is
+#               its only caller and the only thing its tools call back into.
 #
 # SOURCE PIN. The input is the GitHub remote. It was a local checkout
 # (/home/df/dev/bbm) from 2026-09-05 until 2026-09-24, so that deploys could
@@ -68,6 +71,11 @@
       # reason: it renders whatever SVG it is handed, so its only caller must
       # be bbm on this host. caddy never proxies it.
       chartPort = 8091;
+
+      # The LLM sidecar's listener, loopback only. Its own tool callback into
+      # bbm (AGENT_TOOLS_LISTEN / BBM_TOOLS_URL, 127.0.0.1:8094) is left at the
+      # default both sides already agree on.
+      agentPort = 8093;
 
       stateDir = "/var/lib/bbm";
 
@@ -140,6 +148,7 @@
             "bbm/gocardless_secret_key"
             "bbm/jwt_secret_key"
             "bbm/telegram_bot_token"
+            "bbm/agent_secret"
           ]
           (key: {
             sopsFile = inputs.self + "/secrets/eachtrach.yaml";
@@ -160,6 +169,25 @@
           GOCARDLESS_SECRET_KEY=${config.sops.placeholder."bbm/gocardless_secret_key"}
           JWT_SECRET_KEY=${config.sops.placeholder."bbm/jwt_secret_key"}
           TELEGRAM_BOT_TOKEN=${config.sops.placeholder."bbm/telegram_bot_token"}
+          AGENT_SECRET=${config.sops.placeholder."bbm/agent_secret"}
+        '';
+      };
+
+      # The sidecar's own env. Separate file because it is an `EnvironmentFile=`
+      # (node reads process.env, it has no ENV_FILE parser) and must therefore
+      # hold nothing but what that process needs — the shared bearer token, and
+      # nothing of bbm's GoCardless/JWT/Telegram set.
+      #
+      # No provider API key here: the model provider is signed in from the web
+      # app and the credential lives in /var/lib/bbm-agent/auth.json. Add
+      # ANTHROPIC_API_KEY/OPENAI_API_KEY here (from sops) only to run headless.
+      sops.templates."bbm-agent.env" = {
+        owner = "bbm";
+        group = "bbm";
+        mode = "0400";
+        restartUnits = [ "bbm-agent.service" ];
+        content = ''
+          AGENT_SECRET=${config.sops.placeholder."bbm/agent_secret"}
         '';
       };
 
@@ -182,9 +210,23 @@
       # would mean text-only Telegram reports (internal/telegram/bot.go).
       sops.templates.".env.prod" = {
         mode = "0444";
-        restartUnits = [ "bbm.service" ];
+        # The pinned agent fetches AGENT_MODEL from bbm only at startup.
+        restartUnits = [
+          "bbm.service"
+          "bbm-agent.service"
+        ];
         content = ''
           CHART_RENDER_URL=http://127.0.0.1:${toString chartPort}
+
+          # AGENT_URL unset would mean AI off: chat/analysis RPCs refused and
+          # Telegram answering commands only.
+          AGENT_URL=http://127.0.0.1:${toString agentPort}
+          AGENT_MODEL=openai/gpt-6.1-sol
+          # Users allowed to sign the sidecar in to a provider (comma separated).
+          # Empty = the Analysis settings -> AI provider panel returns
+          # PermissionDenied to everyone. Your id is in the web app under "How to
+          # set up the AI assistant".
+          AGENT_ADMIN_USER_IDS=
         '';
       };
 
@@ -313,6 +355,79 @@
           # want unable to.
           IPAddressDeny = "any";
           IPAddressAllow = "localhost";
+
+          CapabilityBoundingSet = [ "" ];
+          DevicePolicy = "closed";
+          LockPersonality = true;
+          NoNewPrivileges = true;
+          PrivateDevices = true;
+          PrivateTmp = true;
+          ProtectClock = true;
+          ProtectControlGroups = true;
+          ProtectHome = true;
+          ProtectHostname = true;
+          ProtectKernelLogs = true;
+          ProtectKernelModules = true;
+          ProtectKernelTunables = true;
+          ProtectProc = "invisible";
+          ProtectSystem = "strict";
+          RestrictAddressFamilies = [
+            "AF_INET"
+            "AF_INET6"
+            "AF_UNIX"
+          ];
+          RestrictNamespaces = true;
+          RestrictRealtime = true;
+          RestrictSUIDSGID = true;
+          SystemCallArchitectures = "native";
+          SystemCallFilter = [
+            "@system-service"
+            "~@privileged"
+            "~@resources"
+          ];
+        };
+      };
+
+      # --- LLM sidecar ----------------------------------------------------
+      # Runs the chat/analysis conversations. Same packaging and risk split as
+      # bbm-charts (separate Node runtime, bbm treats it as optional — AGENT_URL
+      # unset simply turns the AI features off), with three differences:
+      #
+      #   * it has state. One pi-durable sqlite file per owner plus auth.json
+      #     under /var/lib/bbm-agent, so no DynamicUser: it runs as bbm, 0700,
+      #     umask 0077. auth.json is a live provider credential — that is the
+      #     reason for every permission here, and it is why the sign-in survives
+      #     restarts and redeploys.
+      #   * it must reach the internet (the model provider), so no IPAddressDeny.
+      #   * no MemoryDenyWriteExecute, for the same V8-JIT reason as bbm-charts.
+      systemd.services.bbm-agent = {
+        description = "BBM LLM agent sidecar";
+        wantedBy = [ "multi-user.target" ];
+        after = [
+          "network-online.target"
+          "sops-install-secrets.service"
+          "bbm.service"
+        ];
+        wants = [ "network-online.target" ];
+
+        # BBM_TOOLS_URL defaults to the loopback :8094 listener bbm uses.
+        environment = {
+          AGENT_DATA_DIR = "/var/lib/bbm-agent";
+          AGENT_LISTEN = "127.0.0.1:${toString agentPort}";
+        };
+
+        serviceConfig = {
+          Type = "exec";
+          ExecStart = lib.getExe packages.bbm-agent;
+          EnvironmentFile = config.sops.templates."bbm-agent.env".path;
+          User = "bbm";
+          Group = "bbm";
+          Restart = "on-failure";
+          RestartSec = "5s";
+
+          StateDirectory = "bbm-agent";
+          StateDirectoryMode = "0700";
+          UMask = "0077";
 
           CapabilityBoundingSet = [ "" ];
           DevicePolicy = "closed";

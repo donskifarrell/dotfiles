@@ -12,8 +12,11 @@ browser (tailnet) ──http──> caddy :80 on eachtrach
 
 bbm.service (user bbm) ── ConnectRPC API + in-process feed scheduler
                        ├── /var/lib/bbm/{sqlite.db, data/}
-                       └──http──> 127.0.0.1:8091  bbm-charts.service (DynamicUser)
-                                                   POST /weekly {points} -> PNG
+                       ├──http──> 127.0.0.1:8091  bbm-charts.service (DynamicUser)
+                       │                           POST /weekly {points} -> PNG
+                       └──http──> 127.0.0.1:8093  bbm-agent.service (user bbm)
+                                                   pi-durable chat + analyses
+                                                   /var/lib/bbm-agent/
 ```
 
 - **One origin**: `http://eachtrach.tail8f3a60.ts.net`. The SPA is built with no `VITE_API_URL`, so it talks to whatever
@@ -30,8 +33,8 @@ bbm.service (user bbm) ── ConnectRPC API + in-process feed scheduler
 | `modules/den/aspects/services/bbm-backup.nix`   | eachtrach snapshot + pull account; abhaile pull timer |
 | `modules/den/aspects/services/caddy.nix`        | base caddy aspect (no vhosts of its own)              |
 | `pkgs/by-name/bbm-deploy/package.nix`           | the deploy wrapper                                    |
-| `~/dev/bbm/nix/{server.nix,web.nix,charts.nix}` | the three package derivations                         |
-| `~/dev/bbm/web/packages/charts/`                | the sidecar's source (`@bbm/charts`)                  |
+| `~/dev/bbm/nix/{server.nix,web.nix,charts.nix,agent.nix}` | the four package derivations                 |
+| `~/dev/bbm/web/packages/{charts,agent}/`       | the two Node sidecars                                 |
 
 ## Deploying
 
@@ -55,7 +58,7 @@ trust; this only makes it one command.
 
 `bbm-deploy` overrides the `bbm` flake input per-invocation, so **flake.lock is not rewritten on every deploy**. That
 means the lock can lag what is running — `--pinned` is what makes them agree; run `nix flake update bbm` when you want
-the lock to record the deployed rev.
+the lock to record the deployed rev. The pinned revision must expose `packages.<system>.bbm-agent`.
 
 Frontend-only and backend-only changes rebuild only their own half (disjoint `lib.fileset` source sets in
 `~/dev/bbm/flake.nix`). `bbm-charts` shares the SPA's source set, so a website commit rebuilds it too — the lockfile has
@@ -71,14 +74,18 @@ bbm:
   gocardless_secret_key: ...
   jwt_secret_key: ... # openssl rand -hex 32; NOT the dev one from .env
   telegram_bot_token: ... # empty string = no bot, and that is a valid value
+  agent_secret: ... # openssl rand -hex 32; shared bearer token for bbm <-> bbm-agent
 ```
 
-Assembled by `sops.templates."bbm.env"` into `/run/secrets/rendered/bbm.env` (owner bbm, 0400) and read by the app via
-`ENV_FILE`. Deliberately **not** systemd `EnvironmentFile=`: that would put the values in the unit environment, visible
-in `systemctl show` and `/proc/<pid>/environ`.
+The app secrets are assembled by `sops.templates."bbm.env"` into `/run/secrets/rendered/bbm.env` (owner bbm, 0400)
+and read by the app via `ENV_FILE`. Deliberately **not** systemd `EnvironmentFile=`: that would put every app secret in
+the unit environment, visible in `systemctl show` and `/proc/<pid>/environ`. A second, narrowly scoped
+`bbm-agent.env` contains only `AGENT_SECRET`; the Node sidecar has no `ENV_FILE` parser, so its unit must use
+`EnvironmentFile=`.
 
-Adding/rotating: `sops secrets/eachtrach.yaml`, then `bbm-deploy`. No nix change. Both templates carry
-`restartUnits = [ "bbm.service" ]`, so a changed value restarts the app instead of leaving the old one resident.
+Adding/rotating: `sops secrets/eachtrach.yaml`, then `bbm-deploy`. No nix change. `bbm.env` restarts bbm,
+`bbm-agent.env` restarts the sidecar, and `.env.prod` restarts both because the pinned sidecar reads its model from bbm
+only at startup.
 
 ## Environment layering
 
@@ -88,7 +95,7 @@ reason both files are rendered into `/run/secrets/rendered`.
 
 | Layer                             | Where on eachtrach                        | Holds                                                                      |
 | --------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------- |
-| base (`ENV_FILE`)                 | `/run/secrets/rendered/bbm.env`, 0400 bbm | secrets only                                                               |
+| base (`ENV_FILE`)                 | `/run/secrets/rendered/bbm.env`, 0400 bbm | app secrets, including `AGENT_SECRET`                                      |
 | overlay (`.env.$ENV`, `ENV=prod`) | `/run/secrets/rendered/.env.prod`, 0444   | prod-only **app** config. No secrets, hence world-readable and inspectable |
 | exported                          | `Environment=` in the unit                | host-derived ports, state paths, `WEB_BASE_URL`, `ENV`, and observability log level |
 
@@ -99,8 +106,10 @@ outside the closure (a from-scratch provision or a rollback would not carry it) 
 The cost is drift, so `bbm-deploy` warns when `$src/.env.prod` sets a key that `services/bbm.nix` never mentions. It is
 a warning, not an error: a key can be local-only on purpose.
 
-Currently the overlay holds `CHART_RENDER_URL=http://127.0.0.1:8091`. `APP_LOG_LEVEL` is exported by the imported
-observability module from `services.bbm.observability.logLevel`, which defaults to `info` and wins over file layers.
+Currently the overlay holds `CHART_RENDER_URL=http://127.0.0.1:8091`, the loopback `AGENT_URL`,
+`AGENT_MODEL=openai/gpt-6.1-sol`, and `AGENT_ADMIN_USER_IDS` (initially empty). `APP_LOG_LEVEL` is exported by the
+imported observability module from `services.bbm.observability.logLevel`, which defaults to `info` and wins over file
+layers.
 
 ## Chart sidecar (`bbm-charts.service`)
 
@@ -114,6 +123,24 @@ is logged and the report goes out as text. This unit can never fail a deploy or 
 
 `node src/server.ts` runs the TypeScript directly — Node 24 strips the types — so a stack trace names a line you can
 read. `pnpm deploy` prunes the 449M workspace to a 78M self-contained tree; the closure is ~310 MiB, mostly nodejs.
+
+## LLM agent sidecar (`bbm-agent.service`)
+
+The sidecar serves only `127.0.0.1:8093`; its tool callback reaches bbm's separate loopback listener on `:8094`.
+Both directions require the same sops-managed `AGENT_SECRET`. It runs as `bbm` with a dedicated 0700
+`StateDirectory=/var/lib/bbm-agent` and umask 0077. Each owner has a pi-durable SQLite file there; provider subscription
+credentials live in `auth.json`, so sign-in survives restarts and redeploys. No provider API key is configured.
+
+After the first deploy:
+
+1. Put the user id shown under **How to set up the AI assistant** in `AGENT_ADMIN_USER_IDS` in
+   `modules/den/aspects/services/bbm.nix`, then redeploy. Empty denies provider management to everyone.
+2. Verify on eachtrach: `curl 127.0.0.1:8093/healthz` prints `ok`.
+3. Open **Analysis settings → AI provider**, sign in with ChatGPT, then enable consent for each owner.
+
+`MemoryDenyWriteExecute` is deliberately absent because Node/V8 needs JIT mappings. Unlike the chart sidecar, this unit
+also needs internet egress to reach the model provider. The state directory is not included in the existing BBM backup;
+loss means conversation history and subscription sign-in must be recreated, not loss of the ledger.
 
 ## Access control
 

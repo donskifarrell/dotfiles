@@ -301,18 +301,14 @@ deploy). Own user/group `bbm`; a separate read-only `bbm-backup` account exists 
 
 Gotchas (easy to forget):
 
-- The `bbm` flake input is **`git+file:///home/df/dev/bbm`** — an absolute local path, by choice (deploy local commits,
-  no push). So this flake does not evaluate on a machine without that path: `nix flake check`, `nix fmt` and
-  `nixos-rebuild` all fail there, not just bbm. One-line switch to the GitHub URL.
-- **Never change that input to `path:`** — `path:` copies the worktree verbatim, which would put bbm's plaintext `.env`,
-  its `data/` bank files and every `node_modules` into the world-readable nix store. `git+file:` exports the git tree
-  (honours .gitignore, committed HEAD only).
-- A **relative** path input is impossible: nix resolves `path:../…` against the flake's _store_ copy.
-- `bbm-deploy` deploys **committed HEAD**, not your worktree (`--dirty` overrides). flake.lock can therefore lag what is
-  running; `nix flake update bbm` makes them agree.
-- Secrets are one sops **template** (`/run/secrets/rendered/bbm.env`, read via `ENV_FILE`), not `EnvironmentFile=` —
-  values stay out of `systemctl show` and `/proc/<pid>/environ`. Add/rotate with `sops secrets/eachtrach.yaml` +
-  `bbm-deploy`; no nix change.
+- The `bbm` flake input is the **GitHub remote**, pinned in `flake.lock`; `bbm-deploy` overrides it with a local checkout
+  per invocation. It deploys committed HEAD unless `--dirty` is explicit, so the lock can lag what is running —
+  `nix flake update bbm` makes them agree. The pin must expose every referenced package, including `bbm-agent`.
+- **Never change the input override to `path:`** — `path:` copies the worktree verbatim, which would put bbm's plaintext
+  `.env`, bank files and `node_modules` into the world-readable nix store. The git flakeref honours `.gitignore`.
+- App secrets are in `/run/secrets/rendered/bbm.env`, read via `ENV_FILE`, so they stay out of `systemctl show` and
+  `/proc/<pid>/environ`. The Node agent cannot parse `ENV_FILE`; its separate `EnvironmentFile=` contains only the
+  shared `AGENT_SECRET`. Add/rotate in `secrets/eachtrach.yaml`; restart both units when that token changes.
 - **Env layering: base (`ENV_FILE`) → `.env.$ENV` overlay → exported vars, later wins.** The overlay is looked up in
   `dirname(ENV_FILE)`, so `.env.prod` is a _second_ sops template rendered beside `bbm.env` (0444, no secrets) — it is
   rendered, not copied, because `~/dev/bbm/.env.prod` is gitignored and holds a bot token. `ENV` must be exactly `prod`;
@@ -325,9 +321,12 @@ Gotchas (easy to forget):
   SPA's own Recharts component via jsdom + resvg. Built by `~/dev/bbm/nix/charts.nix` (`pnpm deploy` needs
   `--config.inject-workspace-packages=true` to work offline). Optional by design — down means text-only reports, never a
   failed deploy. Never give it `MemoryDenyWriteExecute`: V8's JIT needs W then X.
+- **LLM sidecar** `bbm-agent.service` is loopback `:8093`; its tools call bbm on `:8094`. It runs as `bbm`, with 0700
+  state in `/var/lib/bbm-agent` (owner SQLite files + subscription `auth.json`), and uses `openai/gpt-6.1-sol`. It needs
+  internet egress and V8 JIT. `AGENT_ADMIN_USER_IDS` starts empty: add the web-displayed user id, deploy, then sign in
+  under Analysis settings → AI provider. This state is not in the existing BBM backup.
 - `bbm-deploy` also exists **inside `dev` sandboxes** as a relay to abhaile's (ssh `df@10.0.2.2` + forwarded agent);
   works only while df is attached. Details: docs/bbm.md "Deploying".
-- **`APP_LOG_LEVEL` is inert** — documented in `.env.example`, read by no Go code. The app has no log levels.
 - **One Telegram token = one poller.** The `scoite-bbm` sandbox runs a dev server on the same token from
   `~/dev/bbm/.env` → `409 Conflict` on both. Give production its own bot.
 - Runs on plain **HTTP** over the tailnet (firewall, not binding, is the enforcement — `allowedTCPPorts = [ 22 ]` plus

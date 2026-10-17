@@ -7,11 +7,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1790202057,
-        "narHash": "sha256-cqttO+6HFKom2xFZmKVgFNLQEyuEZfOLffAxZFxjBnE=",
+        "lastModified": 1792191635,
+        "narHash": "sha256-QaqRtTfWlPaOC5CMKVuK5n8z9mgnLhoKxmQdgNfmHqM=",
         "ref": "refs/heads/main",
-        "rev": "42bb7ed81dfb8d6b8db77dbfb062ac2cc6197a05",
-        "revCount": 99,
+        "rev": "b96b199674af09a8585c8d3889e3cb39865682fd",
+        "revCount": 109,
         "type": "git",
         "url": "ssh://git@github.com/donskifarrell/bbm"
       },
