@@ -353,10 +353,11 @@ ALVR's mutable web server port is 18082 on df's profile: wildcard 8082 conflicts
 forwards (8080–8089); do not open the dashboard port in the firewall. Skip ALVR's in-app firewall setup (Nix owns the rules); SteamVR's pkexec/CAP_SYS_NICE setup warning has a NixOS
 bubblewrap limitation, not a reason to weaken permissions. Details and the vrmonitor launch workaround: docs/vr.md.
 
-**Direct VR video:** [docs/quest-video.md](docs/quest-video.md) — `services.quest-video` on abhaile, manual-start
-miniserve, `~/Videos/VR` only, no login/uploads/symlinks; Wolvic handles 180°/360°/stereo on Quest without ALVR.
-Prepared, not activated. Bound to current home Wi-Fi IPv4 `192.168.178.28:18083`, interface/subnet restricted; DHCP
-changes need an aspect edit/rebuild. Never open this share globally or put unrelated private files in its root.
+**Quest video share:** [docs/quest-video.md](docs/quest-video.md) — `services.quest-video` on abhaile: miniserve
+read-only WebDAV, `http://192.168.178.28:18083/`, anonymous, `~/Videos/VR` only. Manual-start, LAN/interface restricted,
+no uploads/deletion/hidden files/symlinks/transcoding. Activated; PROPFIND/range streaming/readonly mount verified.
+Native headset player handles projection; browser player removed. Files now directly below `/` (not `/videos/`).
+DHCP changes need an aspect edit/rebuild. Never expose globally or put unrelated private files in its root.
 
 ## Local LLM inference (abhaile)
 

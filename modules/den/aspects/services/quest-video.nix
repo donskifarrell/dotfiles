@@ -1,4 +1,4 @@
-# Direct VR video files for Wolvic on Quest; manual start, trusted home LAN only.
+# Read-only WebDAV for a native Quest video player; manual start, home LAN only.
 {
   den.aspects.services.quest-video.nixos =
     { lib, pkgs, ... }:
@@ -28,6 +28,7 @@
             "--port"
             (toString port)
             "--no-symlinks"
+            "--enable-webdav"
             "/srv/quest-video"
           ];
           User = "df";

@@ -231,9 +231,9 @@ their host materialises. **Steam/ALVR wired for Quest 3S on abhaile** (2026-10-1
 
 | Priority | Quest follow-up | Status | Handoff / acceptance |
 | -------- | --------------- | ------ | -------------------- |
-| P1 | Activate direct-video share | Prepared; user switch pending | Review/stage new quest-video module, rebuild abhaile per docs/quest-video.md; manual start only, share ~/Videos/VR without login on home LAN. |
+| P1 | Activate direct-video share | Done; active service observed 2026-10-17 | User reports listing/playback on Quest; live MP4 MIME/ranges correct. Keep manual-start/LAN-only boundaries in docs/quest-video.md. |
 | P1 | Pair Quest 3S over Wi-Fi and USB | Needs headset | Match PC/APK versions, apply SteamVR launch option, authorize USB; pass both transport checks in docs/vr.md. |
-| P1 | Validate direct VR video playback | Needs activation + headset | Install/open Wolvic, stream a real 180/360/stereo file; pass projection/audio/seek and stop/network checks in docs/quest-video.md. |
+| P1 | Validate direct VR video playback | Read-only WebDAV active; native player check pending | Add anonymous WebDAV http://192.168.178.28:18083/ in native headset player; select actual projection/stereo. PROPFIND/ranges/readonly mount pass. Check headset playback/audio/seek; docs/quest-video.md. Browser player removed. |
 | P2 | Validate VR game + audio | Initial ALVR screen renders | Test a Linux-compatible game, both eyes/controllers/audio/mic and sustained stability; record settings in docs/vr.md. |
 | P3 | Looking Glass development setup | Deferred; not installed | Follow docs/vr.md prerequisite/design checklist; agree Windows VM and spare GPU plan before any install, VFIO or boot changes. |
 
