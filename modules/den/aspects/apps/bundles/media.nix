@@ -14,7 +14,7 @@
         ];
 
         # obsidian moved to the dedicated apps.obsidian aspect (vault wiring).
-        programs.onlyoffice.enable = true;
+        # onlyoffice dropped: its FHS env needs gtk2, marked broken in nixpkgs.
       };
   };
 }

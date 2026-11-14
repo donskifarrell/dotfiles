@@ -234,6 +234,7 @@ their host materialises. **Steam/ALVR wired for Quest 3S on abhaile** (2026-10-1
 | P1 | Activate direct-video share | Done; active service observed 2026-10-17 | User reports listing/playback on Quest; live MP4 MIME/ranges correct. Keep manual-start/LAN-only boundaries in docs/quest-video.md. |
 | P1 | Pair Quest 3S over Wi-Fi and USB | Needs headset | Match PC/APK versions, apply SteamVR launch option, authorize USB; pass both transport checks in docs/vr.md. |
 | P1 | Validate direct VR video playback | Read-only WebDAV active; native player check pending | Add anonymous WebDAV http://192.168.178.28:18083/ in native headset player; select actual projection/stereo. PROPFIND/ranges/readonly mount pass. Check headset playback/audio/seek; docs/quest-video.md. Browser player removed. |
+| P1 | Validate DeoVR SMB share | Built, not switched/tested live | `nixos-rebuild switch`, `sudo smbpasswd -a df`, `sudo systemctl start quest-video`. Check `smbclient -L 192.168.178.28 -N` is denied; `smbclient //192.168.178.28/quest -U df -c ls` lists files; `put` fails. Add the share in DeoVR (docs/quest-video.md); stopping quest-video must stop samba-smbd. |
 | P2 | Validate VR game + audio | Initial ALVR screen renders | Test a Linux-compatible game, both eyes/controllers/audio/mic and sustained stability; record settings in docs/vr.md. |
 | P3 | Looking Glass development setup | Deferred; not installed | Follow docs/vr.md prerequisite/design checklist; agree Windows VM and spare GPU plan before any install, VFIO or boot changes. |
 
@@ -396,8 +397,8 @@ port, microphone/Whistle on the phone, collie surviving herdr detach with linger
     6.18.44 with no failed units, default route intact, exit node advertising `0.0.0.0/0 + ::/0`, and sops decrypting
     from a cold boot. **Known first-switch failure** off a 25.11 clan system: root's user `dbus-broker.service` fails to
     reload (25.11→26.11 swaps dbus-daemon for dbus-broker) and deploy-rs rolls back — just run `deploy` again.
-  - Still open: `boot.initrd.systemd.enable` is pinned `false` to match the adopted box while this nixpkgs defaults it
-    true. Flip it as its own reboot-verified step.
+  - Still open: nixpkgs removed the scripted initrd, so the pin to `false` is gone; eachtrach's next reboot is its first
+    systemd-initrd boot. Do a deliberate reboot after the next deploy and verify it comes back.
 
 - 2026-09-05 — **eachtrach: Tailscale SSH off, root ssh + deploys back on the tailnet name.** `ssh eachtrach` failed
   because the host declares no users (it tried `df`, which the tailnet ACL denies) and root was behind Tailscale SSH's

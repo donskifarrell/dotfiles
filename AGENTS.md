@@ -166,8 +166,9 @@ Gotchas (easy to forget):
 - **`system.stateVersion` needs `lib.mkForce "25.11"`** — `core.stateVersion` sets 26.11 as a plain definition.
 - `roles.server` excludes `core.home-manager` as well as `core.systemd.boot`: with no users declared, Den's home-manager
   battery never imports the HM NixOS module, and `core.home-manager`'s settings then fail to evaluate.
-- `core.boot.grub` pins `boot.initrd.systemd.enable = false`. This nixpkgs defaults it to **true**, and eachtrach was
-  adopted on a scripted initrd — flip it as its own reboot-verified step, not folded into another change.
+- nixpkgs removed the scripted initrd (setting `boot.initrd.systemd.enable` is now an eval error). eachtrach was adopted
+  on a scripted initrd, so its first reboot after deploying past that is its first systemd-initrd boot — reboot it
+  deliberately with Hetzner's web console at hand.
 - **First switch off a 25.11 clan system fails once**, on `Failed to reload user unit dbus-broker.service` → "user
   activation for root failed" → deploy-rs rolls back. 25.11→26.11 swaps dbus-daemon for dbus-broker, and activation
   tries to _reload_ root's user dbus-broker before it is running. **Just run `deploy` again** — it succeeds. Watch out
@@ -357,6 +358,9 @@ bubblewrap limitation, not a reason to weaken permissions. Details and the vrmon
 read-only WebDAV, `http://192.168.178.28:18083/`, anonymous, `~/Videos/VR` only. Manual-start, LAN/interface restricted,
 no uploads/deletion/hidden files/symlinks/transcoding. Activated; PROPFIND/range streaming/readonly mount verified.
 Native headset player handles projection; browser player removed. Files now directly below `/` (not `/videos/`).
+The same start command also starts a password-protected read-only SMB share `\\192.168.178.28\quest` for DeoVR (user df,
+with a separate password set by `sudo smbpasswd -a df`; no nmbd/wsdd announcement). The start/stop coupling uses
+`samba.target` `wantedBy = mkForce []` plus `PartOf`. Never enable nmbd/wsdd or guest access.
 DHCP changes need an aspect edit/rebuild. Never expose globally or put unrelated private files in its root.
 
 ## Local LLM inference (abhaile)

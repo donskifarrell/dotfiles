@@ -14,15 +14,9 @@
 # Also absent: `boot.loader.grub.devices`. disko derives it from the layout's
 # EF02 partition, so it stays host data.
 #
-# The initrd compression mirrors core/systemd/boot.nix. `initrd.systemd.enable`
-# does NOT: this nixpkgs (26.11-pre, FlakeHub weekly) defaults it to `true`,
-# but eachtrach was adopted running a scripted initrd, so leaving the default
-# in place would silently fold an initrd-implementation switch into the first
-# reboot after adoption — alongside a new kernel, a regenerated grub config and
-# a networkd config from a different nixpkgs. On a VPS whose only recovery path
-# is Hetzner's web console, that is the wrong number of variables to change at
-# once. Flip it (and reboot deliberately) as its own step; abhaile has run
-# systemd-initrd happily for months, so this is caution, not a known problem.
+# The initrd compression mirrors core/systemd/boot.nix. nixpkgs removed the
+# scripted initrd, so eachtrach (adopted on one) boots systemd-initrd from its
+# next reboot — do that reboot deliberately, Hetzner console at hand.
 {
   den.aspects.core.boot.grub = {
     nixos = {
@@ -30,7 +24,6 @@
         initrd = {
           compressor = "zstd";
           compressorArgs = [ "-12" ];
-          systemd.enable = false;
         };
 
         loader.grub = {
