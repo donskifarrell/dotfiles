@@ -422,3 +422,7 @@ until this aspect is present. `roles.sandbox.dev` installs the same set on its o
 - `pkgs.formats.json.generate` is `__structuredAttrs`, so its value may not carry string context: no store paths in the
   generated VSCode settings.json. Link a script into `$HOME` and reference that path instead.
 - Keep `nix flake update` as its own commit so it can be reverted independently.
+- `wl-copy` on GNOME maps a 1px focus-stealing window (Mutter has no data-control protocol); pop-shell would tile it
+  and resize the terminal on every herdr copy. `services.gnome` floats it via a HM-owned, read-only
+  `~/.config/pop-shell/config.json` — add float exceptions there, not in pop-shell's dialog. Pop-shell reads the file
+  only when its `Ext` object is first built: disable/enable reuses it, so changes need a log out/in.
