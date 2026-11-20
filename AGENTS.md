@@ -269,6 +269,10 @@ Gotchas (easy to forget):
   socket) pointed at an empty read-only placeholder. Slot count lives in **two** places that must agree: `bindSlots`
   (microvm-guest.nix) and `BIND_SLOTS` (pkgs/by-name/scoite/package.nix). It is the one deliberate hole in "workspace is
   the only writable host channel" — credential paths are refused without `--force`.
+- `dev` guests carry a headless Android toolchain (`dev.lang.android`: JDK 17, Gradle 8.9 via `mkGradle`, SDK 35,
+  build-tools 35.0.0, adb; `GRADLE_OPTS` points AGP at the SDK's patched aapt2). No USB in guests: reach a phone with
+  Android Wireless debugging (`adb pair <ip>:<pair-port>` then `adb connect <ip>:<port>`). adb keys live in the guest
+  home, so re-pair after `scoite rm`.
 - herdr is back in both `roles.dev` (abhaile) and the `dev` sandbox tier, with `dev.tools.herdr.autostart`: an
   interactive `ssh scoite-<name>` `exec`s straight into herdr, so detaching ends the ssh session. A non-herdr shell (the
   serial console, a VS Code terminal) still lands in a plain fish in `/workspace`.

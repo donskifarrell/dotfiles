@@ -5,7 +5,7 @@
 #   minimal  shell + git + the agent harness, with internet access and nothing
 #            else — for "run this thing somewhere it can't touch my machine".
 #   dev      (default) the working sandbox: python, node, headless chromium,
-#            compilers/nix-ld, the full TUI shell + git stack, devenv/direnv
+#            compilers/nix-ld, a headless Android SDK + JDK 17/Gradle 8.9, the full TUI shell + git stack, devenv/direnv
 #            and herdr. The guest's nix store overlay and home are both
 #            persistent, so `nix profile install` /
 #            `npm i -g` / `pip install --user` survive stop→start, and a project
@@ -44,6 +44,7 @@
       dev.git.github
       dev.git.lazygit
 
+      dev.lang.android
       dev.lang.node
       dev.lang.python
       dev.lang.nix
