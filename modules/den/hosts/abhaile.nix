@@ -52,6 +52,7 @@ in
 
       apps.gaming.steam
       apps.gaming.alvr
+      dev.tools.android-emulator # scoite guests deploy via adb connect 10.0.2.2:5555
       services.quest-video # manual-start video folder for Wolvic on Quest
 
       # sops-nix secrets + consumers.

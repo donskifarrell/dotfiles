@@ -272,7 +272,9 @@ Gotchas (easy to forget):
 - `dev` guests carry a headless Android toolchain (`dev.lang.android`: JDK 17, Gradle 8.9 via `mkGradle`, SDK 35,
   build-tools 35.0.0, adb; `GRADLE_OPTS` points AGP at the SDK's patched aapt2). No USB in guests: reach a phone with
   Android Wireless debugging (`adb pair <ip>:<pair-port>` then `adb connect <ip>:<port>`). adb keys live in the guest
-  home, so re-pair after `scoite rm`.
+  home, so re-pair after `scoite rm`. Or run `android-emulator` on abhaile (`dev.tools.android-emulator`, host-only:
+  Android 35 x86_64 on KVM, AVD in `~/.android/avd`) and `adb connect 10.0.2.2:5555` from the guest — every running
+  guest can reach that loopback port, so stop it when done.
 - herdr is back in both `roles.dev` (abhaile) and the `dev` sandbox tier, with `dev.tools.herdr.autostart`: an
   interactive `ssh scoite-<name>` `exec`s straight into herdr, so detaching ends the ssh session. A non-herdr shell (the
   serial console, a VS Code terminal) still lands in a plain fish in `/workspace`.
