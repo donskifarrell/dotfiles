@@ -130,6 +130,10 @@
 
         serviceConfig = {
           Type = "oneshot";
+          # Boot trigger + 03:30 trigger: skip (not fail) once today's pull is done.
+          ExecCondition = pkgs.writeShellScript "bbm-backup-pull-due" ''
+            [ "$(${pkgs.coreutils}/bin/readlink ${dest}/latest 2>/dev/null)" != "daily.$(${pkgs.coreutils}/bin/date +%Y-%m-%d)" ]
+          '';
           ExecStart = pkgs.writeShellScript "bbm-backup-pull" ''
             set -euo pipefail
             stamp="$(${pkgs.coreutils}/bin/date +%Y-%m-%d)"
@@ -151,10 +155,13 @@
             # accounts happen to hold eachtrach's bbm uid — on abhaile that
             # resolved to unrelated system users, who could then read the
             # ledger. Root-owned with the same 0640/0750 modes is what we want.
+            # /sqlite.db* also skips stray raw copies (e.g. a root-owned
+            # sqlite.db.bak-* made by hand): unreadable to bbm-backup, they
+            # failed every run, and are never consistent anyway — backup/ is.
             ${pkgs.rsync}/bin/rsync -rlptD --delete \
               -e '${pkgs.openssh}/bin/ssh -i ${keyFile} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o BatchMode=yes' \
               "''${link[@]}" \
-              --exclude=/sqlite.db --exclude=/sqlite.db-wal --exclude=/sqlite.db-shm \
+              --exclude='/sqlite.db*' \
               ${remote}:${source} "${dest}/daily.$stamp/"
 
             ${pkgs.coreutils}/bin/ln -sfn "daily.$stamp" ${dest}/latest
@@ -172,10 +179,11 @@
       systemd.timers.bbm-backup-pull = {
         description = "Daily bbm backup pull from eachtrach";
         wantedBy = [ "timers.target" ];
+        # abhaile is often off at 03:30: OnBootSec catches up 5 min after boot
+        # (time for tailscale) instead of Persistent's immediate boot run.
         timerConfig = {
           OnCalendar = "03:30";
-          Persistent = true;
-          RandomizedDelaySec = "10m";
+          OnBootSec = "5m";
         };
       };
     };

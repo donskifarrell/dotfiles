@@ -226,7 +226,7 @@
           # Empty = the Analysis settings -> AI provider panel returns
           # PermissionDenied to everyone. Your id is in the web app under "How to
           # set up the AI assistant".
-          AGENT_ADMIN_USER_IDS=
+          AGENT_ADMIN_USER_IDS=90249595-2487-43a2-9232-5f1188eaad45
         '';
       };
 
@@ -258,12 +258,13 @@
           SQLITE_PATH = "${stateDir}/sqlite.db";
           STORAGE_BASE_PATH = "${stateDir}/data";
 
-          # One origin for both the GoCardless consent redirect and the CORS
-          # allowlist (bbm's internal/weburl resolves it). Same-origin serving
-          # means CORS never actually fires, but naming it explicitly keeps a
-          # stray preflight from being answered with a wildcard.
-          WEB_BASE_URL = origin;
-          WEB_CORS_ORIGINS = origin;
+          # Base URL (GoCardless consent redirect, via bbm's internal/weburl) is
+          # always https; CORS allows both schemes so either works regardless
+          # of useTLS. Same-origin serving means CORS never actually fires, but
+          # naming it explicitly keeps a stray preflight from being answered
+          # with a wildcard.
+          WEB_BASE_URL = "https://${fqdn}";
+          WEB_CORS_ORIGINS = "https://${fqdn},http://${fqdn}";
         };
 
         serviceConfig = {

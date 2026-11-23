@@ -202,10 +202,12 @@ eachtrach, smoke-test metrics/logs/traces, and only then add Grafana alerting/Te
 ## Backups
 
 - **eachtrach** `bbm-snapshot.timer` 03:00 → `sqlite3 ".backup"` to `/var/lib/bbm/backup/sqlite.db`.
-- **abhaile** `bbm-backup-pull.timer` 03:30 → rsync `/var/lib/bbm/` → `/var/lib/bbm-backup/daily.<date>/`, `--link-dest`
-  against `latest`, 14 dailies kept, root:root 0700.
+- **abhaile** `bbm-backup-pull.timer` 03:30 and 5 min after boot → rsync `/var/lib/bbm/` →
+  `/var/lib/bbm-backup/daily.<date>/`, `--link-dest` against `latest`, 14 dailies kept, root:root 0700. `ExecCondition`
+  skips the run once `latest` already points at today. Any rsync error (exit 23) fails the unit before `latest` moves —
+  check `journalctl -u bbm-backup-pull` if `latest` is stale.
 
-The live `sqlite.db`/`-wal`/`-shm` are **excluded**; only the `.backup` snapshot is kept. rsync-ing a live WAL database
+Every top-level `sqlite.db*` (live db, `-wal`/`-shm`, stray raw copies) is **excluded**; only the `.backup` snapshot is kept. rsync-ing a live WAL database
 gives a torn file that still looks valid — the worst way to discover a bad backup. `data/` is copied whole and is the
 irreplaceable half: the ledger rebuilds from the raw feed pulls and uploads, not the other way round.
 
