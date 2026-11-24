@@ -215,6 +215,10 @@ Restore: stop `bbm`, copy `daily.<date>/backup/sqlite.db` → `/var/lib/bbm/sqli
 `daily.<date>/data/` → `/var/lib/bbm/data/`, `chown -R bbm:bbm`, start `bbm`. Check a snapshot any time:
 `sqlite3 <file> "pragma integrity_check;"`.
 
+Dev copy: `bbm-restore-dev [dir]` (dotfiles devshell, `pkgs/by-name/bbm-restore-dev`; default `~/dev/bbm/data`, uses sudo) integrity-checks `latest/backup/sqlite.db`,
+replaces `sqlite.db` (drops `-wal`/`-shm`) and mirrors `latest/data/*` with `--delete`, owned by you, `go=`. Other
+top-level local entries (`agent/`, `analysis/`, …) are kept. Stop the dev server first.
+
 ## Gotchas
 
 - **`ENV` must be exactly `prod`, not `production`.** The overlay filename is built from it (`.env.$ENV`), so the

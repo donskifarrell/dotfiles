@@ -88,7 +88,14 @@
           {
             package = config.packages.bbm-deploy;
             name = "bbm-deploy";
+            category = "bbm";
             help = "Build bbm from a local checkout and deploy it to eachtrach";
+          }
+          {
+            package = config.packages.bbm-restore-dev;
+            name = "bbm-restore-dev";
+            category = "bbm";
+            help = "Copy abhaile's latest bbm backup into ~/dev/bbm/data (or [dir]); stop the dev server first";
           }
           {
             package = config.packages.den-tree;
